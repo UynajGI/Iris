@@ -41,7 +41,7 @@ jobs:
           toolchain: stable-x86_64-pc-windows-gnu
       - uses: Swatinem/rust-cache@v2
         with:
-          save-if: ${{ always() }}
+          save-if: 'true'
           workspaces: |
             . -> target
             apps/shell/src-tauri -> target
@@ -97,7 +97,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
-          save-if: ${{ always() }}
+          save-if: 'true'
           workspaces: |
             . -> target
             apps/shell/src-tauri -> target
