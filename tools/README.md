@@ -1,5 +1,9 @@
 # 开发工具入口
 
+`verify-unix.py` 在临时目录中验证 Unix 包的文件哈希、原生宿主/daemon 心跳和合成 PNG 的 CPU 分析，不使用或修改用户照片。
+
+`package-dependency-source.py` 收集锁定的 Rust 依赖与前端 npm 分发源码，连同许可文件提供到 Beta 包内的 `sources/dependency-sources.zip`；主应用源码和独立 RAW 重建包分别保留。
+
 发布工具：`check-release.py` 校验 Tag 与应用版本；`onnx_runtime.py` 为 macOS/Linux 准备哈希固定的 CPU 运行库，由 `setup-models.py` 调用；`package-unix.py` 组装原生 Unix Beta 包。流程与限制见[发布文档](../docs/releasing.md)。
 
 `tools/` 包含模型准备、媒体运行库准备、验证、评估和打包脚本。统一入口是根目录

@@ -45,6 +45,7 @@ def main():
     shutil.copytree(ROOT / "apps/shell/dist", binary / "frontend")
     subprocess.run([sys.executable, ROOT / "tools/package-source.py", "--output", output / "sources/iris-application-source.zip"], check=True)
     subprocess.run([sys.executable, ROOT / "tools/package-relink-source.py", "--output", output / "sources/raw-decoder-source.zip"], check=True)
+    subprocess.run([sys.executable, ROOT / "tools/package-dependency-source.py", "--output", output / "sources/dependency-sources.zip"], check=True)
     if mac:
         version = json.loads((ROOT / "apps/shell/package.json").read_text())["version"]
         info = {"CFBundleExecutable": "iris-shell", "CFBundleName": "Iris", "CFBundleIdentifier": "local.irisvision.app", "CFBundlePackageType": "APPL", "CFBundleShortVersionString": version.split("-")[0], "CFBundleVersion": version.split("-")[0], "NSHighResolutionCapable": True}
@@ -56,6 +57,7 @@ def main():
     (output / "README.txt").write_text("Iris experimental CPU beta. Start with Launch.command (macOS) or ./Launch.sh (Linux).\nLinux requires WebKitGTK 4.1 and GTK 3 (Ubuntu 22.04+). macOS is not notarized.\nJPEG/PNG/WebP and CPU analysis are included. HEIC runtime and ExifTool are not bundled on Unix yet; RAW uses the independent bounded converter. DirectML is Windows-only.\nCLI/MCP executables and models are beside iris-shell; on macOS inside Iris.app/Contents/MacOS.\nUse disposable authorized photos for testing and report OS, architecture and reproduction steps.\nSources and third-party notices are included. No user photographs or optional model weights are included.\n")
     entries = [{"path": p.relative_to(output).as_posix(), "sha256": hashlib.sha256(p.read_bytes()).hexdigest()} for p in sorted(output.rglob("*")) if p.is_file()]
     (output / "checksums.json").write_text(json.dumps(entries, indent=2) + "\n")
+    subprocess.run([sys.executable, ROOT / "tools/verify-unix.py", "--bundle", output], check=True)
     archive = Path(str(output) + ".tar.gz")
     if archive.exists():
         raise ValueError("Archive already exists")

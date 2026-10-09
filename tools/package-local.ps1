@@ -147,6 +147,8 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'LGPL relink source packaging failed' }
     & python (Join-Path $PSScriptRoot 'package-source.py') --output (Join-Path $outputRoot 'sources/iris-application-source.zip')
     if ($LASTEXITCODE -ne 0) { throw 'Application source export failed; commit and validate the release tree first' }
+    & python (Join-Path $PSScriptRoot 'package-dependency-source.py') --output (Join-Path $outputRoot 'sources/dependency-sources.zip')
+    if ($LASTEXITCODE -ne 0) { throw 'Dependency source packaging failed' }
     Copy-Item -LiteralPath (Join-Path $repositoryRoot 'LICENSE'),(Join-Path $repositoryRoot 'THIRD_PARTY_NOTICES.md') -Destination $outputRoot
     Copy-Item -LiteralPath (Join-Path $repositoryRoot 'docs/openapi.json') -Destination (Join-Path $outputRoot 'openapi.json')
     $licenses = Join-Path $outputRoot 'licenses'
