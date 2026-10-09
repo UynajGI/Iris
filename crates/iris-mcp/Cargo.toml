@@ -1,0 +1,23 @@
+[package]
+name = "iris-mcp"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+iris-core = { path = "../iris-core" }
+iris-daemon = { path = "../iris-daemon" }
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+utoipa.workspace = true
+rmcp = { version = "=3.5.1", features = ["server", "transport-io"] }
+tokio = { version = "1", features = ["full"] }
+clap = { version = "4", features = ["derive"] }
+axum = "0.8"
+tower = { version = "0.5", features = ["util"] }
+base64 = "0.22"
+url = "2"
+
+[dev-dependencies]
+tempfile = "3"

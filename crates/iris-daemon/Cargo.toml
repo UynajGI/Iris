@@ -1,0 +1,27 @@
+[package]
+name = "iris-daemon"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+iris-core = { path = "../iris-core" }
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+utoipa.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+axum = { version = "0.8", features = ["ws"] }
+tokio = { version = "1", features = ["full"] }
+tokio-util = { version = "0.7", features = ["io"] }
+tower-http = { version = "0.6", features = ["cors"] }
+clap = { version = "4", features = ["derive"] }
+futures-util = "0.3"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "system-proxy"] }
+sha2 = "0.10"
+
+[dev-dependencies]
+tempfile = "3"
+tower = { version = "0.5", features = ["util"] }
+http-body-util = "0.1"

@@ -1,0 +1,3703 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "iris-daemon",
+    "description": "",
+    "license": {
+      "name": "GPL-3.0-or-later",
+      "identifier": "GPL-3.0-or-later"
+    },
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/v1/bootstrap": {
+      "get": {
+        "tags": [],
+        "operationId": "bootstrap",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Bootstrap"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/devices/gpu": {
+      "get": {
+        "tags": [],
+        "operationId": "gpu_devices",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GpuDevices"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Session token required"
+          }
+        }
+      }
+    },
+    "/api/v1/models": {
+      "get": {
+        "tags": [
+          "operations"
+        ],
+        "operationId": "models",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelStatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/models/install": {
+      "get": {
+        "tags": [
+          "model_installer"
+        ],
+        "operationId": "status",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstallProgress"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "model_installer"
+        ],
+        "operationId": "start",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InstallRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstallProgress"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/models/install/cancel": {
+      "post": {
+        "tags": [
+          "model_installer"
+        ],
+        "operationId": "cancel_model_install",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstallProgress"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/models/optional": {
+      "get": {
+        "tags": [
+          "model_installer"
+        ],
+        "operationId": "catalog",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OptionalModel"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/photos/{id}": {
+      "get": {
+        "tags": [],
+        "operationId": "photo",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Photo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/photos/{id}/original": {
+      "get": {
+        "tags": [
+          "operations"
+        ],
+        "operationId": "original",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Unmodified source bytes; RAW and HEIC review uses JPEG previews",
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "format": "int32",
+                    "minimum": 0
+                  }
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "format": "int32",
+                    "minimum": 0
+                  }
+                }
+              },
+              "image/webp": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "format": "int32",
+                    "minimum": 0
+                  }
+                }
+              },
+              "image/heic": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "format": "int32",
+                    "minimum": 0
+                  }
+                }
+              },
+              "application/octet-stream": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "format": "int32",
+                    "minimum": 0
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/photos/{id}/preview": {
+      "get": {
+        "tags": [
+          "operations"
+        ],
+        "operationId": "preview",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "JPEG preview",
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "format": "int32",
+                    "minimum": 0
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/photos/{id}/thumb": {
+      "get": {
+        "tags": [
+          "operations"
+        ],
+        "operationId": "thumb",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "JPEG thumbnail",
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "format": "int32",
+                    "minimum": 0
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/profiles": {
+      "get": {
+        "tags": [
+          "operations"
+        ],
+        "operationId": "profiles",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Profile"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "operations"
+        ],
+        "operationId": "save_profile",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Profile"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Profile"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/profiles/{name}": {
+      "delete": {
+        "tags": [
+          "operations"
+        ],
+        "operationId": "delete_profile",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/profiles/{name}/apply": {
+      "post": {
+        "tags": [
+          "operations"
+        ],
+        "operationId": "apply_profile",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisSettings"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects": {
+      "get": {
+        "tags": [],
+        "operationId": "projects",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Project"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [],
+        "operationId": "create_project",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProject"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}": {
+      "get": {
+        "tags": [],
+        "operationId": "project",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/accept": {
+      "post": {
+        "tags": [],
+        "operationId": "accept",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/AcceptRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionBatch"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/analyze": {
+      "post": {
+        "tags": [
+          "operations"
+        ],
+        "operationId": "analyze",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/AnalyzeRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobProgress"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/cache": {
+      "get": {
+        "tags": [
+          "operations"
+        ],
+        "operationId": "cache_status",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CacheStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/cache/cleanup": {
+      "post": {
+        "tags": [
+          "operations"
+        ],
+        "operationId": "cache_cleanup",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CacheStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/cache/migrate": {
+      "post": {
+        "tags": [
+          "operations"
+        ],
+        "operationId": "cache_migrate",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DestinationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CacheStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/cache/migrations": {
+      "get": {
+        "tags": [
+          "operations"
+        ],
+        "operationId": "cache_migrations",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CacheMigration"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/cache/migrations/{migration_id}/cleanup": {
+      "post": {
+        "tags": [
+          "operations"
+        ],
+        "operationId": "cache_cleanup_old",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "migration_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CacheMigration"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/cancel": {
+      "post": {
+        "tags": [],
+        "operationId": "cancel",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobProgress"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/decisions": {
+      "post": {
+        "tags": [],
+        "operationId": "decisions",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionBatch"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/export/copy": {
+      "post": {
+        "tags": [
+          "operations"
+        ],
+        "operationId": "export_copy",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportReport"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/export/csv": {
+      "post": {
+        "tags": [
+          "operations"
+        ],
+        "operationId": "export_csv",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DestinationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportReport"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/export/xmp": {
+      "post": {
+        "tags": [
+          "operations"
+        ],
+        "operationId": "export_xmp",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportReport"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/groups": {
+      "get": {
+        "tags": [],
+        "operationId": "groups",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BurstGroup"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/hide": {
+      "post": {
+        "tags": [],
+        "operationId": "hide_project",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/import/csv": {
+      "post": {
+        "tags": [
+          "operations"
+        ],
+        "operationId": "import_csv",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SourceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionBatch"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/marks": {
+      "post": {
+        "tags": [],
+        "operationId": "marks",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MarkRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionBatch"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/open": {
+      "post": {
+        "tags": [],
+        "operationId": "open_project",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/pause": {
+      "post": {
+        "tags": [],
+        "operationId": "pause",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobProgress"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/photos": {
+      "get": {
+        "tags": [],
+        "operationId": "photos",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "decision",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Action"
+            }
+          },
+          {
+            "name": "rating",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "color_label",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/ColorLabel"
+            }
+          },
+          {
+            "name": "verdict",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "descending",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "include_missing",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Photo"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/profiles/{name}/estimate": {
+      "post": {
+        "tags": [
+          "operations"
+        ],
+        "operationId": "estimate_profile",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/progress": {
+      "get": {
+        "tags": [],
+        "operationId": "progress",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobProgress"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/quarantine": {
+      "get": {
+        "tags": [
+          "operations"
+        ],
+        "operationId": "quarantine_history",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/QuarantinePlan"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/quarantine/commit": {
+      "post": {
+        "tags": [
+          "operations"
+        ],
+        "operationId": "quarantine_commit",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManifestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuarantinePlan"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/quarantine/preview": {
+      "post": {
+        "tags": [
+          "operations"
+        ],
+        "operationId": "quarantine_preview",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuarantinePlan"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/quarantine/restore": {
+      "post": {
+        "tags": [
+          "operations"
+        ],
+        "operationId": "quarantine_restore",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManifestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuarantinePlan"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/resume": {
+      "post": {
+        "tags": [],
+        "operationId": "resume",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobProgress"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/scan": {
+      "post": {
+        "tags": [
+          "operations"
+        ],
+        "operationId": "scan",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ScanRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobProgress"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/undo": {
+      "post": {
+        "tags": [],
+        "operationId": "undo",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionBatch"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings": {
+      "get": {
+        "tags": [
+          "operations"
+        ],
+        "operationId": "settings",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisSettings"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "operations"
+        ],
+        "operationId": "put_settings",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalysisSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisSettings"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AcceptCategory": {
+        "type": "string",
+        "enum": [
+          "all",
+          "recommend",
+          "reject_suggest"
+        ]
+      },
+      "AcceptRequest": {
+        "type": "object",
+        "properties": {
+          "category": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/AcceptCategory"
+              }
+            ],
+            "default": "all"
+          },
+          "photo_ids": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "Omitted means all active project photos; an empty list means no photos.",
+            "default": null
+          }
+        },
+        "additionalProperties": false
+      },
+      "Action": {
+        "type": "string",
+        "enum": [
+          "keep",
+          "reject",
+          "pending",
+          "flag"
+        ]
+      },
+      "AnalysisSettings": {
+        "type": "object",
+        "properties": {
+          "directml_device_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "default": null,
+            "minimum": 0
+          },
+          "embedding_model_sha256": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": null
+          },
+          "embedding_provider": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/EmbeddingProvider"
+              }
+            ],
+            "default": "none"
+          },
+          "enable_niqe": {
+            "type": "boolean",
+            "default": true
+          },
+          "execution_provider": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ExecutionProvider"
+              }
+            ],
+            "default": "cpu"
+          },
+          "exposure_weight": {
+            "type": "number",
+            "format": "double",
+            "default": 20.0
+          },
+          "eyes_weight": {
+            "type": "number",
+            "format": "double",
+            "default": 25.0
+          },
+          "face_confidence": {
+            "type": "number",
+            "format": "float",
+            "default": 0.550000011920929
+          },
+          "face_detector": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/FaceDetectorProvider"
+              }
+            ],
+            "default": "yunet"
+          },
+          "face_weight": {
+            "type": "number",
+            "format": "double",
+            "default": 20.0
+          },
+          "max_faces": {
+            "type": "integer",
+            "default": 10,
+            "minimum": 0
+          },
+          "niqe_weight": {
+            "type": "number",
+            "format": "double",
+            "default": 0.2
+          },
+          "occlusion_min_visible_fraction": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "float",
+            "default": null
+          },
+          "occlusion_model_sha256": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": null
+          },
+          "occlusion_provider": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/OcclusionProvider"
+              }
+            ],
+            "default": "none"
+          },
+          "recommend_threshold": {
+            "type": "number",
+            "format": "double",
+            "default": 70.0
+          },
+          "reject_threshold": {
+            "type": "number",
+            "format": "double",
+            "default": 25.0
+          },
+          "scrfd_model_sha256": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": null
+          },
+          "semantic_similarity_threshold": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "float",
+            "default": null
+          },
+          "sharpness_weight": {
+            "type": "number",
+            "format": "double",
+            "default": 25.0
+          },
+          "smile_weight": {
+            "type": "number",
+            "format": "double",
+            "default": 10.0
+          }
+        },
+        "additionalProperties": false
+      },
+      "AnalysisStatus": {
+        "type": "string",
+        "enum": [
+          "missing",
+          "current",
+          "stale"
+        ]
+      },
+      "AnalyzeRequest": {
+        "type": "object",
+        "properties": {
+          "retry_failed_only": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "Bootstrap": {
+        "type": "object",
+        "required": [
+          "version",
+          "capabilities"
+        ],
+        "properties": {
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "recovery_notice": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      },
+      "BurstGroup": {
+        "type": "object",
+        "required": [
+          "id",
+          "project_id",
+          "kind",
+          "member_photo_ids"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "member_photo_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "project_id": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "CacheMigration": {
+        "type": "object",
+        "required": [
+          "id",
+          "project_id",
+          "source_root",
+          "destination_root",
+          "created_at",
+          "state",
+          "files"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string"
+          },
+          "destination_root": {
+            "type": "string"
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CacheMigrationFile"
+            }
+          },
+          "id": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "source_root": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          }
+        }
+      },
+      "CacheMigrationFile": {
+        "type": "object",
+        "required": [
+          "path",
+          "size_bytes",
+          "sha256",
+          "cleaned"
+        ],
+        "properties": {
+          "cleaned": {
+            "type": "boolean"
+          },
+          "path": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "CacheStatus": {
+        "type": "object",
+        "required": [
+          "root",
+          "files",
+          "bytes"
+        ],
+        "properties": {
+          "bytes": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "files": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "root": {
+            "type": "string"
+          }
+        }
+      },
+      "ColorLabel": {
+        "type": "string",
+        "enum": [
+          "none",
+          "red",
+          "yellow",
+          "green",
+          "blue",
+          "purple"
+        ]
+      },
+      "Composition": {
+        "type": "object",
+        "description": "Explainable portrait-placement geometry, not a learned aesthetic assessment.",
+        "required": [
+          "subject",
+          "thirds_distance",
+          "center_distance",
+          "score",
+          "method"
+        ],
+        "properties": {
+          "center_distance": {
+            "type": "number",
+            "format": "double"
+          },
+          "method": {
+            "type": "string"
+          },
+          "score": {
+            "type": "number",
+            "format": "double"
+          },
+          "subject": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "float"
+            }
+          },
+          "thirds_distance": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "CreateProject": {
+        "type": "object",
+        "required": [
+          "root"
+        ],
+        "properties": {
+          "auto_device": {
+            "type": "boolean"
+          },
+          "root": {
+            "type": "string"
+          }
+        }
+      },
+      "DecisionBatch": {
+        "type": "object",
+        "required": [
+          "id",
+          "changed",
+          "conflicts"
+        ],
+        "properties": {
+          "changed": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "conflicts": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "id": {
+            "type": "string"
+          }
+        }
+      },
+      "DecisionRequest": {
+        "type": "object",
+        "required": [
+          "photo_ids",
+          "action"
+        ],
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/Action"
+          },
+          "link_variants": {
+            "type": "boolean"
+          },
+          "photo_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        }
+      },
+      "DestinationRequest": {
+        "type": "object",
+        "required": [
+          "destination"
+        ],
+        "properties": {
+          "destination": {
+            "type": "string"
+          }
+        }
+      },
+      "DetectorModelStatus": {
+        "type": "object",
+        "description": "`available` means file/hash/metadata checks passed, not inference or accuracy validation.",
+        "required": [
+          "provider",
+          "state"
+        ],
+        "properties": {
+          "provider": {
+            "$ref": "#/components/schemas/FaceDetectorProvider"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sha256": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Actual SHA-256 of bytes read; null when no model bytes could be inspected."
+          },
+          "state": {
+            "$ref": "#/components/schemas/ModelAvailability"
+          }
+        }
+      },
+      "EmbeddingModelStatus": {
+        "type": "object",
+        "required": [
+          "provider",
+          "state",
+          "dimensions",
+          "preprocessing"
+        ],
+        "properties": {
+          "dimensions": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "preprocessing": {
+            "type": "string"
+          },
+          "provider": {
+            "$ref": "#/components/schemas/EmbeddingProvider"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sha256": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "SHA-256 verified against the pinned local artifact; absent on failure."
+          },
+          "state": {
+            "$ref": "#/components/schemas/ModelAvailability"
+          }
+        }
+      },
+      "EmbeddingProvider": {
+        "type": "string",
+        "enum": [
+          "none",
+          "dinov3_vits16"
+        ]
+      },
+      "ExecutionFeedback": {
+        "type": "object",
+        "required": [
+          "phase",
+          "selected_provider",
+          "completed_items",
+          "warnings"
+        ],
+        "properties": {
+          "completed_items": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "device_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "device_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "phase": {
+            "type": "string"
+          },
+          "selected_provider": {
+            "$ref": "#/components/schemas/ExecutionProvider"
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "ExecutionProvider": {
+        "type": "string",
+        "enum": [
+          "cpu",
+          "directml",
+          "auto"
+        ]
+      },
+      "ExportReport": {
+        "type": "object",
+        "required": [
+          "written",
+          "skipped",
+          "paths"
+        ],
+        "properties": {
+          "paths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "skipped": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "written": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "ExportRequest": {
+        "type": "object",
+        "properties": {
+          "destination": {
+            "type": "string"
+          },
+          "overwrite": {
+            "type": "boolean"
+          },
+          "scope": {
+            "type": "string"
+          }
+        }
+      },
+      "Exposure": {
+        "type": "object",
+        "required": [
+          "mean",
+          "shadow_clip",
+          "highlight_clip",
+          "verdict"
+        ],
+        "properties": {
+          "highlight_clip": {
+            "type": "number",
+            "format": "double"
+          },
+          "mean": {
+            "type": "number",
+            "format": "double"
+          },
+          "shadow_clip": {
+            "type": "number",
+            "format": "double"
+          },
+          "verdict": {
+            "type": "string"
+          }
+        }
+      },
+      "Eye": {
+        "type": "object",
+        "required": [
+          "state",
+          "ear"
+        ],
+        "properties": {
+          "blink_score": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "float"
+          },
+          "ear": {
+            "type": "number",
+            "format": "float"
+          },
+          "state": {
+            "$ref": "#/components/schemas/EyeState"
+          }
+        }
+      },
+      "EyeState": {
+        "type": "string",
+        "enum": [
+          "open",
+          "closed",
+          "uncertain"
+        ]
+      },
+      "EyeVisibility": {
+        "type": "object",
+        "description": "Visible-face mask measurements in a fixed eye-corner ROI, not calibrated occlusion probabilities.",
+        "required": [
+          "visible_fraction",
+          "mean_probability",
+          "sampled_pixels",
+          "method"
+        ],
+        "properties": {
+          "mean_probability": {
+            "type": "number",
+            "format": "float"
+          },
+          "method": {
+            "type": "string"
+          },
+          "sampled_pixels": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "visible_fraction": {
+            "type": "number",
+            "format": "float"
+          }
+        }
+      },
+      "Face": {
+        "type": "object",
+        "required": [
+          "index",
+          "bbox",
+          "confidence",
+          "landmarks"
+        ],
+        "properties": {
+          "bbox": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "float"
+            }
+          },
+          "confidence": {
+            "type": "number",
+            "format": "float"
+          },
+          "head_pose": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/HeadPose"
+              }
+            ]
+          },
+          "index": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "landmark_confidence": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "float"
+          },
+          "landmarks": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "format": "float"
+              }
+            }
+          },
+          "left_eye": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Eye"
+              }
+            ]
+          },
+          "left_eye_unreliable_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "left_eye_visibility": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/EyeVisibility"
+              }
+            ]
+          },
+          "quality": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/FaceQuality"
+              }
+            ]
+          },
+          "quality_unavailable_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "right_eye": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Eye"
+              }
+            ]
+          },
+          "right_eye_unreliable_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "right_eye_visibility": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/EyeVisibility"
+              }
+            ]
+          },
+          "smile_score": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "float"
+          },
+          "unreliable_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "FaceDetectorProvider": {
+        "type": "string",
+        "enum": [
+          "yunet",
+          "scrfd_500m"
+        ]
+      },
+      "FaceQuality": {
+        "type": "object",
+        "required": [
+          "method",
+          "crop_width",
+          "crop_height",
+          "sharpness_lap",
+          "exposure",
+          "sharpness_score",
+          "exposure_score",
+          "resolution_score",
+          "score"
+        ],
+        "properties": {
+          "crop_height": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "crop_width": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "exposure": {
+            "$ref": "#/components/schemas/Exposure"
+          },
+          "exposure_score": {
+            "type": "number",
+            "format": "double"
+          },
+          "method": {
+            "type": "string"
+          },
+          "resolution_score": {
+            "type": "number",
+            "format": "double"
+          },
+          "score": {
+            "type": "number",
+            "format": "double"
+          },
+          "sharpness_lap": {
+            "type": "number",
+            "format": "double"
+          },
+          "sharpness_score": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "GpuAdapter": {
+        "type": "object",
+        "required": [
+          "device_id",
+          "name",
+          "vendor_id",
+          "hardware_device_id",
+          "luid",
+          "dedicated_video_memory_bytes",
+          "dedicated_system_memory_bytes",
+          "shared_system_memory_bytes",
+          "is_software",
+          "is_remote"
+        ],
+        "properties": {
+          "dedicated_system_memory_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "dedicated_video_memory_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Adapter capacities, not current memory usage or free-memory budgets.",
+            "minimum": 0
+          },
+          "device_id": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Pass unchanged as AnalysisSettings.directml_device_id. Never reindex a filtered list.",
+            "minimum": 0
+          },
+          "hardware_device_id": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "is_integrated": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "D3D12 UMA query; absent when this adapter cannot create a D3D12 device."
+          },
+          "is_remote": {
+            "type": "boolean"
+          },
+          "is_software": {
+            "type": "boolean"
+          },
+          "luid": {
+            "type": "string",
+            "description": "DXGI adapter LUID, useful within the current Windows boot; not a persistent ID."
+          },
+          "name": {
+            "type": "string"
+          },
+          "shared_system_memory_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "vendor_id": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        }
+      },
+      "GpuDevices": {
+        "type": "object",
+        "required": [
+          "status",
+          "source",
+          "adapters",
+          "inference_verified"
+        ],
+        "properties": {
+          "adapters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GpuAdapter"
+            }
+          },
+          "default_device_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "DirectML's default index 0 when it exists, not a fastest-device recommendation.",
+            "minimum": 0
+          },
+          "inference_verified": {
+            "type": "boolean",
+            "description": "Always false: presence does not establish runtime/model compatibility or speed."
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source": {
+            "type": "string",
+            "description": "\"dxgi_enum_adapters\" on Windows, \"unsupported\" elsewhere."
+          },
+          "status": {
+            "$ref": "#/components/schemas/GpuEnumerationStatus"
+          }
+        }
+      },
+      "GpuEnumerationStatus": {
+        "type": "string",
+        "enum": [
+          "available",
+          "unavailable",
+          "unsupported"
+        ]
+      },
+      "HeadPose": {
+        "type": "object",
+        "required": [
+          "yaw",
+          "pitch",
+          "roll",
+          "method"
+        ],
+        "properties": {
+          "method": {
+            "type": "string"
+          },
+          "pitch": {
+            "type": "number",
+            "format": "float"
+          },
+          "roll": {
+            "type": "number",
+            "format": "float"
+          },
+          "yaw": {
+            "type": "number",
+            "format": "float"
+          }
+        }
+      },
+      "InstallProgress": {
+        "type": "object",
+        "required": [
+          "model",
+          "state",
+          "completed_bytes",
+          "total_bytes"
+        ],
+        "properties": {
+          "completed_bytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "model": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "total_bytes": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "InstallRequest": {
+        "type": "object",
+        "required": [
+          "model"
+        ],
+        "properties": {
+          "model": {
+            "type": "string"
+          },
+          "source_folder": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Omitted selects the pinned public download; otherwise read this local folder."
+          }
+        },
+        "additionalProperties": false
+      },
+      "JobProgress": {
+        "type": "object",
+        "required": [
+          "kind",
+          "state",
+          "completed",
+          "total",
+          "errors"
+        ],
+        "properties": {
+          "completed": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "execution": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExecutionFeedback"
+            }
+          },
+          "failed_photo_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "failed_scan_paths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "found_photos": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "previous_execution": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExecutionFeedback"
+            }
+          },
+          "result": {},
+          "root_unavailable": {
+            "type": "boolean"
+          },
+          "state": {
+            "type": "string"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "ManifestRequest": {
+        "type": "object",
+        "required": [
+          "manifest_id"
+        ],
+        "properties": {
+          "manifest_id": {
+            "type": "string"
+          }
+        }
+      },
+      "MarkRequest": {
+        "type": "object",
+        "required": [
+          "photo_ids"
+        ],
+        "properties": {
+          "color_label": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ColorLabel"
+              }
+            ]
+          },
+          "decision": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Action",
+                "description": "Omitted fields remain unchanged. Use pending, zero, or none to clear."
+              }
+            ]
+          },
+          "photo_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "rating": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "ModelAvailability": {
+        "type": "string",
+        "enum": [
+          "disabled",
+          "available",
+          "missing",
+          "invalid"
+        ]
+      },
+      "ModelStatusResponse": {
+        "type": "object",
+        "required": [
+          "selected",
+          "detectors",
+          "occlusion_selected",
+          "occlusion",
+          "embedding_selected",
+          "embeddings"
+        ],
+        "properties": {
+          "detectors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DetectorModelStatus"
+            }
+          },
+          "embedding_selected": {
+            "$ref": "#/components/schemas/EmbeddingProvider"
+          },
+          "embeddings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EmbeddingModelStatus"
+            }
+          },
+          "occlusion": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OcclusionModelStatus"
+            }
+          },
+          "occlusion_selected": {
+            "$ref": "#/components/schemas/OcclusionProvider"
+          },
+          "selected": {
+            "$ref": "#/components/schemas/FaceDetectorProvider"
+          }
+        }
+      },
+      "OcclusionModelStatus": {
+        "type": "object",
+        "required": [
+          "provider",
+          "state"
+        ],
+        "properties": {
+          "provider": {
+            "$ref": "#/components/schemas/OcclusionProvider"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sha256": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Actual hash of read bytes. Available only describes artifact checks, not inference or licensing."
+          },
+          "state": {
+            "$ref": "#/components/schemas/ModelAvailability"
+          }
+        }
+      },
+      "OcclusionProvider": {
+        "type": "string",
+        "enum": [
+          "none",
+          "faceocc"
+        ]
+      },
+      "OptionalModel": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "bytes",
+          "sha256",
+          "state",
+          "license",
+          "license_url"
+        ],
+        "properties": {
+          "bytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "id": {
+            "type": "string"
+          },
+          "license": {
+            "type": "string"
+          },
+          "license_url": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      },
+      "Photo": {
+        "type": "object",
+        "required": [
+          "id",
+          "project_id",
+          "path",
+          "filename",
+          "format",
+          "mtime",
+          "size_bytes",
+          "width",
+          "height",
+          "missing",
+          "quarantined",
+          "decision",
+          "analysis_status"
+        ],
+        "properties": {
+          "analysis": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/VisionAnalysis"
+              }
+            ]
+          },
+          "analysis_status": {
+            "$ref": "#/components/schemas/AnalysisStatus",
+            "description": "Cache compatibility with the engine/settings and the last scanned source metadata."
+          },
+          "capture_variant_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "color_label": {
+            "$ref": "#/components/schemas/ColorLabel"
+          },
+          "decision": {
+            "$ref": "#/components/schemas/Action"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "format": {
+            "type": "string"
+          },
+          "height": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "missing": {
+            "type": "boolean"
+          },
+          "mtime": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "path": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "quarantined": {
+            "type": "boolean"
+          },
+          "rating": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "size_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "taken_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "width": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        }
+      },
+      "PhotoFilter": {
+        "type": "object",
+        "properties": {
+          "color_label": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ColorLabel"
+              }
+            ]
+          },
+          "decision": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Action"
+              }
+            ]
+          },
+          "descending": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "format": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "include_missing": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "limit": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "offset": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "rating": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "sort": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "verdict": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "Profile": {
+        "type": "object",
+        "required": [
+          "name",
+          "settings"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/AnalysisSettings"
+          }
+        }
+      },
+      "Project": {
+        "type": "object",
+        "required": [
+          "id",
+          "root",
+          "name",
+          "created_at",
+          "last_opened_at",
+          "hidden",
+          "cache_root",
+          "groups_dirty",
+          "pending_analysis"
+        ],
+        "properties": {
+          "cache_root": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "groups_dirty": {
+            "type": "boolean",
+            "description": "Group membership/ranking must be rebuilt, including after reopening a project."
+          },
+          "hidden": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "last_opened_at": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "pending_analysis": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Active photos without current-engine analysis, independent of pagination.",
+            "minimum": 0
+          },
+          "root": {
+            "type": "string"
+          }
+        }
+      },
+      "ProjectRequest": {
+        "type": "object",
+        "required": [
+          "project_id"
+        ],
+        "properties": {
+          "project_id": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "QuarantineItem": {
+        "type": "object",
+        "required": [
+          "photo_id",
+          "source",
+          "destination",
+          "size_bytes",
+          "sha256",
+          "state"
+        ],
+        "properties": {
+          "destination": {
+            "type": "string"
+          },
+          "photo_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "source": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          }
+        }
+      },
+      "QuarantinePlan": {
+        "type": "object",
+        "required": [
+          "id",
+          "project_id",
+          "state",
+          "items"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuarantineItem"
+            }
+          },
+          "project_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "state": {
+            "type": "string"
+          }
+        }
+      },
+      "ScanRequest": {
+        "type": "object",
+        "properties": {
+          "retry_failed_only": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "ScoreBreakdown": {
+        "type": "object",
+        "required": [
+          "method",
+          "effective_weight_total",
+          "components"
+        ],
+        "properties": {
+          "components": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScoreComponent"
+            }
+          },
+          "effective_weight_total": {
+            "type": "number",
+            "format": "double"
+          },
+          "method": {
+            "type": "string"
+          }
+        }
+      },
+      "ScoreComponent": {
+        "type": "object",
+        "required": [
+          "id",
+          "configured_weight",
+          "effective_weight",
+          "contribution",
+          "observed_count",
+          "total_count",
+          "terms"
+        ],
+        "properties": {
+          "configured_weight": {
+            "type": "number",
+            "format": "double"
+          },
+          "contribution": {
+            "type": "number",
+            "format": "double"
+          },
+          "effective_weight": {
+            "type": "number",
+            "format": "double",
+            "description": "Normalized share of the final score, in 0..1."
+          },
+          "id": {
+            "type": "string"
+          },
+          "missing_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "observed_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "score": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "terms": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScoreTerm"
+            }
+          },
+          "total_count": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "ScoreInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "value"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "value": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "ScoreTerm": {
+        "type": "object",
+        "required": [
+          "id",
+          "raw",
+          "weight",
+          "contribution",
+          "mapping"
+        ],
+        "properties": {
+          "contribution": {
+            "type": "number",
+            "format": "double",
+            "description": "Points inside the category, before its top-level weight."
+          },
+          "id": {
+            "type": "string"
+          },
+          "mapping": {
+            "type": "string"
+          },
+          "missing_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "raw": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScoreInput"
+            }
+          },
+          "score": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "weight": {
+            "type": "number",
+            "format": "double",
+            "description": "Actual normalized share inside this category; zero for missing terms."
+          }
+        }
+      },
+      "SemanticEmbedding": {
+        "type": "object",
+        "required": [
+          "model_sha256",
+          "preprocessing",
+          "vector"
+        ],
+        "properties": {
+          "model_sha256": {
+            "type": "string"
+          },
+          "preprocessing": {
+            "type": "string"
+          },
+          "vector": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "float"
+            }
+          }
+        }
+      },
+      "SourceRequest": {
+        "type": "object",
+        "required": [
+          "source"
+        ],
+        "properties": {
+          "source": {
+            "type": "string"
+          }
+        }
+      },
+      "Verdict": {
+        "type": "string",
+        "enum": [
+          "recommend",
+          "review",
+          "reject_suggest"
+        ]
+      },
+      "VisionAnalysis": {
+        "type": "object",
+        "required": [
+          "width",
+          "height",
+          "original_width",
+          "original_height",
+          "orientation",
+          "faces",
+          "sharpness_lap",
+          "sharpness_fft",
+          "exposure",
+          "composite_score",
+          "verdict",
+          "phash",
+          "structure",
+          "warnings",
+          "version"
+        ],
+        "properties": {
+          "composite_score": {
+            "type": "number",
+            "format": "double"
+          },
+          "composition": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Composition"
+              }
+            ]
+          },
+          "embedding": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SemanticEmbedding"
+              }
+            ]
+          },
+          "exposure": {
+            "$ref": "#/components/schemas/Exposure"
+          },
+          "faces": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Face"
+            }
+          },
+          "height": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "niqe": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "orientation": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "original_height": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "original_width": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "phash": {
+            "type": "string"
+          },
+          "preview_source": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "score_breakdown": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ScoreBreakdown"
+              }
+            ]
+          },
+          "sharpness_fft": {
+            "type": "number",
+            "format": "double"
+          },
+          "sharpness_lap": {
+            "type": "number",
+            "format": "double"
+          },
+          "structure": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "float"
+            }
+          },
+          "verdict": {
+            "$ref": "#/components/schemas/Verdict"
+          },
+          "version": {
+            "type": "string"
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "width": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "session": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  },
+  "security": [
+    {
+      "session": []
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+lefthook: node node_modules/lefthook/bin/index.js
+
+pre-commit:
+  commands:
+    staged-source:
+      run: python tools/check-staged.py
+
+commit-msg:
+  commands:
+    conventional-commit:
+      run: node node_modules/@commitlint/cli/cli.js --edit "{1}"

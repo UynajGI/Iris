@@ -1,0 +1,15 @@
+* text=auto
+lefthook.yml text eol=lf
+.gitmessage text eol=lf
+*.sh text eol=lf
+*.py text eol=lf
+*.ps1 text eol=lf
+*.rs text eol=lf
+*.ts text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.png binary
+*.ico binary
+*.jpg binary
+*.jpeg binary
+*.woff2 binary

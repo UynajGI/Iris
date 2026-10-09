@@ -1,0 +1,13 @@
+[package]
+name = "iris-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+iris-core = { path = "../iris-core" }
+iris-daemon = { path = "../iris-daemon" }
+anyhow.workspace = true
+serde_json.workspace = true
+utoipa.workspace = true
+clap = { version = "4", features = ["derive"] }

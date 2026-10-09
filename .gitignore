@@ -1,0 +1,64 @@
+# Node
+node_modules/
+dist/
+out/
+*.log
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Builds & caches
+build/
+target/
+Thumbs.db
+.DS_Store
+
+# Local secrets / env
+.env
+.env.*
+
+# App runtime data (never commit user photo metadata)
+*.sqlite
+*.sqlite3
+*.db
+
+# Private local wedding-photo fixtures and generated runtime artifacts
+test-photos/
+.iris/
+.iris-mcp/
+artifacts/
+
+# Operator-provided model weights and license metadata are never bundled/committed.
+models/optional/
+
+# Reproducible model/runtime downloads; provisioning scripts and pinned metadata stay in Git.
+models/*.onnx
+models/*.dll
+models/*.npz
+models/directml/
+models/media/
+models/raw/
+
+# Local agent tools and indexes are not product source.
+.agents/
+.codegraph/
+.impeccable/
+reference/
+archive/
+archives/
+
+# Signing material must remain outside repository history.
+*.pfx
+*.p12
+*.key
+*.pem
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite3-wal
+*.sqlite3-shm
+*.db-wal
+*.db-shm

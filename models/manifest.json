@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "models": [
+    {"file":"yunet.onnx","sha256":"8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4","license":"MIT","source":"OpenCV Zoo / Shiqi Yu","url":"https://media.githubusercontent.com/media/opencv/opencv_zoo/47534e27c9851bb1128ccc0102f1145e27f23f98/models/face_detection_yunet/face_detection_yunet_2023mar.onnx"},
+    {"file":"face_landmarks_detector.onnx","sha256":"9c8dbae0cffd7b8e195b7c5e3795bd2a0f206a06b27edf30b2dd6900175c652a","license":"Apache-2.0","source":"Google MediaPipe; ONNX conversion FreeHugsForRobots","url":"https://huggingface.co/FreeHugsForRobots/ps-face-landmarks/resolve/7c463946f31bcb95be863a6dfa4538b235f7248c/face_landmarks_detector.onnx"},
+    {"file":"face_blendshapes.onnx","sha256":"68b42f0bfefe907f0ccb18367513db13ffa737e6aac07c87cd6f422fd1621c40","license":"Apache-2.0","source":"Google MediaPipe; ONNX conversion FreeHugsForRobots","url":"https://huggingface.co/FreeHugsForRobots/ps-face-landmarks/resolve/7c463946f31bcb95be863a6dfa4538b235f7248c/face_blendshapes.onnx"}
+  ],
+  "runtime": {"version":"1.22.0","platform":"win-x64","license":"MIT","url":"https://github.com/microsoft/onnxruntime/releases/download/v1.22.0/onnxruntime-win-x64-1.22.0.zip","archive_sha256":"174c616efc0271194488642a72f1a514e01487da4dfe84c49296d66e40ebe0da","sha256":"579b636403983254346a5c1d80bd28f1519cd1e284cd204f8d4ff41f8d711559"},
+  "niqe": {"backend":"classical-rust","file":"niqe_params.json","license":"Apache-2.0","source":"BasicSR pristine NIQE statistics","url":"https://raw.githubusercontent.com/XPixelGroup/BasicSR/8d56e3a045f9fb3e1d8872f92ee4a4f07f886b0a/basicsr/metrics/niqe_pris_params.npz","source_sha256":"2a7c182a68c9e7f1b2e2e5ec723279d6f65d912b6fcaf37eb2bf03d7367c4296","sha256":"1bd2f8072a1f0cb3c3d4734aa049dbda2a4ce74729a4d682f58363960442e816","license_url":"https://raw.githubusercontent.com/XPixelGroup/BasicSR/8d56e3a045f9fb3e1d8872f92ee4a4f07f886b0a/LICENSE.txt"},
+  "unavailable": {"scrfd":"Not shipped: pretrained weight commercial license not verified.","dinov3":"Optional v1.1 extension, not installed."}
+}

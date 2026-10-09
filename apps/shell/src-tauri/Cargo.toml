@@ -1,0 +1,43 @@
+[package]
+name = "iris-shell"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+
+[workspace]
+
+# Trusted updater settings are compiled separately from offline portable builds.
+[profile.release-installer]
+inherits = "release"
+
+[features]
+default = []
+desktop = ["updater-client", "tauri/default", "dep:tauri-build", "dep:tauri-plugin-dialog"]
+updater-client = ["dep:tauri", "dep:tauri-plugin-updater", "dep:base64", "dep:minisign-verify"]
+native-smoke = ["desktop"]
+
+[dependencies]
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri = { version = "2", optional = true, default-features = false , features = [] }
+tauri-plugin-dialog = { version = "2", optional = true }
+tauri-plugin-updater = { version = "2.13.1", optional = true, default-features = false, features = ["rustls-tls"] }
+base64 = { version = "0.22", optional = true }
+minisign-verify = { version = "0.2", optional = true }
+
+[dev-dependencies]
+tauri = { version = "2", default-features = false, features = ["test"] }
+minisign = "0.9"
+
+[build-dependencies]
+tauri-build = { version = "2", optional = true , features = [] }
+
+[[bin]]
+name = "iris-shell"
+path = "src/main.rs"
+required-features = ["desktop"]
+
+[[example]]
+name = "verify_update_artifact"
+required-features = ["updater-client"]

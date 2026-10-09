@@ -1,0 +1,8 @@
+# type(scope): short summary (maximum 100 characters)
+#
+# Types: feat, fix, docs, test, refactor, perf, build, ci, chore, style, revert
+# Scope is optional. Chinese or English summaries are both supported.
+# Example: fix(packaging): include standalone RAW decoder and source archive
+#
+# Explain the problem, resulting behavior, and relevant validation when useful.
+# Keep local fixture paths, credentials, generated binaries, and logs out of messages.

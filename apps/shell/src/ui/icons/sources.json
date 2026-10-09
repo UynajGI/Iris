@@ -1,0 +1,82 @@
+{
+  "retrieved": "2026-10-09",
+  "refs": {
+    "material": "49d4db35df873165d6bd6ba09b063c7dafbac2f4",
+    "phosphor": "2b75f3ad12b420c9504ef05df8d2564a28f8500e"
+  },
+  "files": [
+    {
+      "path": "material/folder.svg",
+      "url": "https://raw.githubusercontent.com/google/material-design-icons/49d4db35df873165d6bd6ba09b063c7dafbac2f4/symbols/web/folder_open/materialsymbolsrounded/folder_open_fill1_24px.svg"
+    },
+    {
+      "path": "material/grid.svg",
+      "url": "https://raw.githubusercontent.com/google/material-design-icons/49d4db35df873165d6bd6ba09b063c7dafbac2f4/symbols/web/grid_view/materialsymbolsrounded/grid_view_fill1_24px.svg"
+    },
+    {
+      "path": "material/filter.svg",
+      "url": "https://raw.githubusercontent.com/google/material-design-icons/49d4db35df873165d6bd6ba09b063c7dafbac2f4/symbols/web/filter_alt/materialsymbolsrounded/filter_alt_fill1_24px.svg"
+    },
+    {
+      "path": "material/settings.svg",
+      "url": "https://raw.githubusercontent.com/google/material-design-icons/49d4db35df873165d6bd6ba09b063c7dafbac2f4/symbols/web/settings/materialsymbolsrounded/settings_fill1_24px.svg"
+    },
+    {
+      "path": "material/star.svg",
+      "url": "https://raw.githubusercontent.com/google/material-design-icons/49d4db35df873165d6bd6ba09b063c7dafbac2f4/symbols/web/star/materialsymbolsrounded/star_fill1_24px.svg"
+    },
+    {
+      "path": "material/flag.svg",
+      "url": "https://raw.githubusercontent.com/google/material-design-icons/49d4db35df873165d6bd6ba09b063c7dafbac2f4/symbols/web/flag/materialsymbolsrounded/flag_fill1_24px.svg"
+    },
+    {
+      "path": "material/undo.svg",
+      "url": "https://raw.githubusercontent.com/google/material-design-icons/49d4db35df873165d6bd6ba09b063c7dafbac2f4/symbols/web/undo/materialsymbolsrounded/undo_fill1_24px.svg"
+    },
+    {
+      "path": "material/export.svg",
+      "url": "https://raw.githubusercontent.com/google/material-design-icons/49d4db35df873165d6bd6ba09b063c7dafbac2f4/symbols/web/file_upload/materialsymbolsrounded/file_upload_fill1_24px.svg"
+    },
+    {
+      "path": "material/LICENSE",
+      "url": "https://raw.githubusercontent.com/google/material-design-icons/49d4db35df873165d6bd6ba09b063c7dafbac2f4/LICENSE"
+    },
+    {
+      "path": "phosphor/folder.svg",
+      "url": "https://raw.githubusercontent.com/phosphor-icons/core/2b75f3ad12b420c9504ef05df8d2564a28f8500e/assets/fill/folder-open-fill.svg"
+    },
+    {
+      "path": "phosphor/grid.svg",
+      "url": "https://raw.githubusercontent.com/phosphor-icons/core/2b75f3ad12b420c9504ef05df8d2564a28f8500e/assets/fill/squares-four-fill.svg"
+    },
+    {
+      "path": "phosphor/filter.svg",
+      "url": "https://raw.githubusercontent.com/phosphor-icons/core/2b75f3ad12b420c9504ef05df8d2564a28f8500e/assets/fill/funnel-fill.svg"
+    },
+    {
+      "path": "phosphor/settings.svg",
+      "url": "https://raw.githubusercontent.com/phosphor-icons/core/2b75f3ad12b420c9504ef05df8d2564a28f8500e/assets/fill/gear-fill.svg"
+    },
+    {
+      "path": "phosphor/star.svg",
+      "url": "https://raw.githubusercontent.com/phosphor-icons/core/2b75f3ad12b420c9504ef05df8d2564a28f8500e/assets/fill/star-fill.svg"
+    },
+    {
+      "path": "phosphor/flag.svg",
+      "url": "https://raw.githubusercontent.com/phosphor-icons/core/2b75f3ad12b420c9504ef05df8d2564a28f8500e/assets/fill/flag-fill.svg"
+    },
+    {
+      "path": "phosphor/undo.svg",
+      "url": "https://raw.githubusercontent.com/phosphor-icons/core/2b75f3ad12b420c9504ef05df8d2564a28f8500e/assets/fill/arrow-u-up-left-fill.svg"
+    },
+    {
+      "path": "phosphor/export.svg",
+      "url": "https://raw.githubusercontent.com/phosphor-icons/core/2b75f3ad12b420c9504ef05df8d2564a28f8500e/assets/fill/export-fill.svg"
+    },
+    {
+      "path": "phosphor/LICENSE",
+      "url": "https://raw.githubusercontent.com/phosphor-icons/core/2b75f3ad12b420c9504ef05df8d2564a28f8500e/LICENSE"
+    }
+  ],
+  "note": "Original SVGs and LICENSE files preserved; preview sets fill through CSS. Licensing sources in preview footer."
+}

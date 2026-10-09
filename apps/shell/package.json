@@ -1,0 +1,28 @@
+{
+  "name": "@iris/application",
+  "version": "0.1.0",
+  "private": true,
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "scripts": {
+    "check": "tsc --noEmit",
+    "test": "tsx --test test/*.test.ts",
+    "generate:api": "node ../../tools/generate-client.mjs",
+    "build": "tsc -p tsconfig.build.json && node build-assets.mjs"
+  },
+  "dependencies": {
+    "@fontsource-variable/noto-sans-sc": "^5.3.0",
+    "@fontsource-variable/noto-serif-sc": "^5.3.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.3.0",
+    "esbuild": "^0.28.2",
+    "openapi-typescript": "^7.10.1",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0"
+  }
+}

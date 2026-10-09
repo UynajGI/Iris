@@ -1,0 +1,31 @@
+[package]
+name = "iris-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+utoipa.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+rusqlite = { version = "0.38", features = ["bundled", "backup"] }
+walkdir = "2"
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp", "pnm"] }
+libloading = "0.8"
+jpeg-decoder = "0.3"
+kamadak-exif = "0.6"
+rustfft = "6"
+ort = { version = "=2.0.0-rc.10", default-features = false, features = ["std", "ndarray", "load-dynamic"] }
+sha2 = "0.10"
+csv = "1"
+nalgebra = "0.34"
+tempfile = "3"
+
+[dev-dependencies]
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62.2", features = ["Win32_Graphics_Dxgi", "Win32_Graphics_Dxgi_Common", "Win32_Graphics_Direct3D", "Win32_Graphics_Direct3D12"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Security", "Win32_System_JobObjects", "Win32_System_Threading"] }
