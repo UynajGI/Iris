@@ -24,6 +24,8 @@ concurrency:
 jobs:
   rust:
     runs-on: windows-latest
+    env:
+      RUSTUP_TOOLCHAIN: stable-x86_64-pc-windows-msvc
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -58,6 +60,8 @@ jobs:
         run: cargo +stable-x86_64-pc-windows-msvc run -p iris-daemon -- --openapi > openapi.json
   local-media:
     runs-on: windows-latest
+    env:
+      RUSTUP_TOOLCHAIN: stable-x86_64-pc-windows-msvc
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4

@@ -16,7 +16,7 @@ function Assert-ExpectedSignature([string]$Path, [string]$Thumbprint) {
     }
 }
 $repositoryRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-$portableRoot = (Resolve-Path -LiteralPath $PortableDirectory).Path
+$portableRoot = [System.IO.Path]::GetFullPath((Resolve-Path -LiteralPath $PortableDirectory).ProviderPath)
 $outputRoot = [System.IO.Path]::GetFullPath($OutputDirectory)
 if (Test-Path -LiteralPath $outputRoot) { throw 'Output directory must be new' }
 $publicKey = $null
