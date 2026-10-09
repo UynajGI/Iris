@@ -13,9 +13,12 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - run: python tools/check-release.py "$RELEASE_TAG"
+      - name: Validate release identity
+        run: |
+          if [ -z "$RELEASE_TAG" ]; then RELEASE_TAG="v$(python -c 'import json; print(json.load(open("apps/shell/package.json"))["version"])')"; fi
+          python tools/check-release.py "$RELEASE_TAG"
         env:
-          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
   verify:
     needs: version
     uses: ./.github/workflows/verify.yml
@@ -99,7 +102,9 @@ jobs:
       - name: Actual CPU inference
         run: cargo test --locked --release -p iris-core bundled_onnx_tensor_smoke -- --ignored --nocapture
       - name: Package native beta
-        run: python tools/package-unix.py --output "dist/release/Iris-${GITHUB_REF_NAME#v}-$PLATFORM"
+        run: |
+          VERSION=$(python -c 'import json; print(json.load(open("apps/shell/package.json"))["version"])')
+          python tools/package-unix.py --output "dist/release/Iris-$VERSION-$PLATFORM"
         env:
           PLATFORM: ${{ matrix.label }}
       - uses: actions/upload-artifact@v4
@@ -108,6 +113,7 @@ jobs:
           path: dist/release/*.tar.gz
           if-no-files-found: error
   draft:
+    if: github.ref_type == 'tag'
     needs: [verify, windows, unix]
     runs-on: ubuntu-24.04
     permissions:
