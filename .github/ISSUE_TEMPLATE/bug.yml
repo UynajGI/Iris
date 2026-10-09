@@ -1,0 +1,43 @@
+name: Beta bug report / 测试反馈
+description: Report a reproducible problem in Iris.
+body:
+  - type: markdown
+    attributes:
+      value: 请勿默认上传私人照片、数据库、访问令牌或包含完整本机路径的日志。先提供复现步骤；如需样本，请使用有分享权限的文件。
+  - type: input
+    id: version
+    attributes:
+      label: Iris version / 版本
+      placeholder: v0.1.0-beta
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform / 平台
+      options:
+        - Windows x64
+        - macOS Apple Silicon
+        - macOS Intel
+        - Linux x64
+        - Other / 其他
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: OS version and hardware / 系统版本与硬件
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps, expected result, actual result / 步骤、预期与实际结果
+      description: Include the photo format, approximate library size and whether this is desktop, CLI or MCP.
+    validations:
+      required: true
+  - type: textarea
+    id: error
+    attributes:
+      label: Error message / 错误信息
+      description: Remove personal paths and credentials before pasting.

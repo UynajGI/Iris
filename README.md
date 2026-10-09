@@ -45,7 +45,7 @@ Windows 需要 WebView2 Runtime 和 Microsoft Visual C++ 2015–2022 x64 Redistr
 
 ## 开发
 
-需要 Git、Rust stable、Node.js 22+、Python 3.12+ 和对应平台的 Tauri 系统依赖。当前工具链文件选择 Windows GNU；macOS/Linux 设置 `RUSTUP_TOOLCHAIN=stable` 使用本机工具链。区域性 Cargo 镜像可在本机配置。
+需要 Git、Rust stable、Node.js 22+、Python 3.12+ 和对应平台的 Tauri 系统依赖。工具链文件选择本机 stable；Windows GNU 构建可设置 `RUSTUP_TOOLCHAIN=stable-x86_64-pc-windows-gnu`。Cargo 镜像可在本机按网络环境调整。
 
 ```sh
 git clone https://github.com/UynajGI/Iris.git

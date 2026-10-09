@@ -1,5 +1,11 @@
 # Iris offline model assets
 
+The beta provisioner also supports Linux x64 and macOS arm64/x64 CPU runtimes.
+`tools/onnx_runtime.py` pins the upstream 1.22.0 archive and library hashes;
+the Rust loader verifies the packaged library before loading it. Unix beta
+packages currently do not include HEIC or ExifTool runtimes. DirectML remains
+Windows-only. See [release notes](../docs/releases/v0.1.0-beta.md).
+
 Run `python tools/setup-models.py` to restore the pinned files in `manifest.json`.
 Downloaded bytes are checked against upstream Git LFS SHA-256 object IDs. The
 Rust loader independently checks compiled-in hashes before constructing sessions.

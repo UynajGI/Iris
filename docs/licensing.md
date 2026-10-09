@@ -13,8 +13,8 @@ Iris 自有代码及文档采用 **GPL-3.0-or-later**：GNU GPL 第三版或任�
 3. 按实际链接和分发方式提供所需第三方对应源码、许可与修改说明。应用源码快照不能替代全部依赖源码审计。
 4. 保留 HEIC 对应源码、RAW 重建包、字体/图标及模型声明。
 5. 单独核对 DirectML、WebView2 和自定义许可权重与 GPL 程序的分发组合。DINOv3 是 Meta 自定义许可；SCRFD 官方研究权重不属于通用包。保留文本不等于兼容性审查已完成。
-6. 完成签名、更新渠道和安装验收后发布。
+6. 正式渠道完成签名、更新渠道和安装验收；未签名 Beta 使用独立预发布说明，明确平台和测试边界。
 
-开发者照片、下载样本、模型权重、参考项目与本机设计工具不在 Git 中。当前没有配置发布远端，也没有上传。
+开发者照片、下载样本、模型权重、参考项目与本机设计工具不在 Git 中。公开源码位于 [UynajGI/Iris](https://github.com/UynajGI/Iris)，版本附件与对应源码通过[发布流程](releasing.md)管理。
 
 官方参考：[GNU GPLv3](https://www.gnu.org/licenses/gpl-3.0.html)、[GPL FAQ](https://www.gnu.org/licenses/gpl-faq.en.html)。
