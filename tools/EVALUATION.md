@@ -166,9 +166,9 @@ hidden eyes without assigning correctness. Evaluate those predictions only
 against independently completed labels, including normal closed eyes and
 ungradable eyes with occlusion reasons. Mask outputs are never label sources.
 
-The current v5 snapshot is `artifacts/evaluation-v5-observed-quality.sqlite3`
+The historical v5 snapshot is `artifacts/evaluation-v5-observed-quality.sqlite3`
 (project 1); `artifacts/annotations-v5.json` is its independently completable
 template without model suggestions. All labels remain incomplete, and an
 attempted evaluation correctly returned exit code 2 without an accuracy report.
-Use this snapshot to evaluate v5 scoring. `v5-scoring-regression.json` records
+Use this snapshot only to evaluate v5 scoring; current validation boundaries are in [the validation overview](../docs/validation.md). `v5-scoring-regression.json` records
 score movement with unchanged raw observations; it is not a labeled evaluation.

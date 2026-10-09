@@ -52,6 +52,9 @@ HEIC 源码构建另需 MinGW 工具，详见[媒体支持](docs/media-support.m
 | [验证](docs/validation.md) | 本机证据及尚未覆盖的范围 |
 | [许可与发布](docs/licensing.md) | GPL、第三方组件、模型及发布要求 |
 
+完整文档按用途整理在 [docs/README.md](docs/README.md)；统一开发任务见
+[tools/README.md](tools/README.md)。
+
 `crates/` 包含 core、daemon、cli、mcp；`apps/shell/` 包含 React 界面和 Tauri 壳；`components/raw-decoder/` 是独立 RAW 转换器；`tools/` 提供准备、校验和打包工具。
 
 ## 许可证

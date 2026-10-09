@@ -15,9 +15,9 @@ DENIED_ROOTS = (
     "models/optional/", "models/directml/", "models/media/", "models/raw/",
 )
 DENIED_PARTS = {"node_modules", "target", "dist", "out", "__pycache__", ".venv"}
-DENIED_SUFFIXES = {".exe", ".dll", ".onnx", ".npz", ".sqlite", ".sqlite3", ".db", ".pfx", ".p12", ".key", ".pyc", ".log"}
+DENIED_SUFFIXES = {".exe", ".dll", ".onnx", ".npz", ".sqlite", ".sqlite3", ".db", ".pfx", ".p12", ".pem", ".key", ".pyc", ".log", ".sqlite-wal", ".sqlite-shm", ".sqlite3-wal", ".sqlite3-shm", ".db-wal", ".db-shm"}
 SECRET_PATTERNS = {
-    "private key": re.compile(rb"(?m)^-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----\s*$"),
+    "private key": re.compile(rb"(?m)^-----BEGIN (?:(?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY|ENCRYPTED PRIVATE KEY)-----\s*$"),
     "GitHub token": re.compile(rb"\b(?:gh[pousr]_[A-Za-z0-9]{36,255}|github_pat_[A-Za-z0-9_]{60,255})\b"),
     "AWS access key": re.compile(rb"\bAKIA[A-Z0-9]{16}\b"),
     "service API key": re.compile(rb"\bsk-(?:proj-|live-)?[A-Za-z0-9_-]{32,255}\b"),

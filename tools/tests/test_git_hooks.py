@@ -83,6 +83,22 @@ class GitHookIntegrationTests(unittest.TestCase):
         self.stage("artifacts/private.json", b'{"fixture":true}\n', force=True)
         self.assert_rejected(self.commit(), "generated/runtime/private directory")
 
+    def test_pem_signing_material_cannot_be_force_added(self):
+        # Path policy must reject PEM files even when contents are not a
+        # recognizable private-key marker (for example encrypted PEM data).
+        self.stage("signing/certificate.pem", b"encrypted PEM payload\n", force=True)
+        self.assert_rejected(self.commit(), "binary/runtime/database/signing artifact")
+
+    def test_database_sidecar_cannot_be_force_added(self):
+        self.stage("cache/library.sqlite-wal", b"wal sidecar\n", force=True)
+        self.assert_rejected(self.commit(), "binary/runtime/database/signing artifact")
+
+    def test_encrypted_private_key_marker_is_rejected_in_text_file(self):
+        self.stage("credentials.txt", b"-----BEGIN ENCRYPTED PRIVATE KEY-----\nnot-a-real-key\n")
+        result = self.commit()
+        self.assert_rejected(result, "possible private key")
+        self.assertNotIn("not-a-real-key", result.stdout + result.stderr)
+
     def test_staged_syntax_is_checked_even_after_worktree_fix(self):
         previous_head = self.seed_commit()
         path = self.stage("broken.py", b"def broken(:\n")

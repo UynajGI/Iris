@@ -1,14 +1,17 @@
-# Headless application and desktop hosting
+# Desktop application and hosting
 
-This package implements the L4 application layer. UI/UX belongs to the user and
-is intentionally absent: there are no designed screens, styles, or layout.
+This package contains the TypeScript application, React presentation, and Tauri
+desktop host. The current shell includes overview, review, group comparison,
+settings, cache, export and update workflows; native directory picking and host
+reconnect are implemented, while the interactive native dialog, close protection,
+and cross-platform native validation remain follow-up work. See
+`../../docs/frontend-implementation.md` for the current boundary.
 
 `npm ci`, `npm run check`, `npm test`, and `npm run build` validate and compile the
 TypeScript application. `src/index.ts` exports `IrisClient`, `IrisStore`,
-`CommandSystem`, and `EventBus`; `src/react.ts` exports presentation-neutral
-React hooks. A future presentation can mount into `#root`, use `window.iris`, and
-subscribe to the `iris:ready` event. The desktop window starts hidden until a
-presentation is supplied.
+`CommandSystem`, and `EventBus`; `src/react.ts` exports React hooks used by the
+presentation. The Tauri host owns the local daemon and exposes `window.iris` to
+the UI; headless CLI and stdio MCP remain separate entry points.
 
 `window.iris.openFolder()` opens the native directory picker and passes the
 selection to the project store. Cancellation returns `false` and leaves the
@@ -178,8 +181,8 @@ The packaged `Verify.ps1` checks hashes, launches the packaged shell host from
 an unrelated temporary working directory without model environment overrides,
 then scans and analyzes a generated JPEG through the packaged daemon. It writes
 `verification.json` without credentials or user photographs. `Launch.ps1`
-resolves its own location and starts the hidden desktop host; `iris-cli.exe`
-provides headless workflows while the presentation is deferred.
+resolves its own location and starts the desktop interface; `iris-cli.exe`
+provides headless workflows independently of the interface.
 
 The native updater exposes explicit check, download and install operations through
 `UpdaterStore`, `useUpdater`, and `window.iris.updater`. Portable builds report
@@ -193,3 +196,24 @@ run `tools/verify-native-title.ps1` to load the real hidden WebView, verify fron
 initialization, language/title IPC and the default updater state. Production
 `desktop` builds do not contain these test commands or scripts. This does not
 automate directory-dialog clicks or verify a Windows installation/upgrade.
+
+<a id="module-map"></a>
+
+## Module map
+
+The application is split into transport, state, presentation, and native hosting
+layers:
+
+| Area | Files | Responsibility |
+|---|---|---|
+| Client and transport | `client.ts`, `transport.ts`, `types.ts`, `generated/api.d.ts` | Authenticated HTTP/WS calls and generated contract types |
+| State and workflows | `store.ts`, `group-session.ts`, `commands.ts`, `events.ts` | Project state, queued decisions, groups, keyboard commands and resync |
+| Analysis and preferences | `analysis-readout.ts`, `view-preferences.ts`, `preferences.ts`, `i18n.ts` | Score display, durable view settings and localized labels |
+| React entry | `main.tsx`, `react.ts`, `index.ts` | React mounting, hooks, and public application exports |
+| UI screens | `ui/App.tsx`, `ui/LibraryNav.tsx`, `ui/TaskBar.tsx`, `ui/PhotoFilters.tsx`, `ui/MarkTools.tsx`, `ui/ExecutionDetails.tsx` | Library, review, filters, decisions and task status |
+| Settings and files | `ui/AnalysisSettings.tsx`, `ui/CacheSettings.tsx`, `ui/FileWorkflows.tsx`, `ui/OptionalModels.tsx`, `ui/ModelTaskBar.tsx` | Analysis, cache, export/recovery and model workflows |
+| Shared UI | `ui/components.tsx`, `ui/Icon.tsx`, `ui/app.css`, `ui/tokens.css`, `ui/icons/` | Reusable controls, styling tokens and licensed icons |
+| Tauri host | `desktop.ts`, `native-dialog.ts`, `native-title.ts`, `updater.ts` | Daemon lifecycle, native dialogs/title and update bridge |
+
+The map is an orientation aid; behavior and API contracts remain defined by the
+daemon and shared state layer. Individual source files do not each need a README.
