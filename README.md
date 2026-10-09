@@ -14,7 +14,7 @@
 
 ## 开发
 
-需要 Git、Rust、Node.js 22+、Python 3.10+；Windows 工具链见 `rust-toolchain.toml`，原生桌面还需要 WebView2 和相应链接器。仓库没有 submodule。
+需要 Git、Rust、Node.js 22+、Python 3.10+；Windows 工具链见 `rust-toolchain.toml`，原生桌面还需要 WebView2 和相应链接器。
 
 ```powershell
 npm ci
