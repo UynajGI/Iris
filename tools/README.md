@@ -96,13 +96,14 @@ python tools/dev.py verify
 `tools/tests/` 下的测试脚本也属于公开工具入口：`test_benchmark_scale.py`、
 `test_dinov3_tools.py`、`test_evaluate.py`、`test_git_hooks.py`、
 `test_package_dinov3.py`、`test_package_installer.py`、`test_public_source.py`、
-`test_runtime_closure.py` 和 `test_scrfd_tools.py` 分别覆盖规模、DINOv3、评估、
-hooks、打包、公开树、运行库闭包和 SCRFD 工具契约。统一运行：
+`test_runtime_closure.py`、`test_scrfd_tools.py` 和 `test_release.py` 分别覆盖规模、DINOv3、评估、
+hooks、打包、公开树、运行库闭包、SCRFD 工具及发布版本/原生运行库契约。统一运行：
 `python -m unittest discover -s tools/tests -p 'test_*.py' -v`。
 
 ## 平台边界
 
 核心 Rust、Python 工具和前端命令可以在配置了相应本机工具链的平台上检查；仓库的
-`rust-toolchain.toml` 固定 Windows GNU 基线，必要时可用 `RUSTUP_TOOLCHAIN` 选择
-本机工具链。HEIC、ExifTool、DirectML 和便携打包任务当前是 Windows 专项，不能由
-统一入口的存在推导出 macOS/Linux 已完成适配。模型和照片不应提交到仓库。
+`rust-toolchain.toml` 选择本机 stable 工具链，必要时可用 `RUSTUP_TOOLCHAIN` 显式覆盖。
+Windows 使用 `package-local.ps1`，macOS/Linux 使用 `package-unix.py` 生成 CPU Beta 包。
+HEIC、ExifTool、DirectML 的运行库准备仍是 Windows 专项；跨平台结果见
+[CI 验证](../docs/ci-verification.md)。模型和照片不应提交到仓库。

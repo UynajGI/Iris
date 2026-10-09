@@ -4,6 +4,12 @@
 
 默认工作流不下载用户照片或可选研究权重。手动 DINO/DirectML 项须按模型许可明确选择；托管 runner 的 CPU 回退不代表真实 GPU 执行。
 
+## 2026-10-09 Beta 预演
+
+[运行 37937701293](https://github.com/UynajGI/Iris/actions/runs/37937701293) 的应用检查、Windows MSVC Rust 检查与本地媒体专项已通过；Linux x64 已完成原生编译、真实 CPU 模型推理和发行包自检。Apple Silicon 完成推理后在退出时触发上游 ort rc.10 环境释放问题，因此该 Mac 作业失败，不能记为通过。修复后的验证结果继续以 Actions 为准；整个预演尚不能记为成功。
+
+Unix 发行包自检包含文件哈希、仓库外宿主/daemon 启动及合成 PNG 分析；不覆盖原生目录对话框和桌面视觉交互。Windows 本机 Beta 包自检已通过，其源码包的三个 Rust 工作区可离线解析锁定依赖；离线解析不是完整重新编译。
+
 ```powershell
 cargo fmt --all -- --check
 cargo test --workspace --locked

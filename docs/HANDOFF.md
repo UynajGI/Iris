@@ -15,8 +15,8 @@
 ## 下一步
 
 1. 完成原生桌面交互走查：真实目录选择、CSV 保存、未保存设置关闭保护、原生托管重连。
-2. 完成 macOS/Linux 媒体运行库、打包和原生交互适配。
-3. 在 MSVC、干净 Windows、多机器/多 GPU 上验证；GNU 结果不能替代。
+2. 完成 macOS/Linux 的 HEIC、ExifTool 打包和原生交互验收；CPU Beta 的远端构建、自检结果见 [CI 验证](ci-verification.md)。
+3. 在干净 Windows、多机器/多 GPU 上验证；远端 MSVC 测试与本机 GNU 证据分别记录，不能互相替代。
 4. 按[许可清单](licensing.md)匹配发行包、依赖和对应源码；Beta 之外的正式签名与更新渠道仍待建设。源码已推送，具体版本发布状态以 GitHub Release 为准。
 5. 人工独立标签、3000 独立场景和 GPU 大规模验收仍缺。
 

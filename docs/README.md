@@ -20,7 +20,7 @@
 ## 当前状态入口
 
 [当前开发状态](development-status.md) 是状态表；[HANDOFF](HANDOFF.md) 是交接和下一步；
-[CI 验证](ci-verification.md) 说明工作流存在但当前没有远端运行结果。验证文档中的
+[CI 验证](ci-verification.md) 记录远端工作流、运行结果和平台边界。验证文档中的
 本机报告路径指被忽略的 `artifacts/`，不会随公开源码分发。
 
 ## 全部文档
@@ -84,6 +84,5 @@
 
 Iris 自有代码和文档采用 GPL-3.0-or-later；第三方代码、字体、模型和统计资料按其
 各自条款处理，详见 [许可说明](licensing.md) 和
-[第三方声明](../THIRD_PARTY_NOTICES.md)。文档保留 Windows x64 GNU 本机验证与
-MSVC、macOS/Linux、干净系统、签名发布和远端 CI 尚未完成之间的边界；本机结果不应
-被表述为其他平台或远端通过。
+[第三方声明](../THIRD_PARTY_NOTICES.md)。本机 GNU 结果与远端 MSVC、macOS/Linux
+结果分别记录；CI 构建、推理和包内自检不代表干净系统上的完整原生交互或签名验收。
