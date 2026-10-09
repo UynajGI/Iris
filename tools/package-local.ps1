@@ -51,7 +51,7 @@ function Copy-DefaultModels {
         if ($item.PSIsContainer -or $entry.sha256 -notmatch '^[0-9a-fA-F]{64}$' -or $item.Length -ne $entry.size -or (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash -ine $entry.sha256) { throw "Media runtime checksum mismatch: $relative" }
         $mediaPlan[$relative] = $item.FullName
     }
-    foreach ($required in @('libheif.dll','libde265.dll','libwinpthread-1.dll','README.txt','licenses/libheif-COPYING.txt','licenses/libde265-COPYING.txt','licenses/libwinpthread/COPYING','licenses/winpthreads/COPYING','licenses/gcc-libs/COPYING.LIB','licenses/gcc-libs/COPYING.RUNTIME','licenses/gcc-libs/COPYING3','licenses/gcc-libs/README','sources/setup-heif-runtime.py')) {
+    foreach ($required in @('libheif.dll','libde265.dll','libwinpthread-1.dll','README.txt','licenses/libheif-COPYING.txt','licenses/libde265-COPYING.txt','licenses/libwinpthread/COPYING','licenses/winpthreads/COPYING','licenses/gcc-libs/COPYING.RUNTIME','licenses/gcc-libs/COPYING3','sources/setup-heif-runtime.py')) {
         if (-not $mediaPlan.ContainsKey($required)) { throw "Media closure is missing a required file: $required" }
     }
     $sourceNames = @{}

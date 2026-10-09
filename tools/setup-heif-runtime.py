@@ -92,8 +92,14 @@ def main() -> None:
     shutil.copy2(toolchain / "libwinpthread-1.dll", output / "libwinpthread-1.dll")
     for component in ["libwinpthread", "winpthreads", "gcc-libs"]:
         source = toolchain.parent / "share/licenses" / component
+        # GCC 16 split gcc-libs into a meta-package; runtime exception and GPL
+        # notices now live with gcc itself. Preserve a stable bundle layout.
+        if component == "gcc-libs" and not source.is_dir():
+            source = toolchain.parent / "share/licenses/gcc"
         if not source.is_dir():
             raise RuntimeError(f"runtime license missing: {source}")
+        if component == "gcc-libs" and not all((source / name).is_file() for name in ("COPYING.RUNTIME", "COPYING3")):
+            raise RuntimeError("GCC runtime exception/license files are incomplete")
         shutil.copytree(source, output / "licenses" / component, dirs_exist_ok=True)
     shutil.copy2(Path(__file__), output / "sources/setup-heif-runtime.py")
     (output / "README.txt").write_text(
