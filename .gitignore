@@ -13,6 +13,7 @@ __pycache__/
 
 # Builds & caches
 build/
+apps/shell/src-tauri/icons/icon.png
 target/
 Thumbs.db
 .DS_Store

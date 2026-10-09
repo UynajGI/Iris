@@ -6,7 +6,7 @@
 
 同步主 workspace、桌面 Cargo、RAW 组件、前端 package/lock 和 Tauri 版本后，运行 `python tools/check-release.py v0.1.0-beta`。重新生成 API，运行相应测试和 `make public-check`，提交全部发布源码。只给已验证提交打 Tag，不移动已公开版本 Tag。
 
-[Release 工作流](../.github/workflows/release.yml) 在推送 `v*` Tag 后运行；手动重跑也必须选择版本 Tag。它验证版本一致性，调用现有 Verify，并并行构建 Windows GNU、Linux x64、macOS arm64/x64 测试包。Linux/macOS 执行默认模型 CPU 推理。任何必要任务失败时，不创建 Release。
+[Release 工作流](../.github/workflows/release.yml) 在推送 `v*` Tag 后运行；手动选择分支可做发布演练但不创建 Release。它验证版本一致性，调用现有 Verify，并并行构建 Windows GNU、Linux x64、macOS arm64/x64 测试包。Linux/macOS 执行默认模型 CPU 推理。任何必要任务失败时，不创建 Release。
 
 全部通过后汇总源码包、平台包和 SHA256 清单，创建 **Release 草稿**。带连字符的版本标为预发布且不设为 Latest。核对附件、版本和说明后再公开。默认不签名、不配置更新服务，也不下载可选研究权重。
 

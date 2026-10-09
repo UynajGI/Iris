@@ -40,6 +40,12 @@ jobs:
         with:
           toolchain: stable-x86_64-pc-windows-gnu
       - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ always() }}
+          workspaces: |
+            . -> target
+            apps/shell/src-tauri -> target
+            components/raw-decoder -> target
       - uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
@@ -90,6 +96,12 @@ jobs:
           node-version: 22
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ always() }}
+          workspaces: |
+            . -> target
+            apps/shell/src-tauri -> target
+            components/raw-decoder -> target
       - name: Linux desktop dependencies
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xvfb
