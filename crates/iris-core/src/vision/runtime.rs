@@ -17,6 +17,33 @@ static CPU_ONLY: AtomicBool = AtomicBool::new(false);
 static WARNINGS: OnceLock<Mutex<Vec<String>>> = OnceLock::new();
 static SEQUENCE: AtomicUsize = AtomicUsize::new(0);
 
+// ort rc.10 keeps its environment in a Rust static, which is never dropped.
+// On macOS the native runtime then destroys its logger mutex before its leaked
+// environment, aborting at process exit (pykeio/ort#441). Register cleanup after
+// runtime initialization so it runs before the dylib's C++ exit destructors.
+// This is specific to the pinned rc.10 lifetime model; remove when upgrading to
+// ort's reference-counted environment implementation (upstream 317be20).
+#[cfg(target_os = "macos")]
+fn register_environment_cleanup() -> Result<()> {
+    use ort::AsPointer;
+    static REGISTERED: OnceLock<bool> = OnceLock::new();
+    unsafe extern "C" {
+        fn atexit(callback: extern "C" fn()) -> std::ffi::c_int;
+    }
+    extern "C" fn release_environment() {
+        // Initialization completed before registration. No Rust static Drop
+        // will release this pointer again; sessions are dropped before exit.
+        if let Ok(environment) = ort::environment::get_environment() {
+            unsafe { (ort::api().ReleaseEnv)(environment.ptr().cast_mut()) };
+        }
+    }
+    anyhow::ensure!(
+        *REGISTERED.get_or_init(|| unsafe { atexit(release_environment) == 0 }),
+        "Could not register ONNX environment shutdown"
+    );
+    Ok(())
+}
+
 fn requested() -> bool {
     std::env::var("IRIS_WORKER_EXECUTION_PROVIDER").as_deref() == Ok("directml")
 }
@@ -153,6 +180,8 @@ pub fn initialize(dir: &Path) -> Result<()> {
             );
         }
         ort::init_from(runtime.to_string_lossy()).commit()?;
+        #[cfg(target_os = "macos")]
+        register_environment_cleanup()?;
         let _ = INITIALIZED.set(());
     }
     Ok(())
