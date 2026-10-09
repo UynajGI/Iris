@@ -7,7 +7,7 @@
 ## 按用途查找
 
 | 需要了解 | 文档 |
-|---|---|
+| :--- | :--- |
 | 模块如何连接、进程和数据边界 | [架构](architecture.md)、[核心服务](core-services.md) |
 | 本地开发、命令和提交 | [贡献指南](contributing.md)、根目录 [Makefile](../Makefile) 与 [tools/dev.py](../tools/dev.py) |
 | HTTP、WebSocket、OpenAPI 和生成客户端 | [API 契约](api-contract.md)、[MCP 接入](mcp.md) |
@@ -28,7 +28,7 @@
 以下列出当前公开检出的每份 `docs/` Markdown，避免把专题记录误认为不存在：
 
 | 文件 | 主题 |
-|---|---|
+| :--- | :--- |
 | [api-contract.md](api-contract.md) | HTTP、WS、OpenAPI 和生成类型 |
 | [architecture.md](architecture.md) | 进程、模块和数据边界 |
 | [ci-verification.md](ci-verification.md) | CI 工作流和证据边界 |
@@ -36,6 +36,7 @@
 | [core-services.md](core-services.md) | 核心领域服务与事务 |
 | [development-status.md](development-status.md) | 功能完成度和待办 |
 | [documentation-review.md](documentation-review.md) | 2026-10-09 文档复核 |
+| [github-format-review.md](github-format-review.md) | GitHub 格式规范复核与适用范围 |
 | [frontend-implementation.md](frontend-implementation.md) | 前端与原生宿主实现边界 |
 | [gpu-scale-validation.md](gpu-scale-validation.md) | GPU 与规模验证记录 |
 | [HANDOFF.md](HANDOFF.md) | 当前交接和剩余验收 |
@@ -64,8 +65,12 @@
 这些 Markdown 位于 `docs/` 之外，由下列二级入口承接：
 
 | 文件 | 入口说明 |
-|---|---|
+| :--- | :--- |
 | [根 README](../README.md) | 产品简介、快速开发和文档导航 |
+| [中文 README](../zh-CN/README.md) | 中文产品简介与快速开始 |
+| [CONTRIBUTING.md](../CONTRIBUTING.md) | GitHub 贡献入口 |
+| [SECURITY.md](../SECURITY.md) | 私密安全报告与支持范围 |
+| [AUTHORS.md](../AUTHORS.md) | 作者和协作工具说明 |
 | [DESIGN.md](../DESIGN.md) | 已批准的视觉与交互参数 |
 | [PRODUCT.md](../PRODUCT.md) | 产品范围和非目标 |
 | [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md) | 第三方许可证与来源声明 |

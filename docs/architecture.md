@@ -1,7 +1,7 @@
 # 架构
 
 | 层 | 实现 | 职责 |
-|---|---|---|
+| :--- | :--- | :--- |
 | 数据与计算 | `iris-core` | SQLite、扫描、解码、ONNX、评分、分组、文件操作 |
 | 本地服务 | `iris-daemon` | HTTP/OpenAPI/WS、后台任务、独立分析 worker、模型安装 |
 | 无界面入口 | `iris-cli` / `iris-mcp` | 命令行与 SDK stdio MCP，复用业务服务 |

@@ -31,7 +31,7 @@ is runtime infrastructure, separate from the approximately 7 MB of model weights
 runtime is not checked against the bundled runtime hash.
 
 | Asset | Actual input / output | Attribution and license |
-|---|---|---|
+| :--- | :--- | :--- |
 | YuNet 2023mar, 232,589 bytes | BGR float NCHW 640 square; stride 8/16/32 boxes, scores, five points | OpenCV Zoo, Shiqi Yu; MIT, see LICENSE-YuNet.txt |
 | Face Landmarker, 4,920,990 bytes | RGB float NHWC 256 square, 0–1; 478 XYZ points in crop pixels, presence logit | Google MediaPipe, community ONNX conversion by FreeHugsForRobots; Apache-2.0 |
 | Face blendshapes, 1,880,927 bytes | 146 selected landmark XY pixel coordinates; 52 coefficients | Google MediaPipe, community ONNX conversion by FreeHugsForRobots; Apache-2.0 |

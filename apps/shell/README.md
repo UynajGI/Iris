@@ -205,7 +205,7 @@ The application is split into transport, state, presentation, and native hosting
 layers:
 
 | Area | Files | Responsibility |
-|---|---|---|
+| :--- | :--- | :--- |
 | Client and transport | `client.ts`, `transport.ts`, `types.ts`, `generated/api.d.ts` | Authenticated HTTP/WS calls and generated contract types |
 | State and workflows | `store.ts`, `group-session.ts`, `commands.ts`, `events.ts` | Project state, queued decisions, groups, keyboard commands and resync |
 | Analysis and preferences | `analysis-readout.ts`, `view-preferences.ts`, `preferences.ts`, `i18n.ts` | Score display, durable view settings and localized labels |

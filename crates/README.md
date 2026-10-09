@@ -6,7 +6,7 @@
 不复制业务规则。
 
 | crate | 入口与边界 | 重要模块 | 测试位置 |
-|---|---|---|---|
+| :--- | :--- | :--- | :--- |
 | `iris-core` | `src/lib.rs`；数据、媒体、模型和领域服务 | `domain.rs`、`store.rs`、`services.rs`、`owned_job.rs`、`vision/` | `crates/iris-core/tests/` 与模块单测 |
 | `iris-daemon` | `src/main.rs` / `src/lib.rs`；本地 API、任务生命周期、模型安装 | `operations.rs`、`worker.rs`、`ownership.rs`、`model_installer/` | `crates/iris-daemon/tests/` |
 | `iris-cli` | `src/main.rs`；扫描、分析、导出等 headless 命令 | CLI 参数和 daemon 调用编排 | `cargo test --workspace`（共享 core/daemon 覆盖） |

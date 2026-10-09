@@ -7,12 +7,10 @@ no threshold is claimed to be calibrated on the wedding photographs.
 
 ## Source and license
 
-- Official architecture/documentation: https://github.com/facebookresearch/dinov3
-- Official model: https://huggingface.co/facebook/dinov3-vits16-pretrain-lvd1689m
-- Public community ONNX conversion:
-  https://huggingface.co/onnx-community/dinov3-vits16-pretrain-lvd1689m-ONNX/tree/48988dfe73065df8d6f5ccc0edc7c8bcf307de41
-- Meta DINOv3 License, August 19, 2025:
-  https://github.com/facebookresearch/dinov3/blob/main/LICENSE.md
+* [Official architecture and documentation](https://github.com/facebookresearch/dinov3)
+* [Official model](https://huggingface.co/facebook/dinov3-vits16-pretrain-lvd1689m)
+* [Public community ONNX conversion](https://huggingface.co/onnx-community/dinov3-vits16-pretrain-lvd1689m-ONNX/tree/48988dfe73065df8d6f5ccc0edc7c8bcf307de41)
+* [Meta DINOv3 License, August 19, 2025](https://github.com/facebookresearch/dinov3/blob/main/LICENSE.md)
 
 The official checkpoint repository has a manual access gate. The setup tool does
 not access it, submit personal information, accept its gate, or use credentials.

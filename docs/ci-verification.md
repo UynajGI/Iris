@@ -9,7 +9,7 @@
 [运行 37941637598](https://github.com/UynajGI/Iris/actions/runs/37941637598) 对提交 `c997197` 完成四个平台的原生构建、CPU 推理与发行包自检：
 
 | 平台 | 已验证范围 |
-|---|---|
+| :--- | :--- |
 | Windows x64 GNU | 桌面、daemon、CLI、MCP、RAW 转换器打包，文件校验、仓库外宿主启动和合成图分析 |
 | macOS 14 arm64 | 原生编译、工作区测试、三个默认 ONNX 模型、正常退出、包内启动和合成 PNG 分析 |
 | macOS 15 Intel x64 | 同上，独立 runner 验证 |

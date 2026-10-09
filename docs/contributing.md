@@ -2,6 +2,8 @@
 
 自有代码和文档采用 GPL-3.0-or-later。提交贡献前确认有权按项目许可提供内容；保留原有第三方声明，不引入无授权实现或素材。
 
+先在 [Issues](https://github.com/UynajGI/Iris/issues) 检索已有报告，使用缺陷或功能建议模板反馈。代码贡献请 Fork 仓库，在独立分支完成修改并提交 PR，说明问题、变更后的行为和验证结果。安全漏洞使用 [SECURITY.md](../SECURITY.md) 中的私密入口。
+
 ## 环境与检查
 
 构建入口见 [README](../README.md)。根目录 `npm ci` 安装本地 Lefthook/commitlint，不修改全局 Git 配置；前端依赖在 `apps/shell` 单独安装。

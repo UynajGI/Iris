@@ -4,7 +4,7 @@ Iris-owned application code and documentation are licensed under GPL-3.0-or-late
 This does not replace third-party licenses or copyrights.
 
 | Material | License / notice |
-|---|---|
+| :--- | :--- |
 | Standalone RAW wrapper | [MIT](components/raw-decoder/LICENSE) |
 | rawler | LGPL-2.1; original package notices retained in the RAW source archive |
 | Material Symbols Rounded | [Apache-2.0](apps/shell/src/ui/icons/LICENSE); provenance in the icon directory |

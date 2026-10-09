@@ -23,13 +23,13 @@ python tools/dev.py verify
 
 ## 任务分组
 
-- `check`、`fmt`、`test`、`build`：源码、格式、测试和构建；`build-desktop` 另含
+* `check`、`fmt`、`test`、`build`：源码、格式、测试和构建；`build-desktop` 另含
   Tauri 壳，`build` 默认不构建桌面壳。
-- `api` / `api-check`：由 daemon 生成或检查 `docs/openapi.json` 和前端类型；检查
+* `api` / `api-check`：由 daemon 生成或检查 `docs/openapi.json` 和前端类型；检查
   不写文件，契约变化后应审阅生成结果。
-- `models`、`media`、`raw`、`directml`：明确请求后准备模型或 Windows 运行库，可能
+* `models`、`media`、`raw`、`directml`：明确请求后准备模型或 Windows 运行库，可能
   下载或写入本机忽略目录；不会删除照片或自动接受模型许可。
-- `source`、`portable`：分别导出干净源码 ZIP 和 Windows 便携包目录；必须提供新
+* `source`、`portable`：分别导出干净源码 ZIP 和 Windows 便携包目录；必须提供新
   `--output` 路径，现有目标不会覆盖。
 
 独立脚本仍适用于专项流程：`setup-models.py`、`setup-heif-runtime.py`、
@@ -44,7 +44,7 @@ python tools/dev.py verify
 新目录。涉及照片、模型或运行库的脚本不会替用户上传数据或接受模型许可。
 
 | 脚本 | 用途与前提 |
-|---|---|
+| :--- | :--- |
 | `benchmark_scale.py` | 规模基准；需要已构建 daemon、照片和输出目录 |
 | `benchmark_worker_limits.py` | worker 并发/限制基准；需要本地分析数据 |
 | `benchmark_worker_threads.py` | worker 线程基准；需要 daemon 和测试照片 |

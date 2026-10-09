@@ -29,25 +29,25 @@
 
 ## 本地安装包
 
-**2026-10-07修复：独立RAW组件已纳入NSIS交付。**
+**2026-10-07 修复：独立 RAW 组件已纳入 NSIS 交付。**
 `tools/package-installer.ps1` 现在强制清单包含 `iris-raw-decoder.exe` 和
-`sources/raw-decoder-source.zip`，校验大小与SHA-256后将两者加入安装资源。
+`sources/raw-decoder-source.zip`，校验大小与 SHA-256 后将两者加入安装资源。
 源码仅允许这一指定归档，不放行任意 `sources/` 文件。缺件、未登记或篡改会拒绝打包；
-安装说明列出组件源码位置。若显式配置Authenticode，独立RAW程序也进入暂存副本签名流程；
+安装说明列出组件源码位置。若显式配置 Authenticode，独立 RAW 程序也进入暂存副本签名流程；
 本次未提供正式证书，未验收真实证书签名。
 
 最新未签名安装器为 `dist/installers/IrisVision-0.1.0-windows-x64-closed-source-raw-final/`。
-构建成功，1630项资源中1629项与来源便携包逐字节一致，另1项为生成的安装说明；
-原便携包1650项仍全部匹配清单。证据：`artifacts/closed-source-nsis-raw-payload-verification.json`。
-此前安装器及下文v5 QA保留为历史记录，不代替本次验收。
+构建成功，1630 项资源中 1629 项与来源便携包逐字节一致，另 1 项为生成的安装说明；
+原便携包 1650 项仍全部匹配清单。证据：`artifacts/closed-source-nsis-raw-payload-verification.json`。
+此前安装器及下文 v5 QA 保留为历史记录，不代替本次验收。
 
-本次隔离QA通过，报告为
+本次隔离 QA 通过，报告为
 `artifacts/nsis-qa-f6ee177b18984140aa650a30409cb6e7/lifecycle-report.json`：
-实际安装→QA版本标记0.1.0/0.1.1替换→卸载成功；两个阶段各核对1630资源及host心跳，
-各自`v1-raw-fallback/report.json`、`v2-raw-fallback/report.json`均为ok=true。
-真实DNG在无ExifTool时后备成功，36MP ARW按开发限额隔离，源片哈希保持。
-QA数据在替换与卸载后保留，安装目录、注册与快捷方式清理完成，正式产品状态和源工件未变。
-这不是跨真实应用版本升级、正式身份安装或干净Windows验收。
+实际安装→QA 版本标记 0.1.0/0.1.1 替换→卸载成功；两个阶段各核对 1630 资源及 host 心跳，
+各自`v1-raw-fallback/report.json`、`v2-raw-fallback/report.json`均为 ok=true。
+真实 DNG 在无 ExifTool 时后备成功，36MP ARW 按开发限额隔离，源片哈希保持。
+QA 数据在替换与卸载后保留，安装目录、注册与快捷方式清理完成，正式产品状态和源工件未变。
+这不是跨真实应用版本升级、正式身份安装或干净 Windows 验收。
 
 先用 `tools/package-local.ps1` 生成并验证当前 Release 便携包，再运行：
 
@@ -57,27 +57,27 @@ pwsh -NoProfile -File tools/package-installer.ps1 -PortableDirectory <当前便�
 
 脚本验证来源清单中每个文件的大小和 SHA-256，暂存到独立构建目录，再用固定
 Tauri CLI 2.12.1 生成当前用户 NSIS 安装器。它不执行安装器，不修改来源便携包。
-包内包括 daemon、CLI、独立RAW转换器及组件源码、默认模型、WebView2 Loader 和许可证；不包含照片、
+包内包括 daemon、CLI、独立 RAW 转换器及组件源码、默认模型、WebView2 Loader 和许可证；不包含照片、
 数据库、研究权重或私钥。安装目标机仍需已有 WebView2 Runtime 和
 Microsoft Visual C++ 2015–2022 x64 Redistributable。
 
-以下安装器生命周期证据来自旧隐藏窗口检查点；当前桌面界面已实现，原生交互走查仍见[交接](HANDOFF.md)。独立QA身份的安装器生命周期已验证，范围见下文；正式身份安装、
-跨应用版本更新和干净Windows兼容性仍未验收。首份 `v5-audit` 安装器仅为历史审计产物，
+以下安装器生命周期证据来自旧隐藏窗口检查点；当前桌面界面已实现，原生交互走查仍见[交接](HANDOFF.md)。独立 QA 身份的安装器生命周期已验证，范围见下文；正式身份安装、
+跨应用版本更新和干净 Windows 兼容性仍未验收。首份 `v5-audit` 安装器仅为历史审计产物，
 其依赖许可证枚举问题已在脚本修复，须使用后续重新生成的包。
 
-当前RAW载荷的隔离QA入口（使用独立产品身份；不会安装正式身份）：
+当前 RAW 载荷的隔离 QA 入口（使用独立产品身份；不会安装正式身份）：
 
 ```powershell
 pwsh -NoProfile -File tools/verify-nsis-lifecycle.ps1 -SourceBuildReport dist/installers/IrisVision-0.1.0-windows-x64-closed-source-raw-final/build-report.json -VerifyRawFallback
 ```
 
-`-VerifyRawFallback` 在两个QA安装阶段逐项核对资源后，使用已安装daemon及其相邻RAW转换器，
-在不含ExifTool的临时模型目录验证真实DNG后备与超限ARW失败隔离。QA版本号标记替换仍使用
+`-VerifyRawFallback` 在两个 QA 安装阶段逐项核对资源后，使用已安装 daemon 及其相邻 RAW 转换器，
+在不含 ExifTool 的临时模型目录验证真实 DNG 后备与超限 ARW 失败隔离。QA 版本号标记替换仍使用
 同一应用二进制，不代表跨真实应用版本升级或更新器安装端到端。
 
 ## 启用更新签名的构建
 
-安装器始终使用独立 `release-installer` Cargo profile 编译原生壳，并标明NSIS分发形态，
+安装器始终使用独立 `release-installer` Cargo profile 编译原生壳，并标明 NSIS 分发形态，
 不污染便携 Release。`-EnableUpdater -UpdateEndpoint <HTTPS地址> -UpdatePublicKeyFile <公钥文件>`
 额外将信任配置嵌入该构建。
 来源便携包必须包含当前桌面依赖的许可证，否则构建拒绝。
@@ -86,9 +86,9 @@ pwsh -NoProfile -File tools/verify-nsis-lifecycle.ps1 -SourceBuildReport dist/in
 
 更新器签名与 Windows Authenticode 是两套不同机制：
 
-- 更新工件必须有 `.sig`，其受签 comment 必须包含对应 `version:<版本>`。
+* 更新工件必须有 `.sig`，其受签 comment 必须包含对应 `version:<版本>`。
   构建工具再次验证字节、公钥和版本，成功后才写入交付目录。
-- Authenticode 可额外使用 `-CertificateThumbprint <证书指纹>` 和
+* Authenticode 可额外使用 `-CertificateThumbprint <证书指纹>` 和
   `-TimestampUrl <时间戳服务地址>`；需要已配置 `signtool.exe` 和证书。
   脚本签名暂存的 daemon/CLI，Tauri 签名壳与安装器，再检查状态及证书指纹。
 
@@ -105,13 +105,13 @@ pwsh -NoProfile -File tools/verify-nsis-lifecycle.ps1 -SourceBuildReport dist/in
 构建签名安装器，验证正例、字节篡改和版本替换拒绝；仅保留测试公钥，删除临时
 私钥，不执行安装器。此输出仅为签名验证工件，不可发布给用户。
 
-`tools/verify-nsis-lifecycle.ps1` 从最终NSIS构建暂存区生成独立QA安装器，随机化
-产品名、发布者、Bundle ID和主二进制名，只在新的`artifacts/nsis-qa-*`目录安装。
-已实际完成静默安装、QA版本标记替换、卸载，核对991个资源、注册、快捷方式、
-安装后host心跳，以及外置host生成的SQLite和哨兵文件保留。正常Tauri入口不启动。
+`tools/verify-nsis-lifecycle.ps1` 从最终 NSIS 构建暂存区生成独立 QA 安装器，随机化
+产品名、发布者、Bundle ID 和主二进制名，只在新的`artifacts/nsis-qa-*`目录安装。
+已实际完成静默安装、QA 版本标记替换、卸载，核对 991 个资源、注册、快捷方式、
+安装后 host 心跳，以及外置 host 生成的 SQLite 和哨兵文件保留。正常 Tauri 入口不启动。
 当前载荷报告为`artifacts/nsis-qa-133a49d2955a457a836efd5362d4ffd1/lifecycle-report.json`。
-QA安装器的0.1.0/0.1.1使用相同0.1.0应用二进制；它验证安装器生命周期，
-不能证明真实应用版本迁移、更新器安装端到端、正式身份安装或干净Windows兼容性。
+QA 安装器的 0.1.0/0.1.1 使用相同 0.1.0 应用二进制；它验证安装器生命周期，
+不能证明真实应用版本迁移、更新器安装端到端、正式身份安装或干净 Windows 兼容性。
 
 便携及安装包都按 `desktop` 特性枚举桌面依赖许可证；默认特性下的 Cargo
 metadata 不足以列出原生壳实际使用的依赖，构建工具已经显式处理这一区别。

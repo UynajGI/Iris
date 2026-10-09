@@ -64,9 +64,9 @@ the HEVC decoder (external plugins and encoders disabled), and creates
 `models/media`. Distribution must include that **entire directory**, including
 `manifest.json`, `sources`, `licenses` and the three DLLs:
 
-- `libheif.dll`
-- `libde265.dll`
-- `libwinpthread-1.dll`
+* `libheif.dll`
+* `libde265.dll`
+* `libwinpthread-1.dll`
 
 The DLL dependency closure is checked against these files and Windows system
 libraries. Both codec libraries are LGPL-3.0-or-later and dynamically loaded.

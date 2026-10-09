@@ -12,18 +12,18 @@
 
 ## 修复与规范
 
-- API 增加只读比对：`make api-check` 检查 OpenAPI 与生成类型是否漂移，失败时不覆盖已有文件。
-- Python 命令层使用参数数组并立即传播失败；测试覆盖失败中止、路径空格、输出参数和只读 API 检查。
-- 提交检查增加 PEM、SQLite WAL/SHM 和加密私钥标记防护，并添加回归测试。
-- CI 明确只读仓库权限；`.editorconfig` 和 `.gitattributes` 统一文本编码、换行及 Makefile 制表符。
-- 原生更新测试服务器修复 Windows 非阻塞连接竞态：已接受连接显式恢复阻塞读取，避免请求尚未到达时返回 404。新增空闲连接回归测试修复前失败、修复后通过；产品更新器逻辑未变。
+* API 增加只读比对：`make api-check` 检查 OpenAPI 与生成类型是否漂移，失败时不覆盖已有文件。
+* Python 命令层使用参数数组并立即传播失败；测试覆盖失败中止、路径空格、输出参数和只读 API 检查。
+* 提交检查增加 PEM、SQLite WAL/SHM 和加密私钥标记防护，并添加回归测试。
+* CI 明确只读仓库权限；`.editorconfig` 和 `.gitattributes` 统一文本编码、换行及 Makefile 制表符。
+* 原生更新测试服务器修复 Windows 非阻塞连接竞态：已接受连接显式恢复阻塞读取，避免请求尚未到达时返回 404。新增空闲连接回归测试修复前失败、修复后通过；产品更新器逻辑未变。
 
 ## 本轮本机验证
 
 Windows x64 GNU 工具链；测试均针对本轮工作区。重复运行及重叠套件不相加。日志位于被忽略的本地 `artifacts/`。
 
 | 检查 | 结果 | 日志 |
-|---|---|---|
+| :--- | :--- | :--- |
 | Rust 主 workspace，release | 172 通过，21 忽略 | `review-rust-tests.log` |
 | Python 工具 | 68 通过 | `review-python-tests.log` |
 | 前端，真实 daemon 与授权照片 | 72 通过，0 跳过 | `review-web-tests.log` |

@@ -1,0 +1,27 @@
+name: Feature request / 功能建议
+description: Describe a workflow that Iris could improve.
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Workflow and problem / 工作流与问题
+      description: What are you trying to do, and where does the current workflow fall short?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior / 期望行为
+      description: Describe the result you need; include alternatives you have considered.
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Platform and interface / 平台与入口
+      placeholder: macOS Apple Silicon, desktop / Windows x64, MCP
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context / 补充信息
+      description: Use synthetic or shareable examples. Do not attach private photographs, databases or credentials.

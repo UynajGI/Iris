@@ -6,11 +6,11 @@
 
 ## 当前实现
 
-- 核心、媒体、RAW、DirectML、桌面界面和 stdio MCP 均已有实现。先读[当前状态](development-status.md)、[架构](architecture.md)、[MCP 接入](mcp.md)。
-- 设计 v1.0 已批准，见 [DESIGN.md](../DESIGN.md)。本次整理不改变批准的视觉参数。
-- MCP 使用官方 Rust SDK，复用 daemon/core；不打开桌面、不监听 TCP，包含 44 个工具、目录范围限制、写入审计、请求去重和数据库互斥。
-- 分析版本为 `iris-vision-v6-local-pipeline-2026-10-07`。数据库迁移以源码为准，旧笔记中的 schema 数字不是当前契约。
-- 独立 RAW 转换器继续保留；开源不要求重新合并已验证的进程边界。
+* 核心、媒体、RAW、DirectML、桌面界面和 stdio MCP 均已有实现。先读[当前状态](development-status.md)、[架构](architecture.md)、[MCP 接入](mcp.md)。
+* 设计 v1.0 已批准，见 [DESIGN.md](../DESIGN.md)。本次整理不改变批准的视觉参数。
+* MCP 使用官方 Rust SDK，复用 daemon/core；不打开桌面、不监听 TCP，包含 44 个工具、目录范围限制、写入审计、请求去重和数据库互斥。
+* 分析版本为 `iris-vision-v6-local-pipeline-2026-10-07`。数据库迁移以源码为准，旧笔记中的 schema 数字不是当前契约。
+* 独立 RAW 转换器继续保留；开源不要求重新合并已验证的进程边界。
 
 ## 下一步
 

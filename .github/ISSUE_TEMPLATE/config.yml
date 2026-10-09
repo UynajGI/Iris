@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability / 安全漏洞
+    url: https://github.com/UynajGI/Iris/security/advisories/new
+    about: Report vulnerabilities privately; do not disclose exploit details in a public issue.
+  - name: Documentation / 使用与开发文档
+    url: https://github.com/UynajGI/Iris/blob/main/docs/README.md
+    about: Check platform support, MCP setup and validation boundaries.

@@ -102,7 +102,7 @@ The quality report evaluates supported stored v5 measurements without new
 inference or changing settings:
 
 | Dimension | Full score | Leave-one-term-out variants |
-|---|---|---|
+| :--- | :--- | :--- |
 | Sharpness | Stored sharpness component | Without Laplacian, FFT, or NIQE |
 | Face technical quality | Matched face's stored local quality | Without local sharpness, exposure, or resolution |
 

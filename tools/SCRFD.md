@@ -28,7 +28,7 @@ python tools/setup_scrfd.py --research-only --archive artifacts/scrfd-research/b
 ```
 
 | Artifact | SHA-256 |
-|---|---|
+| :--- | :--- |
 | Official `buffalo_sc.zip` (14,969,382 bytes) | `57d31b56b6ffa911c8a73cfc1707c73cab76efe7f13b675a05223bf42de47c72` |
 | Original `det_500m.onnx` (2,524,817 bytes) | `5e4447f50245bbd7966bd6c0fa52938c61474a04ec7def48753668a9d8b4ea3a` |
 
@@ -43,7 +43,7 @@ The float32 input is `[1,3,640,640]` in RGB order, normalized as
 dynamic spatial dimensions; this adapter deliberately fixes inference to 640.
 The nine official output names, in order, are:
 
-```
+```text
 scores: 443 468 493
 boxes:  446 471 496
 KPS:    449 474 499
@@ -100,20 +100,20 @@ distribution deliverables.
 
 ## Verified local checkpoint (2026-10-07)
 
-- Six SCRFD Rust unit tests passed; the separately invoked ignored test passed
+* Six SCRFD Rust unit tests passed; the separately invoked ignored test passed
   using the original model and the project's bundled ONNX Runtime. Square,
   landscape and portrait synthetic inputs all executed successfully.
-- A real private JPG's two detected faces were captured as raw heads and decoded
+* A real private JPG's two detected faces were captured as raw heads and decoded
   geometry. Independent coordinate reconstruction matched both, with maximum
   error `0.0000201157427` against tolerance `0.002`.
-- The release paired workflow completed both sets of 100 JPGs with no failures,
+* The release paired workflow completed both sets of 100 JPGs with no failures,
   full cache reuse, unchanged source hashes and identical non-detector metrics.
   YuNet returned 426 faces and SCRFD 377: 69 images had equal counts, 31 had fewer
   SCRFD detections, and none had more. These counts do not measure accuracy.
-- Default YuNet predictions matched all 100 records in
+* Default YuNet predictions matched all 100 records in
   `artifacts/evaluation-v5-workers-final.sqlite3` exactly after excluding only
   `elapsed_ms`. No settings or prediction fields were otherwise normalized.
-- Observed elapsed times were recorded while other CPU work could overlap;
+* Observed elapsed times were recorded while other CPU work could overlap;
   this run does not support a relative-speed conclusion.
 
 Evidence: `artifacts/scrfd-paired-final/verification.json`,

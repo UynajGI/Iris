@@ -34,7 +34,7 @@ server selects `iris`. Events are `{event, project_id, data}`. Event families:
 `scan:progress`, `analysis:stage`, `verdict:updated`, `session:changed`.
 
 | Method | Path | Input |
-|---|---|---|
+| :--- | :--- | :--- |
 | GET | /bootstrap | capabilities and version |
 | GET | /devices/gpu | DXGI device indices/names/capacities; no project or models required |
 | GET | /projects | recent projects |

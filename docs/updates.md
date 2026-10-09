@@ -15,7 +15,7 @@ These environment values are embedded at **build time**, never read as runtime
 overrides:
 
 | Variable | Value |
-| --- | --- |
+| :--- | :--- |
 | `IRIS_DISTRIBUTION` | `nsis` for an installer build; absent or `portable` disables installer updates |
 | `IRIS_UPDATE_ENDPOINT` | Trusted HTTPS manifest endpoint, without URL credentials or a fragment |
 | `IRIS_UPDATE_PUBLIC_KEY` | Contents of the Tauri public key file (base64), not its path |
@@ -97,7 +97,7 @@ allows these tools/tests to avoid Windows WebView/Common Controls activation.
 Active-analysis shutdown is covered separately by an opt-in bounded workload test:
 
 ```powershell
-./tools/verify-update-active-workload.ps1
+pwsh -NoProfile -File tools/verify-update-active-workload.ps1
 ```
 
 The script creates 36 distinct 2048×1536 synthetic JPGs in an owned temporary

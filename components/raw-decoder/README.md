@@ -5,7 +5,7 @@ It links rawler 0.8.0 (LGPL-2.1); its complete source and dependency sources are
 distributed so recipients can rebuild it with a modified library. This license
 does not apply to Iris core, daemon, CLI or desktop sources.
 
-```
+```bash
 iris-raw-decoder metadata photograph.dng
 iris-raw-decoder develop photograph.dng > photograph.ppm
 ```
