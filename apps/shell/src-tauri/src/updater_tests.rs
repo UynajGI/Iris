@@ -77,6 +77,10 @@ impl Server {
             while !stopped.load(Ordering::SeqCst) {
                 match listener.accept() {
                     Ok((mut socket, _)) => {
+                        // Windows accepted sockets inherit the listener's
+                        // nonblocking mode. Header reads below use timeouts,
+                        // so explicitly restore blocking I/O on the stream.
+                        socket.set_nonblocking(false).unwrap();
                         socket
                             .set_read_timeout(Some(Duration::from_secs(1)))
                             .unwrap();
@@ -122,6 +126,37 @@ impl Drop for Server {
         self.thread.take().unwrap().join().unwrap();
     }
 }
+
+#[test]
+fn fixture_waits_for_request_headers_on_an_idle_connection() {
+    let server =
+        Server::new(|_| HashMap::from([("/fixture".into(), Response::ok(b"fixture".to_vec()))]));
+    let mut client =
+        std::net::TcpStream::connect(server.base.trim_start_matches("http://")).unwrap();
+    client
+        .set_read_timeout(Some(Duration::from_millis(75)))
+        .unwrap();
+    // Connecting and sending request bytes are separate events. The fixture
+    // must wait for headers, not respond with a 404 to an empty partial read.
+    let mut byte = [0];
+    let error = client.read(&mut byte).unwrap_err();
+    assert!(matches!(
+        error.kind(),
+        std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
+    ));
+    client
+        .set_read_timeout(Some(Duration::from_secs(2)))
+        .unwrap();
+    client
+        .write_all(b"GET /fixture HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n")
+        .unwrap();
+    let mut response = String::new();
+    client.read_to_string(&mut response).unwrap();
+    assert!(response.starts_with("HTTP/1.1 200"), "{response}");
+    assert!(response.ends_with("fixture"));
+    assert_eq!(server.requests.load(Ordering::SeqCst), 1);
+}
+
 fn sign(bytes: &[u8], comment: &str) -> (String, String) {
     // The secret exists only in this test's memory, never in a repository/file.
     let keypair = minisign::KeyPair::generate_unencrypted_keypair().unwrap();
