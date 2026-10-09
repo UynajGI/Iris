@@ -41,4 +41,8 @@
 
 ## 验证
 
-使用 GitHub Markdown 渲染接口检查 README 结构与徽章；该接口不返回页面目录 ID，目录锚点需在仓库页面渲染后另行核对。运行 `git diff --check` 与暂存后的 `python tools/check-public-tree.py`，并检查 Markdown 结构、相对链接、模板 YAML、代码示例及双语命令一致性。本轮没有修改应用代码，不据此声称重跑了产品或跨平台测试。
+使用 GitHub Markdown 渲染接口检查 README 结构与徽章；该接口不返回页面目录 ID，因此推送后另行读取两个仓库页面，16 个目录锚点全部匹配。
+
+46 份 Markdown 的结构与相对链接检查通过，三个 Issue YAML 文件解析通过，中英文 README 的六组命令一致。除明确补充解释器的命令外，原有技术文档的代码块内容保持原样。`git diff --check`、暂存后的 `python tools/check-public-tree.py` 和提交钩子均通过；README 的六个 Topics 与仓库 About 匹配，私密漏洞报告状态已确认启用。
+
+本轮没有修改应用代码，不据此声称重跑了产品或跨平台测试。已发布的 Beta 标签仍指向原发行提交。
