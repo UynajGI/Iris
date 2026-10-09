@@ -18,8 +18,19 @@ def package(root: Path, output: Path) -> str:
 
     if output.exists():
         raise ValueError("Output must be new")
-    if git("status", "--porcelain", "--untracked-files=normal").strip():
-        raise ValueError("Source export requires a clean working tree and index")
+    # On Windows, downloaded LF notices can appear modified in porcelain status
+    # after a CRLF checkout even though Git's normalized content is identical.
+    # Compare both actual content diffs and untracked files; still reject every
+    # real staged/unstaged change instead of relaxing the source export gate.
+    dirty = False
+    for args in [("diff", "--quiet"), ("diff", "--cached", "--quiet")]:
+        result = subprocess.run(["git", *args], cwd=root, check=False)
+        if result.returncode not in (0, 1):
+            raise RuntimeError("Git source comparison failed")
+        dirty |= result.returncode == 1
+    if dirty or git("ls-files", "--others", "--exclude-standard").strip():
+        status = git("status", "--porcelain", "--untracked-files=normal").decode("utf-8", errors="replace").strip()
+        raise ValueError("Source export requires a clean working tree and index:\n" + status)
     spec = importlib.util.spec_from_file_location("public_tree", ROOT / "tools/check-public-tree.py")
     guard = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(guard)

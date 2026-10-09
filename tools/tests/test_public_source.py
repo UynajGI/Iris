@@ -59,6 +59,24 @@ class PublicSourceTests(unittest.TestCase):
             module.package(self.root, Path(self.temp.name) / "rejected.zip")
         self.assertFalse((Path(self.temp.name) / "rejected.zip").exists())
 
+    def test_normalized_line_endings_export_but_staged_and_untracked_changes_do_not(self):
+        self.git("config", "core.autocrlf", "true")
+        self.write(".gitattributes", "* text=auto\n")
+        self.write("notice.txt", "License fixture\n")
+        self.commit()
+        (self.root / "notice.txt").unlink()
+        self.git("checkout", "--", "notice.txt")
+        (self.root / "notice.txt").write_bytes(b"License fixture\n")
+        module.package(self.root, Path(self.temp.name) / "normalized.zip")
+        self.write("notice.txt", "Actual change\n")
+        self.git("add", "notice.txt")
+        with self.assertRaisesRegex(ValueError, "clean working tree"):
+            module.package(self.root, Path(self.temp.name) / "staged.zip")
+        self.git("reset", "--hard", "HEAD")
+        self.write("untracked.txt", "Not approved for export\n")
+        with self.assertRaisesRegex(ValueError, "clean working tree"):
+            module.package(self.root, Path(self.temp.name) / "untracked.zip")
+
     def test_gitlink_blocks_export(self):
         revision = self.git("rev-parse", "HEAD").decode().strip()
         self.git("update-index", "--add", "--cacheinfo", "160000," + revision + ",external")
