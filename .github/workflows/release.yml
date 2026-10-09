@@ -1,0 +1,135 @@
+name: Release
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  version:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: python tools/check-release.py "$RELEASE_TAG"
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+  verify:
+    needs: version
+    uses: ./.github/workflows/verify.yml
+  windows:
+    needs: version
+    runs-on: windows-latest
+    timeout-minutes: 90
+    env:
+      RUSTUP_TOOLCHAIN: stable-x86_64-pc-windows-gnu
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable-x86_64-pc-windows-gnu
+      - uses: Swatinem/rust-cache@v2
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: mingw-w64-x86_64-gcc mingw-w64-x86_64-make
+      - name: Expose MinGW
+        shell: msys2 {0}
+        run: cygpath -w "$MINGW_PREFIX/bin" >> "$GITHUB_PATH"
+      - run: python tools/setup-models.py
+      - run: python tools/setup-heif-runtime.py --jobs 2
+      - run: python tools/setup-raw-runtime.py
+      - name: Build and verify Windows package
+        run: pwsh -NoProfile -File tools/package-local.ps1 -OutputDirectory dist/release/Iris-windows-x64
+      - name: Archive release assets
+        shell: pwsh
+        run: |
+          $version = (Get-Content apps/shell/package.json -Raw | ConvertFrom-Json).version
+          Compress-Archive -Path dist/release/Iris-windows-x64 -DestinationPath "dist/release/Iris-$version-windows-x64.zip"
+          Copy-Item dist/release/Iris-windows-x64/sources/iris-application-source.zip "dist/release/Iris-$version-source.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-windows
+          path: dist/release/*.zip
+          if-no-files-found: error
+  unix:
+    needs: version
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            label: linux-x64
+          - os: macos-14
+            label: macos-arm64
+          - os: macos-15-intel
+            label: macos-x64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    env:
+      RUSTUP_TOOLCHAIN: stable
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Linux desktop dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xvfb
+      - run: npm ci
+        working-directory: apps/shell
+      - run: python tools/setup-models.py
+      - run: python tools/dev.py build --profile release
+      - run: python tools/dev.py build-desktop --profile release
+      - run: cargo test --workspace --locked --release
+      - name: Actual CPU inference
+        run: cargo test --locked --release -p iris-core bundled_onnx_tensor_smoke -- --ignored --nocapture
+      - name: Package native beta
+        run: python tools/package-unix.py --output "dist/release/Iris-${GITHUB_REF_NAME#v}-$PLATFORM"
+        env:
+          PLATFORM: ${{ matrix.label }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.label }}
+          path: dist/release/*.tar.gz
+          if-no-files-found: error
+  draft:
+    needs: [verify, windows, unix]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          merge-multiple: true
+          path: dist/release
+      - name: Create verified release draft
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          cd dist/release
+          sha256sum *.zip *.tar.gz > SHA256SUMS.txt
+          args=(--draft --verify-tag --latest=false --title "Iris $RELEASE_TAG")
+          if [[ "$RELEASE_TAG" == *-* ]]; then args+=(--prerelease); fi
+          notes="../../docs/releases/$RELEASE_TAG.md"
+          if [[ -f "$notes" ]]; then args+=(--notes-file "$notes"); else args+=(--generate-notes); fi
+          gh release create "$RELEASE_TAG" *.zip *.tar.gz SHA256SUMS.txt "${args[@]}"

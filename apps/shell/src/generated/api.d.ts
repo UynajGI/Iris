@@ -1,5 +1,5 @@
 // Generated from iris-daemon OpenAPI. Do not edit.
-// Contract SHA-256: 2eebdc94c8741b69dca445ecfbcfffdbf567e52c65b08c4b95731026dab11ba5
+// Contract SHA-256: 5a2dc12ec80b29f965c0ba7771d712abde521cb570e326d8a0339e5f5fa9b37e
 export interface paths {
     "/api/v1/bootstrap": {
         parameters: {

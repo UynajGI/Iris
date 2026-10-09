@@ -24,7 +24,7 @@ impl AppLocale {
     pub fn product_name(self) -> &'static str {
         match self {
             Self::Chinese => "伊人",
-            Self::English => "IrisVision",
+            Self::English => "Iris",
         }
     }
 }
@@ -302,7 +302,7 @@ mod tests {
     use super::*;
     #[test]
     fn app_locale_maps_only_supported_locales_to_product_names() {
-        for (locale, title) in [("zh-CN", "伊人"), ("en", "IrisVision")] {
+        for (locale, title) in [("zh-CN", "伊人"), ("en", "Iris")] {
             let parsed: AppLocale = serde_json::from_value(serde_json::json!(locale)).unwrap();
             assert_eq!(parsed.product_name(), title);
         }

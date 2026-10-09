@@ -1,4 +1,4 @@
-# IrisVision offline model assets
+# Iris offline model assets
 
 Run `python tools/setup-models.py` to restore the pinned files in `manifest.json`.
 Downloaded bytes are checked against upstream Git LFS SHA-256 object IDs. The

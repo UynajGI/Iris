@@ -30,7 +30,7 @@ npm --prefix apps/shell run build
 从干净且已提交的树执行：
 
 ```powershell
-python tools/package-source.py --output dist/source/IrisVision-source.zip
+python tools/package-source.py --output dist/source/Iris-source.zip
 ```
 
 已有输出不会覆盖。输出仅含 HEAD 跟踪的公开内容，不带 Git 历史、本机缓存或照片。二进制构建与对应源码、依赖许可核对见 [licensing.md](licensing.md)。

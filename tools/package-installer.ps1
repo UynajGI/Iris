@@ -91,7 +91,7 @@ foreach ($relative in ($validated.Keys | Sort-Object)) {
 }
 $installationNotes = Join-Path $payload 'INSTALLATION.txt'
 @"
-IrisVision $version - Windows x64 NSIS build
+Iris $version - Windows x64 NSIS build
 Installs for the current Windows user with the desktop selection interface.
 Microsoft Edge WebView2 Runtime and Microsoft Visual C++ 2015-2022 x64
 Redistributable must already be installed. Default models work offline.

@@ -7,7 +7,7 @@ use std::{
 };
 
 #[derive(Parser)]
-#[command(about = "IrisVision headless photo culling")]
+#[command(about = "Iris headless photo culling")]
 struct Args {
     #[arg(long, default_value = ".iris/library.sqlite3")]
     database: PathBuf,

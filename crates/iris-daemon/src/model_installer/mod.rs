@@ -115,7 +115,7 @@ fn download(file: &str, size: usize, hash: &str, installer: &Installer) -> anyho
     tokio::runtime::Builder::new_current_thread().enable_all().build()?.block_on(async {
         let client = reqwest::Client::builder().https_only(true)
             .connect_timeout(Duration::from_secs(15)).timeout(Duration::from_secs(180))
-            .user_agent("IrisVision/0.1 optional-model-installer").build()?;
+            .user_agent("Iris/0.1 optional-model-installer").build()?;
         let request = client.get(format!("{BASE}/{file}")).send();
         tokio::pin!(request);
         let mut response = loop {

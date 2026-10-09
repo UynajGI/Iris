@@ -45,7 +45,7 @@ class PublicSourceTests(unittest.TestCase):
         revision = module.package(self.root, output)
         self.assertEqual(revision, self.git("rev-parse", "HEAD").decode().strip())
         with zipfile.ZipFile(output) as archive:
-            self.assertEqual(archive.read("IrisVision/README.md"), self.git("show", "HEAD:README.md"))
+            self.assertEqual(archive.read("Iris/README.md"), self.git("show", "HEAD:README.md"))
             self.assertFalse(any("private" in x or ".git/" in x for x in archive.namelist()))
         self.write("README.md", "changed\n")
         with self.assertRaisesRegex(ValueError, "clean working tree"):

@@ -31,7 +31,7 @@ def package(root: Path, output: Path) -> str:
     # Exclusive creation; export only committed blobs, never recurse over local files.
     with output.open("xb") as archive:
         subprocess.run(["git", "-c", "core.autocrlf=false", "-c", "core.eol=lf",
-                        "archive", "--format=zip", "--prefix=IrisVision/", revision],
+                        "archive", "--format=zip", "--prefix=Iris/", revision],
                        cwd=root, stdout=archive, check=True)
     return revision
 

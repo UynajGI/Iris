@@ -1,5 +1,7 @@
 # 开发工具入口
 
+发布工具：`check-release.py` 校验 Tag 与应用版本；`onnx_runtime.py` 为 macOS/Linux 准备哈希固定的 CPU 运行库，由 `setup-models.py` 调用；`package-unix.py` 组装原生 Unix Beta 包。流程与限制见[发布文档](../docs/releasing.md)。
+
 `tools/` 包含模型准备、媒体运行库准备、验证、评估和打包脚本。统一入口是根目录
 的 `python tools/dev.py <task>`，GNU Make 只是调用它的可选便捷层：
 

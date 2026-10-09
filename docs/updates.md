@@ -1,6 +1,6 @@
 # Native installer updates
 
-IrisVision exposes a native check → download → install flow. The default portable
+Iris exposes a native check → download → install flow. The default portable
 build reports `not_configured` (`installer_required`) and makes no update network
 request. NSIS builds without release trust configuration also report
 `not_configured` (`release_configuration_missing`). No update check or installation

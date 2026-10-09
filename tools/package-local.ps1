@@ -97,7 +97,7 @@ $repositoryRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $frontendRoot = Join-Path $repositoryRoot 'apps/shell'
 $version = (Get-Content -LiteralPath (Join-Path $frontendRoot 'package.json') -Raw | ConvertFrom-Json).version
 $profile = $Configuration.ToLowerInvariant()
-if (-not $OutputDirectory) { $OutputDirectory = Join-Path $repositoryRoot "dist/portable/IrisVision-$version-windows-x64-$profile" }
+if (-not $OutputDirectory) { $OutputDirectory = Join-Path $repositoryRoot "dist/portable/Iris-$version-windows-x64-$profile" }
 $outputRoot = [System.IO.Path]::GetFullPath($OutputDirectory)
 if (Test-Path -LiteralPath $outputRoot) { throw "Output already exists; choose a new directory: $outputRoot" }
 Push-Location $repositoryRoot
@@ -200,7 +200,7 @@ try {
     }
     @($licenseIndex.Keys | Sort-Object | ForEach-Object { $licenseIndex[$_] }) | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $licenses 'rust-dependencies.json') -Encoding utf8
     @"
-IrisVision $version - unsigned local $Configuration portable build
+Iris $version - unsigned local $Configuration portable build
 
 Run Launch.ps1 from PowerShell. Model/runtime paths resolve from this folder.
 The desktop interface requires Windows x64 and Microsoft Edge WebView2 Runtime.
@@ -233,7 +233,7 @@ This local bundle is unsigned. Signing and remote update publication are not con
     $entries = @(Get-ChildItem -LiteralPath $outputRoot -Recurse -File | Sort-Object FullName | ForEach-Object {
         [ordered]@{path=[System.IO.Path]::GetRelativePath($outputRoot,$_.FullName).Replace('\','/');bytes=$_.Length;sha256=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()}
     })
-    [ordered]@{product='IrisVision';version=$version;configuration=$Configuration;files=$entries} | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $outputRoot 'checksums.json') -Encoding utf8
+    [ordered]@{product='Iris';version=$version;configuration=$Configuration;files=$entries} | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $outputRoot 'checksums.json') -Encoding utf8
     if (-not $SkipVerify) { & (Join-Path $outputRoot 'Verify.ps1'); if (-not $?) { throw 'Portable verification failed' } }
     Write-Output ('Portable bundle: ' + $outputRoot)
 } finally { Pop-Location }

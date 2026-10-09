@@ -2,6 +2,8 @@
 
 更新：2026-10-09。主软件现采用 **GPL-3.0-or-later**，以当前开源初始提交为源码基线。旧参考资料、开发历史与旧文档已保存在仓库外的私人归档；公开检出不需要它们，也不需要任何 submodule。
 
+公开产品名已统一为 **Iris / 伊人**，首个预发布版本为 `v0.1.0-beta`。Tag 构建与平台测试包见[发布流程](releasing.md)；历史验证包名称保留。GitHub 状态以仓库 Actions 和 Release 为准，下列本机证据不能替代新平台验收。
+
 ## 当前实现
 
 - 核心、媒体、RAW、DirectML、桌面界面和 stdio MCP 均已有实现。先读[当前状态](development-status.md)、[架构](architecture.md)、[MCP 接入](mcp.md)。

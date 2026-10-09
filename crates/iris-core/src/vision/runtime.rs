@@ -116,8 +116,44 @@ pub fn initialize(dir: &Path) -> Result<()> {
         let _ = INITIALIZED.set(());
     }
     #[cfg(not(windows))]
-    if requested() {
-        force_cpu("DirectML requires Windows; CPU fallback".into());
+    {
+        static INITIALIZED: OnceLock<()> = OnceLock::new();
+        if INITIALIZED.get().is_some() {
+            return Ok(());
+        }
+        if requested() {
+            force_cpu("DirectML requires Windows; CPU fallback".into());
+        }
+        let (filename, expected) = match (std::env::consts::OS, std::env::consts::ARCH) {
+            ("linux", "x86_64") => (
+                "libonnxruntime.so",
+                "3da6146e14e7b8aaec625dde11d6114c7457c87a5f93d744897da8781e35c673",
+            ),
+            ("macos", "aarch64") => (
+                "libonnxruntime.dylib",
+                "2b885992d3d6fa4130d39ec84a80d7504ff52750027c547bb22c86165f19406a",
+            ),
+            ("macos", "x86_64") => (
+                "libonnxruntime.dylib",
+                "283e595e61cf65df7a6b1d59a1616cbd35c8b6399dd90d799d99b71a3ff83160",
+            ),
+            _ => anyhow::bail!("No bundled ONNX runtime for this platform"),
+        };
+        let explicit = std::env::var_os("ORT_DYLIB_PATH");
+        let runtime = explicit
+            .as_ref()
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| dir.join(filename));
+        let bytes = std::fs::read(&runtime)
+            .with_context(|| format!("ONNX Runtime missing at {}", runtime.display()))?;
+        if explicit.is_none() {
+            anyhow::ensure!(
+                format!("{:x}", Sha256::digest(&bytes)) == expected,
+                "ONNX Runtime library SHA-256 mismatch"
+            );
+        }
+        ort::init_from(runtime.to_string_lossy()).commit()?;
+        let _ = INITIALIZED.set(());
     }
     Ok(())
 }

@@ -38,6 +38,8 @@ models/optional/
 # Reproducible model/runtime downloads; provisioning scripts and pinned metadata stay in Git.
 models/*.onnx
 models/*.dll
+models/*.so
+models/*.dylib
 models/*.npz
 models/directml/
 models/media/

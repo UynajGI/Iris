@@ -28,21 +28,26 @@ def main():
         "LICENSE-MediaPipe.txt": f"https://huggingface.co/FreeHugsForRobots/ps-face-landmarks/raw/{REV}/LICENSE.txt",
     }.items():
         (ROOT / name).write_bytes(urllib.request.urlopen(url, timeout=30).read())
-    runtime = manifest["runtime"]
-    target = ROOT / "onnxruntime.dll"
-    if not target.exists() or hashlib.sha256(target.read_bytes()).hexdigest() != runtime["sha256"]:
-        data = urllib.request.urlopen(runtime["url"], timeout=120).read()
-        if hashlib.sha256(data).hexdigest() != runtime["archive_sha256"]:
-            raise RuntimeError("ONNX Runtime archive hash mismatch")
-        with zipfile.ZipFile(io.BytesIO(data)) as archive:
-            prefix = "onnxruntime-win-x64-1.22.0/"
-            dll = archive.read(prefix + "lib/onnxruntime.dll")
-            if hashlib.sha256(dll).hexdigest() != runtime["sha256"]:
-                raise RuntimeError("ONNX Runtime DLL hash mismatch")
-            target.write_bytes(dll)
-            (ROOT / "LICENSE-ONNXRuntime.txt").write_bytes(archive.read(prefix + "LICENSE"))
-            (ROOT / "ThirdPartyNotices-ONNXRuntime.txt").write_bytes(archive.read(prefix + "ThirdPartyNotices.txt"))
-    print("Verified ONNX Runtime 1.22.0 Windows x64")
+    import os
+    if os.name != "nt":
+        from onnx_runtime import install
+        install(ROOT)
+    else:
+        runtime = manifest["runtime"]
+        target = ROOT / "onnxruntime.dll"
+        if not target.exists() or hashlib.sha256(target.read_bytes()).hexdigest() != runtime["sha256"]:
+            data = urllib.request.urlopen(runtime["url"], timeout=120).read()
+            if hashlib.sha256(data).hexdigest() != runtime["archive_sha256"]:
+                raise RuntimeError("ONNX Runtime archive hash mismatch")
+            with zipfile.ZipFile(io.BytesIO(data)) as archive:
+                prefix = "onnxruntime-win-x64-1.22.0/"
+                dll = archive.read(prefix + "lib/onnxruntime.dll")
+                if hashlib.sha256(dll).hexdigest() != runtime["sha256"]:
+                    raise RuntimeError("ONNX Runtime DLL hash mismatch")
+                target.write_bytes(dll)
+                (ROOT / "LICENSE-ONNXRuntime.txt").write_bytes(archive.read(prefix + "LICENSE"))
+                (ROOT / "ThirdPartyNotices-ONNXRuntime.txt").write_bytes(archive.read(prefix + "ThirdPartyNotices.txt"))
+        print("Verified ONNX Runtime 1.22.0 Windows x64")
     niqe = manifest["niqe"]
     target = ROOT / "niqe_params.json"
     if not target.exists() or hashlib.sha256(target.read_bytes()).hexdigest() != niqe["sha256"]:

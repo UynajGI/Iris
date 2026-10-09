@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use utoipa::OpenApi;
 
 #[derive(Parser)]
-#[command(about = "IrisVision local authenticated photo service")]
+#[command(about = "Iris local authenticated photo service")]
 struct Args {
     #[arg(long, default_value = ".iris")]
     data_dir: PathBuf,

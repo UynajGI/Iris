@@ -1,6 +1,6 @@
 # 文档索引
 
-这里记录 IrisVision 的架构、接口、验证边界和开发维护约定。根目录
+这里记录 Iris 的架构、接口、验证边界和开发维护约定。根目录
 [README](../README.md) 是新用户和开发者的起点；[HANDOFF](HANDOFF.md) 记录当前
 交接状态与尚未完成的验收。文档描述源码当前行为，不能替代实际测试结果。
 
@@ -48,6 +48,8 @@
 | [occlusion-model-options.md](occlusion-model-options.md) | FaceOcc 等可选遮挡模型 |
 | [performance.md](performance.md) | 性能观测与解释边界 |
 | [repository-cleanup.md](repository-cleanup.md) | 公开仓库清理记录 |
+| [releasing.md](releasing.md) | Tag、跨平台构建与发布 |
+| [v0.1.0-beta](releases/v0.1.0-beta.md) | 首版下载与测试说明 |
 | [scoring-v5.md](scoring-v5.md) | v5 评分与验证方法 |
 | [updates.md](updates.md) | 更新检查、下载和安装协议 |
 | [validation.md](validation.md) | 总体验证证据和限制 |

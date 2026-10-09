@@ -100,7 +100,9 @@ impl Api {
         }
         #[cfg(windows)]
         let filename = "libheif.dll";
-        #[cfg(not(windows))]
+        #[cfg(target_os = "macos")]
+        let filename = "libheif.dylib";
+        #[cfg(not(any(windows, target_os = "macos")))]
         let filename = "libheif.so";
         let path = directory.join(filename);
         // Search dependencies only beside the explicit DLL and Windows system/default

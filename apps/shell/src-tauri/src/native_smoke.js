@@ -16,9 +16,9 @@
       throw new Error('Native smoke requires an unconfigured update source');
     }
     for (const [stage, language, title] of [
-      ['english-before', 'en-US', 'IrisVision'],
+      ['english-before', 'en-US', 'Iris'],
       ['chinese', 'zh-CN', '伊人'],
-      ['english-after', 'en-US', 'IrisVision'],
+      ['english-after', 'en-US', 'Iris'],
     ]) {
       // Exercise the real desktop languagechange handler, not a test reimplementation.
       Object.defineProperty(navigator, 'language', { configurable: true, value: language });

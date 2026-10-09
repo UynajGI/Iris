@@ -90,10 +90,10 @@ pub fn native_title_smoke_observe(
     }
     let mut observations = state.observations.lock().map_err(|e| e.to_string())?;
     let expected = [
-        ("english-before", "IrisVision"),
+        ("english-before", "Iris"),
         ("chinese", "伊人"),
-        ("english-after", "IrisVision"),
-        ("invalid-rejected", "IrisVision"),
+        ("english-after", "Iris"),
+        ("invalid-rejected", "Iris"),
     ];
     let (expected_stage, expected_title) = expected
         .get(observations.len())

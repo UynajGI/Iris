@@ -1,4 +1,4 @@
-# 伊人 / IrisVision
+# 伊人 / Iris
 
 <!-- impeccable:product-schema 1 -->
 
@@ -36,7 +36,7 @@ web
 
 ## Brand Commitments
 
-中文显示“伊人”，英文显示“IrisVision”。Logo 与品牌图形留空。语气简短明确，不重复讲解按钮或用宣传文案填充工作界面。
+中文显示“伊人”，英文显示“Iris”。Logo 与品牌图形留空。语气简短明确，不重复讲解按钮或用宣传文案填充工作界面。
 
 ## Evidence on Hand
 

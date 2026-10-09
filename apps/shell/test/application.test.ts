@@ -118,7 +118,7 @@ test('keyboard ignores text editing and repeated events; configurable bindings w
   assert.equal(commands.handle({ ...event, target: null } as unknown as KeyboardEvent), true);
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(store.getSnapshot().focusedId, 2);
-  assert.equal(productName('zh-TW'), '伊人'); assert.equal(productName('en-GB'), 'IrisVision');
+  assert.equal(productName('zh-TW'), '伊人'); assert.equal(productName('en-GB'), 'Iris');
 });
 
 class FakeSocket implements Socket {

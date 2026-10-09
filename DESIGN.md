@@ -1,5 +1,5 @@
 ---
-name: 伊人 / IrisVision
+name: 伊人 / Iris
 description: DESIGN v1.0已由用户确认，涵盖视觉基准、主要布局及已展示流程；应用已有实现，跨平台与原生验收另列。
 colors:
   primary: "#7563AD"

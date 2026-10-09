@@ -1,6 +1,6 @@
 [package]
 name = "iris-raw-decoder"
-version = "0.1.0"
+version = "0.1.0-beta"
 edition = "2021"
 license = "MIT"
 description = "Standalone RAW metadata and PPM conversion utility using LGPL rawler"

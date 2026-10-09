@@ -27,7 +27,14 @@ fn verify_host(report: &std::path::Path) -> anyhow::Result<()> {
     let manifest: serde_json::Value =
         serde_json::from_slice(&std::fs::read(models.join("manifest.json"))?)?;
     let mut files = vec![
-        "onnxruntime.dll".to_string(),
+        if cfg!(windows) {
+            "onnxruntime.dll"
+        } else if cfg!(target_os = "macos") {
+            "libonnxruntime.dylib"
+        } else {
+            "libonnxruntime.so"
+        }
+        .to_string(),
         "niqe_params.json".to_string(),
     ];
     for model in manifest["models"]
