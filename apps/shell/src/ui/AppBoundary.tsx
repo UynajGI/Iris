@@ -8,8 +8,8 @@ export class AppBoundary extends Component<{ children: ReactNode }, { error: str
     return { error: error instanceof Error ? error.message : String(error) };
   }
   render() {
-    if (this.state.error !== null) return <main className="page"><div className="page-content stack" role="alert">
-      <h1>界面未能显示</h1><p>重新打开界面会放弃未保存的设置。</p>
+    if (this.state.error !== null) return <main className="page"><div className="page-content state-page" role="alert">
+      <h1>界面未能显示</h1><p className="muted">重新打开界面会放弃未保存的设置。</p>
       <div className="row"><Button primary onClick={() => this.setState({ error: null })}>重新打开界面</Button><Button onClick={() => void window.__TAURI__?.core.invoke('confirm_close').catch(() => {})}>关闭应用</Button></div>
       <details><summary>查看原因</summary><p>{this.state.error}</p></details>
     </div></main>;

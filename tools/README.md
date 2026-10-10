@@ -4,7 +4,14 @@
 
 `package-dependency-source.py` 收集锁定的 Rust 依赖与前端 npm 分发源码，连同许可文件提供到 Beta 包内的 `sources/dependency-sources.zip`；主应用源码和独立 RAW 重建包分别保留。
 
-发布工具：`check-release.py` 校验 Tag 与应用版本；`onnx_runtime.py` 为 macOS/Linux 准备哈希固定的 CPU 运行库，由 `setup-models.py` 调用；`package-unix.py` 组装原生 Unix Beta 包。流程与限制见[发布文档](../docs/releasing.md)。
+发布工具：`check-release.py` 校验 Tag/应用版本；`onnx_runtime.py` 准备固定哈希 Unix CPU 运行库；`package-unix.py` 组装 Unix 便携包；`package-installer.ps1` 编译版本化 Windows NSIS UI；`package-native-installer.py` 生成并解包自检 PKG/DEB；`collect-release-assets.py` 要求完整 9 件套后生成 SHA256。流程、签名和待验收边界见[发布文档](../docs/releasing.md)。
+
+`ui-alignment.playwright.js` 是可选浏览器布局回归：先构建前端，在本地
+`preview-frontend.mjs` 临时照片环境打开项目，再执行
+`playwright-cli run-code --filename tools/ui-alignment.playwright.js`。
+检查 3 种窗口尺寸 × 3 种字号 × 3 种密度 × 3 种 CSS 缩放（100/125/150%），
+覆盖颜色选中/禁用、标记行越界及当前页面按钮图标居中，允许 1 像素舍入误差。
+脚本恢复页面属性，不写照片/API，不加入生产依赖或默认 CI；浏览器检查不替代原生 WebView 验收。
 
 `tools/` 是内部环境、模型准备、媒体、验证、评估和打包的实现层。公开开发入口统一为
 根目录 Makefile；任务组合、顺序和失败传播由 Make 管理：
@@ -74,6 +81,9 @@ make verify
 | `generate-client.mjs` | 从 OpenAPI 生成或检查前端类型；需要 Node.js |
 | `package-dinov3.py` | 打包已安装 DINOv3 可选权重；需要已校验模型和新输出目录 |
 | `package-installer.ps1` | 由便携目录生成安装包；Windows、PowerShell 7 和新输出目录 |
+| `build-installer-artwork.ps1` | 在构建暂存目录绘制 Windows 侧栏/页眉 BMP；不读取照片 |
+| `package-native-installer.py` | 从已验证 Unix 便携包生成 PKG/DEB 并解包运行自检；对应原生 OS、系统打包工具 |
+| `collect-release-assets.py` | 检查完整跨平台附件集合，拒绝意外附件，生成 SHA256 清单 |
 | `package-local.ps1` | 构建/收集 Windows 便携目录；Windows、PowerShell 7 |
 | `package-relink-source.py` | 重连源码包中的运行时来源；需要源码包和新目标 |
 | `package-runtime-closure.py` | 收集运行库闭包与许可证；需要已构建产物 |
@@ -113,13 +123,15 @@ make verify
 `test_dinov3_tools.py`、`test_evaluate.py`、`test_git_hooks.py`、
 `test_package_dinov3.py`、`test_package_installer.py`、`test_public_source.py`、
 `test_runtime_closure.py`、`test_scrfd_tools.py` 和 `test_release.py` 分别覆盖规模、DINOv3、评估、
-hooks、打包、公开树、运行库闭包、SCRFD 工具及发布版本/原生运行库契约。统一运行：
-`make test-tools`，包含 Make 编排和 Node 辅助工具的回归测试。
+hooks、打包、公开树、运行库闭包、SCRFD 工具及发布版本/原生运行库契约。
+`test_native_installer.py` 额外覆盖 Unix 安装器清单/平台资源和完整发行附件门禁。
+统一运行 `make test-tools`，包含 Make 编排和 Node 辅助工具回归测试。
 
 ## 平台边界
 
 核心 Rust、Python 工具和前端命令可以在配置了相应本机工具链的平台上检查；仓库的
 `rust-toolchain.toml` 选择本机 stable 工具链，必要时可用 `RUSTUP_TOOLCHAIN` 显式覆盖。
 Windows 使用 `package-local.ps1`，macOS/Linux 使用 `package-unix.py` 生成 CPU Beta 包。
+原生安装器使用 `package-installer.ps1`（Windows）或 `make installer-native PORTABLE=<便携包> OUTPUT=<新目录>`（macOS/Linux）。
 HEIC、ExifTool、DirectML 的运行库准备仍是 Windows 专项；跨平台结果见
 [CI 验证](../docs/ci-verification.md)。模型和照片不应提交到仓库。

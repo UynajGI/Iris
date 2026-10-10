@@ -49,7 +49,8 @@
 | [occlusion-model-options.md](occlusion-model-options.md) | FaceOcc 等可选遮挡模型 |
 | [performance.md](performance.md) | 性能观测与解释边界 |
 | [repository-cleanup.md](repository-cleanup.md) | 公开仓库清理记录 |
-| [releasing.md](releasing.md) | Tag、跨平台构建与发布 |
+| [releasing.md](releasing.md) | Tag、EXE/PKG/DEB 与便携包、完整附件门禁和发布 |
+| [安装器界面](../apps/shell/installer/README.md) | 原生平台资源、NSIS 模板来源、升级与验收边界 |
 | [v0.1.0-beta](releases/v0.1.0-beta.md) | 首版下载与测试说明 |
 | [scoring-v5.md](scoring-v5.md) | v5 评分与验证方法 |
 | [updates.md](updates.md) | 更新检查、下载和安装协议 |

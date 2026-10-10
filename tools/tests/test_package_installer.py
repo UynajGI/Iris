@@ -24,7 +24,7 @@ class InstallerPreflightTests(unittest.TestCase):
         self.files = []
         for name in ("iris-shell.exe", "iris-daemon.exe", "iris-cli.exe",
                      "iris-mcp.exe", "iris-raw-decoder.exe", "sources/raw-decoder-source.zip",
-                     "sources/iris-application-source.zip", "LICENSE", "THIRD_PARTY_NOTICES.md",
+                     "sources/iris-application-source.zip", "sources/dependency-sources.zip", "LICENSE", "THIRD_PARTY_NOTICES.md",
                      "WebView2Loader.dll", "models/manifest.json", "models/onnxruntime.dll"):
             self.add_file(name, b"non-executable test fixture")
         self.write_manifest()
@@ -61,7 +61,7 @@ class InstallerPreflightTests(unittest.TestCase):
     def test_raw_component_and_source_must_both_be_manifested(self):
         original = self.files.copy()
         for name in ("iris-mcp.exe", "iris-raw-decoder.exe", "sources/raw-decoder-source.zip",
-                     "sources/iris-application-source.zip", "LICENSE", "THIRD_PARTY_NOTICES.md"):
+                     "sources/iris-application-source.zip", "sources/dependency-sources.zip", "LICENSE", "THIRD_PARTY_NOTICES.md"):
             with self.subTest(name=name):
                 # The file still exists, but unmanifested files cannot be shipped.
                 self.files = [entry for entry in original if entry["path"] != name]
@@ -103,6 +103,7 @@ class InstallerPreflightTests(unittest.TestCase):
         self.assertIn("iris-raw-decoder.exe", targets)
         self.assertIn("sources/raw-decoder-source.zip", targets)
         self.assertIn("sources/iris-application-source.zip", targets)
+        self.assertIn("sources/dependency-sources.zip", targets)
         self.assertIn("iris-mcp.exe", targets)
         self.assertIn("LICENSE", targets)
         self.assertIn("THIRD_PARTY_NOTICES.md", targets)

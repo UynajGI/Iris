@@ -21,8 +21,8 @@ function FirstPaint({ children }: { children: ReactNode }) {
 let readyApplication: Window['iris'];
 function renderApplication(failure?: string) {
   root.render(<FirstPaint><AppBoundary>
-    {failure && <div className="error-bar" role="alert"><p>照片服务连接未恢复</p><details><summary>查看原因</summary><p>{failure}</p></details><button className="button" onClick={() => { if (window.__TAURI__) void connectDesktop(window.__TAURI__).catch(error => renderApplication(String(error))); }}>重试连接</button></div>}
-    {readyApplication ? <App key="application" store={readyApplication.store} commands={readyApplication.commands} /> : !failure && <div className="app"><main className="empty" role="status"><h1 className="brand">伊人</h1><p>正在连接照片服务</p></main></div>}
+    {failure && <div className="error-bar" role="alert"><span>照片服务连接未恢复</span><details><summary>查看原因</summary><p>{failure}</p></details><span className="spacer" /><button className="button" onClick={() => { if (window.__TAURI__) void connectDesktop(window.__TAURI__).catch(error => renderApplication(String(error))); }}>重试连接</button></div>}
+    {readyApplication ? <App key="application" store={readyApplication.store} commands={readyApplication.commands} /> : !failure && <div className="app"><main className="splash" role="status"><h1 className="brand">伊人</h1><p className="muted">正在连接照片服务</p><span className="splash-line" aria-hidden="true" /></main></div>}
   </AppBoundary></FirstPaint>);
 }
 renderApplication();

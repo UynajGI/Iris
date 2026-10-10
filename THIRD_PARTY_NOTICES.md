@@ -10,6 +10,7 @@ This does not replace third-party licenses or copyrights.
 | Material Symbols Rounded | [Apache-2.0](apps/shell/src/ui/icons/LICENSE); provenance in the icon directory |
 | Noto Sans SC / Noto Serif SC | SIL OFL 1.1; font package notices copied during frontend builds |
 | React / React DOM / npm dependencies | Original package licenses; versions in lockfiles |
+| Tauri CLI 2.12.1 NSIS template | MIT OR Apache-2.0; [provenance](apps/shell/installer/README.md), [MIT](apps/shell/installer/upstream/LICENSE-MIT.txt), [Apache-2.0](apps/shell/installer/upstream/LICENSE-APACHE-2.0.txt); Iris UI adaptations remain GPL-3.0-or-later |
 | YuNet | [MIT](models/LICENSE-YuNet.txt) |
 | MediaPipe conversions | [Apache-2.0](models/LICENSE-MediaPipe.txt); provenance limits in [model documentation](models/README.md) |
 | BasicSR NIQE data and algorithm references | [Apache-2.0](models/LICENSE-BasicSR.txt) |

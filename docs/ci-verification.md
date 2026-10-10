@@ -4,6 +4,14 @@
 
 默认工作流不下载用户照片或可选研究权重。手动 DINO/DirectML 项须按模型许可明确选择；托管 runner 的 CPU 回退不代表真实 GPU 执行。
 
+## 安装器门禁（2026-10-10，待远端运行）
+
+Release 增加 Windows EXE、macOS arm64/x64 PKG 和 Linux DEB。Windows 执行独立 QA 身份的
+安装/替换/卸载；Unix 从最终安装器解包后验证哈希、宿主及合成 PNG 推理，并检查安装 UI/desktop
+资源。全部 9 个发行附件齐全后生成 SHA256 清单，手动演练也汇总，但仅 Tag 创建草稿。
+本次未推送或触发 Actions；下文通过记录只覆盖旧便携包流程，不代表新增安装器门禁已通过。
+实现与原生验收边界见[发布流程](releasing.md)。
+
 ## 2026-10-09 Beta 预演
 
 [运行 37941637598](https://github.com/UynajGI/Iris/actions/runs/37941637598) 对提交 `c997197` 完成四个平台的原生构建、CPU 推理与发行包自检：

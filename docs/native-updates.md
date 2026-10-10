@@ -29,14 +29,19 @@
 
 ## 本地安装包
 
+当前发版 CI 已接入 EXE/PKG/DEB，规范与待验证边界见[发布流程](releasing.md)。
+Windows 界面由[版本化安装器源码](../apps/shell/installer/README.md)编译，默认仍不启用更新。
+NSIS 现同时要求并交付 `sources/dependency-sources.zip`；以下旧安装器路径/计数只作为历史证据，
+不是新增界面或新版 CI 的验收。macOS/Linux 原生安装器不接入 Windows 更新协议。
+
 **2026-10-07 修复：独立 RAW 组件已纳入 NSIS 交付。**
 `tools/package-installer.ps1` 现在强制清单包含 `iris-raw-decoder.exe` 和
 `sources/raw-decoder-source.zip`，校验大小与 SHA-256 后将两者加入安装资源。
-源码仅允许这一指定归档，不放行任意 `sources/` 文件。缺件、未登记或篡改会拒绝打包；
+源码仅允许应用、独立 RAW 和依赖源码三个指定归档，不放行任意 `sources/` 文件。缺件、未登记或篡改会拒绝打包；
 安装说明列出组件源码位置。若显式配置 Authenticode，独立 RAW 程序也进入暂存副本签名流程；
 本次未提供正式证书，未验收真实证书签名。
 
-最新未签名安装器为 `dist/installers/IrisVision-0.1.0-windows-x64-closed-source-raw-final/`。
+历史未签名安装器为 `dist/installers/IrisVision-0.1.0-windows-x64-closed-source-raw-final/`。
 构建成功，1630 项资源中 1629 项与来源便携包逐字节一致，另 1 项为生成的安装说明；
 原便携包 1650 项仍全部匹配清单。证据：`artifacts/closed-source-nsis-raw-payload-verification.json`。
 此前安装器及下文 v5 QA 保留为历史记录，不代替本次验收。

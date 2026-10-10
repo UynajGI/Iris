@@ -7,6 +7,7 @@ CARGO ?= cargo
 UV ?= uv
 PROFILE ?= debug
 OUTPUT ?=
+PORTABLE ?=
 ARGS ?=
 CODEGRAPH_VERSION := 1.6.2
 BACKEND = $(NODE) tools/backend.mjs
@@ -26,7 +27,7 @@ endif
  check check-rust check-web fmt fmt-check test test-rust test-tools test-web \
  test-native build build-core build-web build-desktop api api-check public-check \
  staged-check verify models models-dino models-scrfd models-dino-directml \
- media raw directml source portable require-output require-windows
+ media raw directml source portable installer-native require-output require-windows
 
 help: ## List commands and configuration
 	@$(NODE) tools/development.mjs help
@@ -117,6 +118,8 @@ source: require-output ## Export clean HEAD to OUTPUT (existing destinations are
 	$(BACKEND) tools/package-source.py --output "$(OUTPUT)"
 portable: require-windows require-output ## Build a Windows portable package in OUTPUT
 	$(NODE) tools/development.mjs portable
+installer-native: require-output ## Build macOS PKG or Linux DEB from PORTABLE (native OS required)
+	$(BACKEND) tools/package-native-installer.py --portable "$(PORTABLE)" --output "$(OUTPUT)"
 require-output:
 	@$(NODE) tools/development.mjs require-output
 require-windows:

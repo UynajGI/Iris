@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { IrisStore } from '../store.js';
 import type { InstallProgress } from '../types.js';
 import { Button } from './components.js';
+import { Icon } from './Icon.js';
 
 const active = ['starting', 'downloading', 'importing', 'verifying', 'installing'];
 const names: Record<string, string> = { starting: '准备中', downloading: '下载中', importing: '导入中', verifying: '校验中', installing: '安装中', complete: '已安装', failed: '安装失败', cancelled: '已取消' };
@@ -27,9 +28,13 @@ export function ModelTaskBar({ store, reveal, onSettings }: { store: IrisStore; 
   }, [store]);
   if (!progress || progress.state === 'idle' || hidden) return null;
   const running = active.includes(progress.state);
-  return <footer className="taskbar" aria-label="模型安装任务"><div className="row"><strong>模型安装</strong><span role="status">{names[progress.state] ?? '处理中'}</span>
+  return <footer className={`taskbar ${running ? 'taskbar-running' : progress.state === 'complete' ? 'taskbar-done' : 'taskbar-attention'}`} aria-label="模型安装任务"><div className="taskbar-row">
+    <span className="task-state-icon" aria-hidden="true">{running ? <span className="activity-dot" /> : <Icon name={progress.state === 'complete' ? 'done' : 'warning'} />}</span>
+    <strong>模型安装</strong><span role="status" className="muted">{names[progress.state] ?? '处理中'}</span>
     {running && <progress max={Math.max(1, progress.total_bytes)} value={progress.total_bytes ? progress.completed_bytes : undefined} aria-label="模型安装进度" />}
-    <Button onClick={onSettings}>查看模型</Button>
-    {running ? <Button onClick={() => void store.client.cancelModelInstall().catch(reason => setError(String(reason)))}>取消安装</Button> : <Button onClick={() => setHidden(true)}>关闭提示</Button>}
-  </div>{(progress.error || error) && <details><summary>查看原因</summary><p>{error || progress.error}</p></details>}</footer>;
+    {running && progress.total_bytes > 0 && <span className="tabular task-count">{Math.floor(progress.completed_bytes / 1048576)} / {Math.ceil(progress.total_bytes / 1048576)} MiB</span>}
+    <span className="spacer" />
+    <Button className="quiet" onClick={onSettings}>查看模型</Button>
+    {running ? <Button onClick={() => void store.client.cancelModelInstall().catch(reason => setError(String(reason)))}>取消安装</Button> : <Button className="quiet icon-only" aria-label="关闭提示" title="关闭提示" onClick={() => setHidden(true)}><Icon name="close" /></Button>}
+  </div>{(progress.error || error) && <div className="taskbar-details"><details><summary>查看原因</summary><p>{error || progress.error}</p></details></div>}</footer>;
 }

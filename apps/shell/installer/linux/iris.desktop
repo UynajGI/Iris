@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Iris
+Name[zh_CN]=伊人
+Comment=Local-first photo culling workspace
+Comment[zh_CN]=本地照片浏览、比较与选片工作台
+Exec=iris
+Terminal=false
+Categories=Graphics;Photography;
+Keywords=photo;culling;local;
+StartupNotify=true

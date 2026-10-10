@@ -47,10 +47,10 @@ export function FileWorkflows({ store }: { store: IrisStore }) {
     setMessage(`已导出 ${report.written} 项，跳过 ${report.skipped} 项`); setFlow(null);
   };
   const plan = state.quarantine;
-  return <section className="stack"><h2>文件操作</h2><div className="row">
+  return <section className="file-workflows"><h2 className="panel-title">文件操作</h2><div className="row">
     <Button disabled={busy} onClick={() => { setStep('setup'); setFlow('export'); setError(null); }}><Icon name="export" />导出</Button>
-    <Button disabled={busy} onClick={() => void run(async () => { await store.previewQuarantine(); setFlow('quarantine'); })}>隔离移除项</Button>
-    <Button disabled={busy} onClick={() => { setFlow('restore'); setManifest(null); setError(null); }}>恢复</Button>
+    <Button className="quiet" disabled={busy} onClick={() => void run(async () => { await store.previewQuarantine(); setFlow('quarantine'); })}>隔离移除项</Button>
+    <Button className="quiet" disabled={busy} onClick={() => { setFlow('restore'); setManifest(null); setError(null); }}>恢复</Button>
   </div>
     {message && <p role="status">{message}</p>}{error && !flow && !restoreFailure && <p role="alert">{error}</p>}
     {exportPaths.length > 0 && <details><summary>上次导出位置</summary>{exportPaths.map(path => <p className="filename" key={path}>{path}</p>)}</details>}

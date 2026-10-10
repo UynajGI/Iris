@@ -1,23 +1,32 @@
-import { useEffect, useId, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from 'react';
+import { useEffect, useEffectEvent, useId, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from 'react';
 import type { IrisClient } from '../client.js';
 import type { Photo } from '../types.js';
 import { usePhotoUrl } from '../react.js';
+import { Icon } from './Icon.js';
 
 export function Button({ primary = false, className = '', ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { primary?: boolean }) {
   return <button type="button" className={`button ${primary ? 'primary' : ''} ${className}`} {...props} />;
 }
 
+function CloseButton({ onClick }: { onClick(): void }) {
+  return <Button className="quiet icon-only" aria-label="关闭" title="关闭" onClick={onClick}><Icon name="close" /></Button>;
+}
+
 export function Popover({ title, children, onClose }: { title: string; children: ReactNode; onClose(): void }) {
   const panel = useRef<HTMLElement>(null);
+  const restoreFocus = useRef(true);
+  const close = useEffectEvent(onClose);
   const id = useId();
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
-    panel.current?.querySelector<HTMLElement>('button,select,input')?.focus();
-    const outside = (event: PointerEvent) => { if (!panel.current?.contains(event.target as Node)) onClose(); };
+    panel.current?.querySelector<HTMLElement>('.popover-body button,.popover-body select,.popover-body input')?.focus();
+    const outside = (event: PointerEvent) => { if (!panel.current?.contains(event.target as Node)) { restoreFocus.current = false; close(); } };
     document.addEventListener('pointerdown', outside);
-    return () => { document.removeEventListener('pointerdown', outside); previous?.focus(); };
+    return () => { document.removeEventListener('pointerdown', outside); if (restoreFocus.current && previous?.isConnected) previous.focus(); };
   }, []);
-  return <section ref={panel} className="filter-popover stack" role="dialog" aria-labelledby={id} onKeyDown={event => { event.stopPropagation(); if (event.key === 'Escape') { event.preventDefault(); onClose(); } }}><div className="row"><h2 id={id}>{title}</h2><Button onClick={onClose}>关闭</Button></div>{children}</section>;
+  return <section ref={panel} className="filter-popover" role="dialog" aria-labelledby={id} onBlur={event => { if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget)) { restoreFocus.current = false; onClose(); } }} onKeyDown={event => { event.stopPropagation(); if (event.key === 'Escape') { event.preventDefault(); onClose(); } }}>
+    <div className="popover-heading"><h2 id={id}>{title}</h2><CloseButton onClick={onClose} /></div><div className="popover-body">{children}</div>
+  </section>;
 }
 
 export function Dialog({ title, children, onClose }: { title: string; children: ReactNode; onClose(): void }) {
@@ -25,19 +34,25 @@ export function Dialog({ title, children, onClose }: { title: string; children: 
   const id = useId();
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
-    dialog.current?.showModal();
-    dialog.current?.querySelector<HTMLButtonElement>('.dialog-actions button:not(.primary)')?.focus();
-    return () => { dialog.current?.close(); previous?.focus(); };
+    const node = dialog.current;
+    node?.showModal();
+    node?.querySelector<HTMLButtonElement>('.dialog-actions button:not(.primary):not(:disabled)')?.focus();
+    return () => { node?.close(); if (previous?.isConnected) previous.focus(); };
   }, []);
   return <dialog ref={dialog} aria-labelledby={id} onCancel={event => { event.preventDefault(); onClose(); }} onKeyDown={event => event.stopPropagation()}>
-    <header className="dialog-heading"><h2 id={id}>{title}</h2><Button onClick={onClose}>关闭</Button></header>{children}
+    <header className="dialog-heading"><h2 id={id}>{title}</h2><CloseButton onClick={onClose} /></header>{children}
   </dialog>;
 }
 
 export function PhotoImage({ client, photo, kind = 'thumb' }: { client: IrisClient; photo: Photo; kind?: 'thumb' | 'preview' | 'original' }) {
   const media = usePhotoUrl(client, photo.id, kind);
-  return media.url ? <img src={media.url} alt={photo.filename} loading={kind === 'thumb' ? 'lazy' : 'eager'} draggable={false} />
-    : <span className="photo-placeholder" role="status">{media.error ? '照片暂不可用' : '载入中'}</span>;
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const [loadedUrl, setLoadedUrl] = useState<string | null>(null);
+  const failed = !!media.error || (!!media.url && failedUrl === media.url);
+  // Cached images may finish before React attaches onLoad; read completion from the node.
+  const observe = (node: HTMLImageElement | null) => { if (node?.complete && node.naturalWidth && media.url && loadedUrl !== media.url) setLoadedUrl(media.url); };
+  return media.url && !failed ? <img ref={observe} className={loadedUrl === media.url ? 'loaded' : 'loading'} src={media.url} alt={photo.filename} loading={kind === 'thumb' ? 'lazy' : 'eager'} decoding="async" draggable={false} onLoad={() => setLoadedUrl(media.url)} onError={() => setFailedUrl(media.url)} />
+    : <span className={`photo-placeholder ${failed ? 'unavailable' : 'loading'}`} role="img" aria-label={`${photo.filename}：${failed ? '照片暂不可用' : '正在载入'}`}>{failed ? <><Icon name="image" />照片暂不可用</> : null}</span>;
 }
 
 /** Integer-only editing with an unboxed value until explicitly activated. */

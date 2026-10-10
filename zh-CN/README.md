@@ -37,7 +37,7 @@
 
 ## 🚀 快速开始
 
-**1. 下载并解压。** 在 [v0.1.0-beta 发行页](https://github.com/UynajGI/Iris/releases/tag/v0.1.0-beta) 选择对应系统与处理器的包，完整解压到可写目录，保留目录结构。使用发行包无需下载源码或安装开发工具链；可通过同页的 `SHA256SUMS.txt` 核对下载文件。
+**1. 按系统与处理器下载。** 查看 [发行页](https://github.com/UynajGI/Iris/releases)。当前发版流程自动构建 Windows EXE、macOS PKG（Apple Silicon / Intel）、Linux DEB，并保留便携压缩包。旧版可能只有便携包，以实际附件为准，不猜测下载名称；构建/验收状态见[发布流程](../docs/releasing.md)。无需开发工具链，通过 `SHA256SUMS.txt` 核对下载文件。
 
 | 平台 | 环境要求与 Beta 范围 |
 | :--- | :--- |
@@ -45,7 +45,9 @@
 | macOS arm64 / x64 | 分别对应 Apple Silicon / Intel；未签名公证，暂未打包 HEIC 和 ExifTool |
 | Linux x64 | 基于 Ubuntu 22.04，需要 GTK 3 / WebKitGTK 4.1；暂未打包 HEIC 和 ExifTool |
 
-**2. 从解压目录启动。** Windows：在解压目录打开 PowerShell，运行：
+**2. 安装或使用便携包。** Windows 运行 setup EXE；macOS 打开对应 PKG，跟随系统安装器；Linux 使用软件安装器或 `sudo apt install ./Iris-<版本>-linux-x64.deb`，从应用菜单或 `iris` 启动。Beta 暂未配置正式签名/公证。
+
+便携包请完整解压到可写目录并保留结构。Windows：在解压目录打开 PowerShell，运行：
 
 ```powershell
 powershell -NoProfile -File .\Launch.ps1

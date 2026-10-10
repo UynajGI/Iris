@@ -37,7 +37,7 @@ Inference runs locally. Release packages include the default models. Optional mo
 
 ## 🚀 Quick start
 
-**1. Download and extract.** Choose your OS and processor from [v0.1.0-beta](https://github.com/UynajGI/Iris/releases/tag/v0.1.0-beta). Extract the entire package to a writable directory and retain its folder structure. No source checkout or development toolchain is needed. The release includes `SHA256SUMS.txt` for download verification.
+**1. Download for your OS and processor.** See the [releases](https://github.com/UynajGI/Iris/releases). The current release workflow builds Windows EXE, macOS PKG (Apple Silicon / Intel) and Linux DEB installers alongside portable archives. Older releases may contain portable archives only; use the actual attachments, not an assumed filename. See the [release process](docs/releasing.md) for build and validation status. No development toolchain is needed; verify downloads with `SHA256SUMS.txt`.
 
 | Package | Requirements and beta scope |
 | :--- | :--- |
@@ -45,7 +45,9 @@ Inference runs locally. Release packages include the default models. Optional mo
 | macOS arm64 / x64 | Apple Silicon or Intel respectively; unsigned and not notarized; HEIC and ExifTool are not bundled |
 | Linux x64 | Ubuntu 22.04 baseline, GTK 3 and WebKitGTK 4.1; HEIC and ExifTool are not bundled |
 
-**2. Launch from the extracted directory.** Windows: open PowerShell in that directory and run:
+**2. Install or use the portable archive.** Windows: run the setup EXE. macOS: open the matching PKG and follow the system Installer. Linux: use the software installer or `sudo apt install ./Iris-<version>-linux-x64.deb`, then launch Iris from the application menu (or `iris`). Installer signing/notarization is not configured for this beta.
+
+For portable archives, extract the entire package to a writable directory and retain its folder structure. Windows: open PowerShell in that directory and run:
 
 ```powershell
 powershell -NoProfile -File .\Launch.ps1
@@ -85,7 +87,7 @@ macOS / Linux, from the directory containing the binaries:
 ./iris-mcp --help
 ```
 
-On macOS the binaries are inside `Iris.app/Contents/MacOS/`. See the [MCP guide](docs/mcp.md) for configuration, allowed directories and write operations. Technical guides are primarily in Chinese; commands and configuration keys are unchanged.
+On macOS the binaries are inside `Iris.app/Contents/MacOS/` (under `/Applications` after PKG installation). A Linux DEB exposes `iris-cli` and `iris-mcp` on PATH, with its payload in `/opt/iris`. See the [MCP guide](docs/mcp.md) for configuration, allowed directories and write operations. Technical guides are primarily in Chinese; commands and configuration keys are unchanged.
 
 ## 🔧 Development
 

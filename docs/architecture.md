@@ -19,3 +19,7 @@ Windows DirectML 可选，设备与回退可观察。前端 Auto 策略和后端
 原照片、人工决定与算法建议分开管理。隔离、恢复、复制、导出和缓存治理走领域校验与日志，不自动永久删除原照片。MCP 另有允许目录、只读模式、写入请求 ID 和审计。
 
 事务见 [core-services.md](core-services.md)，协议见 [api-contract.md](api-contract.md)，证据见 [validation.md](validation.md)。
+
+发行层复用已验证的便携载荷，不复制业务逻辑。Windows NSIS 保持相邻 daemon/模型布局；
+macOS PKG 将自包含 App 安装到 Applications，Linux DEB 将载荷放在 `/opt/iris` 并提供 PATH/菜单入口。
+版本化安装界面、对应源码和完整发行附件门禁由[发布流程](releasing.md)管理，解包验证不等于真实安装或签名验收。

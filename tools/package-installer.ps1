@@ -51,7 +51,7 @@ foreach ($entry in $manifest.files) {
     if ($file.Length -ne $entry.bytes -or (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash -ine $entry.sha256) { throw "Portable checksum mismatch: $relative" }
     $validated[$relative] = $file.FullName
 }
-foreach ($required in @('iris-shell.exe','iris-daemon.exe','iris-cli.exe','iris-mcp.exe','iris-raw-decoder.exe','sources/raw-decoder-source.zip','sources/iris-application-source.zip','LICENSE','THIRD_PARTY_NOTICES.md','WebView2Loader.dll','models/manifest.json','models/onnxruntime.dll')) {
+foreach ($required in @('iris-shell.exe','iris-daemon.exe','iris-cli.exe','iris-mcp.exe','iris-raw-decoder.exe','sources/raw-decoder-source.zip','sources/iris-application-source.zip','sources/dependency-sources.zip','LICENSE','THIRD_PARTY_NOTICES.md','WebView2Loader.dll','models/manifest.json','models/onnxruntime.dll')) {
     if (-not $validated.ContainsKey($required)) { throw "Missing required package file: $required" }
 }
 if (-not $PrepareOnly) {
@@ -82,7 +82,7 @@ $resources = [ordered]@{}
 foreach ($relative in ($validated.Keys | Sort-Object)) {
     # Carry the exact approved application and RAW source archives and notices.
     # Do not recursively copy arbitrary source or development directories.
-    if ($relative -notin @('iris-daemon.exe','iris-cli.exe','iris-mcp.exe','iris-raw-decoder.exe','sources/raw-decoder-source.zip','sources/iris-application-source.zip','LICENSE','THIRD_PARTY_NOTICES.md','WebView2Loader.dll','openapi.json') -and -not $relative.StartsWith('models/') -and -not $relative.StartsWith('licenses/')) { continue }
+    if ($relative -notin @('iris-daemon.exe','iris-cli.exe','iris-mcp.exe','iris-raw-decoder.exe','sources/raw-decoder-source.zip','sources/iris-application-source.zip','sources/dependency-sources.zip','LICENSE','THIRD_PARTY_NOTICES.md','WebView2Loader.dll','openapi.json') -and -not $relative.StartsWith('models/') -and -not $relative.StartsWith('licenses/')) { continue }
     if ($relative.StartsWith('models/optional/',[StringComparison]::OrdinalIgnoreCase)) { throw 'Optional model files are not permitted in the installer' }
     $destination = Join-Path $payload $relative
     New-Item -ItemType Directory -Path (Split-Path -Parent $destination) -Force | Out-Null
@@ -114,6 +114,8 @@ foreach ($value in @([uint16]1,[uint16]32)) { $iconBytes.AddRange([BitConverter]
 $iconBytes.AddRange([byte[]]::new(28))
 $iconBytes.AddRange([byte[]]@(255,255,255,255))
 [System.IO.File]::WriteAllBytes($iconPath, $iconBytes.ToArray())
+$artwork = Join-Path $stage 'artwork'
+& (Join-Path $PSScriptRoot 'build-installer-artwork.ps1') -OutputDirectory $artwork
 $config = [ordered]@{
     bundle = [ordered]@{
         active = $true
@@ -123,7 +125,14 @@ $config = [ordered]@{
         resources = $resources
         windows = [ordered]@{
             webviewInstallMode = @{type='skip'}
-            nsis = @{installMode='currentUser'; languages=@('English','SimpChinese'); displayLanguageSelector=$false; installerIcon=$iconPath; uninstallerIcon=$iconPath}
+            nsis = @{
+                installMode='currentUser'; languages=@('SimpChinese','English'); displayLanguageSelector=$false
+                installerIcon=$iconPath; uninstallerIcon=$iconPath
+                sidebarImage=(Join-Path $artwork 'sidebar.bmp')
+                headerImage=(Join-Path $artwork 'header.bmp')
+                installerHooks=(Join-Path $repositoryRoot 'apps/shell/installer/hooks.nsh')
+                template=(Join-Path $repositoryRoot 'apps/shell/installer/installer.nsi')
+            }
         }
     }
 }

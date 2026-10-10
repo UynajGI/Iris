@@ -20,11 +20,17 @@ def main():
     args = parser.parse_args()
     if platform.system() not in ("Darwin", "Linux"):
         parser.error("Run on a native macOS or Linux builder")
+    mac = platform.system() == "Darwin"
+    machine = platform.machine().lower()
+    if machine not in ({"arm64", "aarch64", "x86_64", "amd64"} if mac else {"x86_64", "amd64"}):
+        parser.error("Supported release targets: macOS arm64/x64 and Linux x64")
     output = args.output.resolve()
     if output.exists():
         parser.error("Output must be new")
     output.mkdir(parents=True)
-    mac = platform.system() == "Darwin"
+    version = json.loads((ROOT / "apps/shell/package.json").read_text())["version"]
+    label = "macos-" + ("arm64" if machine in ("arm64", "aarch64") else "x64") if mac else "linux-x64"
+    (output / "release.json").write_text(json.dumps({"product": "Iris", "version": version, "platform": label}) + "\n")
     binary = output / "Iris.app/Contents/MacOS" if mac else output
     binary.mkdir(parents=True, exist_ok=True)
     for name, directory in [("iris-shell", "apps/shell/src-tauri"), ("iris-daemon", "."), ("iris-cli", "."), ("iris-mcp", "."), ("iris-raw-decoder", "components/raw-decoder")]:
@@ -47,7 +53,6 @@ def main():
     subprocess.run([sys.executable, ROOT / "tools/package-relink-source.py", "--output", output / "sources/raw-decoder-source.zip"], check=True)
     subprocess.run([sys.executable, ROOT / "tools/package-dependency-source.py", "--output", output / "sources/dependency-sources.zip"], check=True)
     if mac:
-        version = json.loads((ROOT / "apps/shell/package.json").read_text())["version"]
         info = {"CFBundleExecutable": "iris-shell", "CFBundleName": "Iris", "CFBundleIdentifier": "local.irisvision.app", "CFBundlePackageType": "APPL", "CFBundleShortVersionString": version.split("-")[0], "CFBundleVersion": version.split("-")[0], "NSHighResolutionCapable": True}
         (output / "Iris.app/Contents/Info.plist").write_bytes(plistlib.dumps(info))
     launcher = output / ("Launch.command" if mac else "Launch.sh")

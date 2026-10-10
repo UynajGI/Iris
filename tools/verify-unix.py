@@ -17,14 +17,16 @@ def png():
     return b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", 32, 32, 8, 2, 0, 0, 0)) + chunk(b"IDAT", zlib.compress((b"\0" + bytes([120, 120, 120]) * 32) * 32)) + chunk(b"IEND", b"")
 
 
-def verify(bundle):
+def verify(bundle, binary_directory=None):
     bundle = bundle.resolve()
     entries = json.loads((bundle / "checksums.json").read_text())
     for entry in entries:
         file = bundle / entry["path"]
         if not file.resolve().is_relative_to(bundle) or file.is_symlink() or hashlib.sha256(file.read_bytes()).hexdigest() != entry["sha256"]:
             raise ValueError("Packaged file checksum mismatch")
-    binary = bundle / "Iris.app/Contents/MacOS" if (bundle / "Iris.app").exists() else bundle
+    binary = Path(binary_directory).resolve() if binary_directory else (bundle / "Iris.app/Contents/MacOS" if (bundle / "Iris.app").exists() else bundle)
+    if not binary.is_relative_to(bundle):
+        raise ValueError("Binary directory must remain inside the verified bundle")
     with tempfile.TemporaryDirectory(prefix="iris-beta-verify-") as temp:
         root = Path(temp)
         env = {k: v for k, v in os.environ.items() if k not in {"ORT_DYLIB_PATH", "IRIS_MODEL_DIR", "IRIS_DAEMON_PATH", "IRIS_RAW_DECODER_PATH"}}
@@ -45,4 +47,6 @@ def verify(bundle):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--bundle", type=Path, required=True)
-    verify(parser.parse_args().bundle)
+    parser.add_argument("--binary-directory", type=Path)
+    args = parser.parse_args()
+    verify(args.bundle, args.binary_directory)
