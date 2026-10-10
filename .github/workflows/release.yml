@@ -108,8 +108,8 @@ jobs:
       - run: npm ci
         working-directory: apps/shell
       - run: python tools/setup-models.py
-      - run: python tools/dev.py build --profile release
-      - run: python tools/dev.py build-desktop --profile release
+      - run: make build PROFILE=release
+      - run: make build-desktop PROFILE=release
       - run: cargo test --workspace --locked --release
       - name: Actual CPU inference
         run: cargo test --locked --release -p iris-core bundled_onnx_tensor_smoke -- --ignored --nocapture

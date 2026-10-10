@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -10,19 +11,20 @@ ROOT = Path(__file__).resolve().parents[2]
 LEFTHOOK = ROOT / "node_modules/.bin" / ("lefthook.cmd" if os.name == "nt" else "lefthook")
 
 
-@unittest.skipUnless(LEFTHOOK.exists() and shutil.which("node"), "install root Git tooling with npm ci")
+@unittest.skipUnless(LEFTHOOK.exists() and shutil.which("node"), "install root Git tooling with make setup")
 class GitHookIntegrationTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory(prefix="iris-git-hooks-")
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
         self.env = {k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "LEFTHOOK"))}
-        self.env.update(GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull, NO_COLOR="1")
+        self.env.update(GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull, NO_COLOR="1", IRIS_BACKEND=sys.executable)
         self.git("init", "--initial-branch=main")
         self.git("config", "user.name", "Hook fixture")
         self.git("config", "user.email", "hook-fixture@example.invalid")
         (self.root / "tools").mkdir()
         shutil.copy2(ROOT / "tools/check-staged.py", self.root / "tools/check-staged.py")
+        shutil.copy2(ROOT / "tools/backend.mjs", self.root / "tools/backend.mjs")
         shutil.copy2(ROOT / ".gitignore", self.root / ".gitignore")
         config = (ROOT / "lefthook.yml").read_text("utf-8")
         entry = (ROOT / "node_modules/lefthook/bin/index.js").as_posix()
@@ -83,6 +85,10 @@ class GitHookIntegrationTests(unittest.TestCase):
         self.stage("artifacts/private.json", b'{"fixture":true}\n', force=True)
         self.assert_rejected(self.commit(), "generated/runtime/private directory")
 
+    def test_local_tool_cannot_be_force_added(self):
+        self.stage(".tools/codegraph/package.json", b'{}\n', force=True)
+        self.assert_rejected(self.commit(), "generated/runtime/private directory")
+
     def test_pem_signing_material_cannot_be_force_added(self):
         # Path policy must reject PEM files even when contents are not a
         # recognizable private-key marker (for example encrypted PEM data).
@@ -94,7 +100,7 @@ class GitHookIntegrationTests(unittest.TestCase):
         self.assert_rejected(self.commit(), "binary/runtime/database/signing artifact")
 
     def test_encrypted_private_key_marker_is_rejected_in_text_file(self):
-        self.stage("credentials.txt", b"-----BEGIN ENCRYPTED PRIVATE KEY-----\nnot-a-real-key\n")
+        self.stage("credentials.txt", b"-----BEGIN ENCRYPTED PRIVATE KEY-----\nnot-a-real-key\n", force=True)
         result = self.commit()
         self.assert_rejected(result, "possible private key")
         self.assertNotIn("not-a-real-key", result.stdout + result.stderr)
@@ -119,7 +125,7 @@ class GitHookIntegrationTests(unittest.TestCase):
 
     def test_private_key_marker_is_rejected_without_printing_contents(self):
         fake = b"-----BEGIN " + b"PRIVATE KEY-----\nnot-a-real-key\n"
-        self.stage("credentials.txt", fake)
+        self.stage("credentials.txt", fake, force=True)
         result = self.commit()
         self.assert_rejected(result, "possible private key")
         self.assertNotIn("not-a-real-key", result.stdout + result.stderr)

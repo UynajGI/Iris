@@ -4,9 +4,21 @@
 
 ## 命令与导航
 
-根目录 [Makefile](../Makefile) 提供统一任务；没有 GNU Make 时，使用 `python tools/dev.py <任务>`。执行 `make help` 查看完整列表，`make doctor` 检查工具，`make check` 检查格式、Rust 和前端类型。`make test` 分别执行 Rust、Python、前端和原生库测试；真实前端集成需要设置 `IRIS_TEST_DAEMON` 与 `IRIS_TEST_PHOTOS`。
+根目录 [Makefile](../Makefile) 提供统一任务。2026-10-10 起只保留 Make 开发入口，原任务调度器已移除，内部工具通过隔离环境执行。执行 `make help` 查看完整列表，`make doctor` 检查工具，`make check` 检查格式、Rust 和前端类型。`make test` 分别执行 Rust、Python、前端和原生库测试；真实前端集成需要设置 `IRIS_TEST_DAEMON` 与 `IRIS_TEST_PHOTOS`。
 
-`make build` 构建核心、独立 RAW 转换器和前端资源；桌面程序用 `make build-desktop`。`IRIS_PROFILE=release` 选择 release。模型与运行库下载必须显式执行对应任务，不属于常规检查。源码导出需提供 `IRIS_OUTPUT` ZIP 路径，且要求干净的 HEAD。完整说明见[工具索引](../tools/README.md)。
+`make build` 构建核心、独立 RAW 转换器和前端资源；桌面程序用 `make build-desktop`。`PROFILE=release` 选择 release。模型与运行库下载必须显式执行对应任务，不属于常规检查。源码导出需提供 `OUTPUT` ZIP 路径，且要求干净的 HEAD。完整说明见[工具索引](../tools/README.md)。
+
+### 2026-10-10：Make 开发入口迁移
+
+任务编排由 Makefile 负责；移除旧开发调度器与旧钩子安装脚本。`make setup` 已在
+Windows 实跑，包含 uv 管理的隔离工具环境、两份 npm 锁定依赖和 Lefthook。
+CodeGraph 1.6.2 已通过 `make codegraph` 安装到项目内，状态查询通过；未重建索引。
+双语 README 的 Development 只展示 Make，不要求手动安装或激活解释器。
+
+本轮本机验证：8 项 Make/Node 回归、67 项内部工具测试均通过且无跳过；
+`make check`、`make api-check`、`make models` 通过。钩子回归包含强制暂存本地工具
+目录与密钥样本的拒绝路径。三平台 Make 检查已加入 Verify 配置，本轮尚未在远端执行；
+历史发布结果不能当作本轮 CI 结果。下方原有测试表保留当日身份，不与新计数相加。
 
 [文档索引](README.md) 承接公开 Markdown；[Rust 模块地图](../crates/README.md) 和[桌面模块地图](../apps/shell/README.md#module-map) 说明入口、责任与测试位置。修正了仍称桌面未实现、当前 schema 为 v3、当前分析为 v5 的旧表述；旧验证证据保留历史身份。
 

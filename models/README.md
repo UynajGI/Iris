@@ -6,11 +6,11 @@ the Rust loader verifies the packaged library before loading it. Unix beta
 packages currently do not include HEIC or ExifTool runtimes. DirectML remains
 Windows-only. See [release notes](../docs/releases/v0.1.0-beta.md).
 
-Run `python tools/setup-models.py` to restore the pinned files in `manifest.json`.
+Run `make env models` to restore the pinned files in `manifest.json`.
 Downloaded bytes are checked against upstream Git LFS SHA-256 object IDs. The
 Rust loader independently checks compiled-in hashes before constructing sessions.
-No photograph is sent to a network service. Python is a development download
-utility; production inference runs in-process in Rust through `ort`.
+No photograph is sent to a network service. The internal download utility uses
+the managed backend environment; production inference runs in-process in Rust through `ort`.
 
 Current analysis version: `iris-vision-v6-local-pipeline-2026-10-07`.
 The quality formulas below were introduced in v5 and retained in v6.
@@ -253,7 +253,7 @@ See [research and integration evidence](../docs/occlusion-model-options.md).
 After restoring assets, run:
 
 ```powershell
-python tools/setup-models.py
+make models
 cargo test -p iris-core bundled_onnx_tensor_smoke -- --ignored --nocapture
 ```
 

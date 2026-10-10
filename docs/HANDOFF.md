@@ -22,7 +22,7 @@
 
 ## 验证与本地数据
 
-2026-10-09 完成三位 Luna 分工复核、统一 Make/Python 命令及文档索引；本轮测试与修复见[全库复核](repository-review.md)。统一入口为 `make help`，无 Make 时使用 `python tools/dev.py help`。
+2026-10-09 完成三位 Luna 分工复核、统一 Make/Python 命令及文档索引；本轮测试与修复见[全库复核](repository-review.md)。当前统一入口为 `make help`；2026-10-10 将任务编排迁入 Make，`make setup` 管理隔离工具环境、锁定依赖及 Lefthook，可选 CodeGraph 与模型通过独立目标准备。旧的双入口复核属于历史记录。
 
 [验证总览](validation.md)、[MCP 验证](mcp-validation.md)、[GPU/规模验证](gpu-scale-validation.md)保留本机证据边界。原始报告在本地 `artifacts/`，不随公开仓库分发；旧结果不是本次重跑或远端 CI 通过。
 

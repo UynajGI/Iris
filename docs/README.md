@@ -9,7 +9,7 @@
 | 需要了解 | 文档 |
 | :--- | :--- |
 | 模块如何连接、进程和数据边界 | [架构](architecture.md)、[核心服务](core-services.md) |
-| 本地开发、命令和提交 | [贡献指南](contributing.md)、根目录 [Makefile](../Makefile) 与 [tools/dev.py](../tools/dev.py) |
+| 本地开发、命令和提交 | [贡献指南](contributing.md)、根目录 [Makefile](../Makefile) 与[工具索引](../tools/README.md) |
 | HTTP、WebSocket、OpenAPI 和生成客户端 | [API 契约](api-contract.md)、[MCP 接入](mcp.md) |
 | 桌面前端当前实现与原生托管 | [前端实现](frontend-implementation.md)、[桌面更新](native-updates.md) |
 | JPEG/PNG/WebP/HEIC/RAW 边界 | [媒体支持](media-support.md) |

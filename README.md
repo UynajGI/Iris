@@ -89,19 +89,19 @@ On macOS the binaries are inside `Iris.app/Contents/MacOS/`. See the [MCP guide]
 
 ## 🔧 Development
 
-Install Git, Rust stable, Node.js 22+, Python 3.12+ and the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) for your OS. Open a terminal in your development directory and run:
+Install Git, GNU Make, Rust stable, Node.js 22+, [uv](https://docs.astral.sh/uv/getting-started/installation/) and the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) for your OS. Use GNU Make in your terminal (`make --version`), including on Windows. Then run:
 
 ```bash
 git clone https://github.com/UynajGI/Iris.git
 cd Iris
-python tools/dev.py setup
-python tools/dev.py check
-python tools/dev.py test
+make setup
+make check
+make test
 ```
 
-Use the same commands in PowerShell on Windows. If your Unix Python executable is named `python3`, substitute it for `python`. Successful commands return exit code zero. They prepare and validate the source; package startup is covered above.
+Use the same commands in PowerShell on Windows. `make setup` prepares an isolated backend environment, installs locked dependencies and configures local Lefthook hooks. No environment activation is required. Successful commands return exit code zero.
 
-The toolchain file selects native Rust stable. Windows GNU builds can select `RUSTUP_TOOLCHAIN=stable-x86_64-pc-windows-gnu`. Equivalent entry points include `make help`, `make check` and `make test`. See the [tools index](tools/README.md) for builds, model provisioning and packaging, and the [desktop guide](apps/shell/README.md) for native development. Photographs, downloaded weights, runtimes and local reports are excluded from Git.
+The toolchain file selects native Rust stable. Windows GNU builds can select `RUSTUP_TOOLCHAIN=stable-x86_64-pc-windows-gnu`. Run `make help` for all tasks, `make models` for default models, and `make codegraph` to install optional project-local CodeGraph. Indexing is explicit with `make codegraph-init`. See the [tools index](tools/README.md) for builds, model provisioning and packaging, and the [desktop guide](apps/shell/README.md) for native development. Photographs, downloaded weights, runtimes and local reports are excluded from Git.
 
 ## 📚 Documentation
 

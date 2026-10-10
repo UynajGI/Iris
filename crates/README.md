@@ -17,5 +17,5 @@ DINOv3、SCRFD、FaceOcc 仍由显式设置和本地工件校验控制。`compon
 是独立的 MIT RAW 转换器，不属于这四个 crate，也不共享 Iris 数据库或协议；见其
 [README](../components/raw-decoder/README.md)。
 
-常用检查从仓库根目录执行 `python tools/dev.py check`、`test-rust` 或 `build-core`；
+常用检查从仓库根目录执行 `make check`、`make test-rust` 或 `make build-core`；
 完整任务和平台前提见 [工具入口](../tools/README.md)。

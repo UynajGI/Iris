@@ -29,7 +29,7 @@ quantization. It embeds the external tensors into the protobuf with deterministi
 serialization and verifies the resulting fixed hash before installing it.
 
 ```powershell
-python tools/setup-dinov3.py
+make models-dino
 python tools/verify-dinov3.py
 cargo test -p iris-core vision::dinov3::tests
 $env:IRIS_TEST_PHOTOS = 'C:\Photos'
@@ -83,7 +83,7 @@ quality features and matching vectors when a semantic threshold changes.
 At job level, missing/unavailable embeddings explicitly return `phash_fallback`
 with a reason; corrupt/unapproved model bytes remain fatal before cache reuse.
 DirectML is optional. The original dynamic graph has incompatible Reshape behavior
-on the local adapters. `python tools/setup-dinov3-directml.py` creates an additional
+on the local adapters. `make models-dino-directml` creates an additional
 approved fixed-shape graph offline: input 1x3x224x224, 81 explicit Reshape sizes,
 all 213 original initializers preserved byte for byte. It uses ONNX 1.23.2 and
 CPU ORT for shape tracing (validated with ORT 1.30.0); the output must match the

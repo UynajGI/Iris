@@ -6,20 +6,33 @@
 
 发布工具：`check-release.py` 校验 Tag 与应用版本；`onnx_runtime.py` 为 macOS/Linux 准备哈希固定的 CPU 运行库，由 `setup-models.py` 调用；`package-unix.py` 组装原生 Unix Beta 包。流程与限制见[发布文档](../docs/releasing.md)。
 
-`tools/` 包含模型准备、媒体运行库准备、验证、评估和打包脚本。统一入口是根目录
-的 `python tools/dev.py <task>`，GNU Make 只是调用它的可选便捷层：
+`tools/` 是内部环境、模型准备、媒体、验证、评估和打包的实现层。公开开发入口统一为
+根目录 Makefile；任务组合、顺序和失败传播由 Make 管理：
 
 ```powershell
-python tools/dev.py help
 make help
-python tools/dev.py check
-python tools/dev.py verify
+make setup
+make check
+make verify
 ```
 
-`dev.py` 支持 `--profile debug|release`、`--dry-run` 和需要新输出目录的
-`--output PATH`；也可使用 `IRIS_PROFILE`、`IRIS_OUTPUT`。`verify` 组合代码检查、
-测试、API 新鲜度和公开树检查；`public-check` 检查暂存的公开源码索引与链接。先用
-`doctor` 查看本机工具，不会自动安装任何内容。
+安装 Git、GNU Make、Rust stable、Node.js 22+、uv 和对应平台的 Tauri 系统依赖后，
+运行 `make setup`。uv 为内部工具准备 `.venv/`（缺少运行时时自动下载），无需激活；
+不会安装到系统解释器。已有环境保留并检查版本。Python 仅作为内部准备、校验和打包
+工具的依赖，Iris 的核心及推理服务仍是 Rust，不增加应用运行时依赖。
+
+配置使用 `PROFILE=debug|release`、`OUTPUT="新路径"` 和专项工具的 `ARGS="参数"`。
+预览使用 `make -n <目标>`。例如 `make build PROFILE=release`、
+`make source OUTPUT=dist/source/Iris-source.zip`。`make doctor` 只检查，不安装。
+`make verify` 组合代码检查、测试、API 新鲜度和暂存公开树检查。
+
+`make env` 仅准备内部环境；`make deps` 安装两份 npm 锁定依赖；`make hooks` 安装
+本地 Lefthook 和提交模板。`make setup` 按这三个步骤执行，首次不下载模型。
+`make env-validation` 安装可选媒体验证依赖；`make env-models` 安装可选 ONNX 转换依赖。
+
+`make codegraph` 将固定版本安装到忽略目录 `.tools/codegraph/`，不修改全局 Agent 配置。
+`make codegraph-init` 显式建立索引，`make codegraph-sync` 刷新已有索引，
+`make codegraph-status` 查看状态。默认 setup、build 和 CI 不依赖 CodeGraph。
 
 ## 任务分组
 
@@ -30,9 +43,11 @@ python tools/dev.py verify
 * `models`、`media`、`raw`、`directml`：明确请求后准备模型或 Windows 运行库，可能
   下载或写入本机忽略目录；不会删除照片或自动接受模型许可。
 * `source`、`portable`：分别导出干净源码 ZIP 和 Windows 便携包目录；必须提供新
-  `--output` 路径，现有目标不会覆盖。
+  `OUTPUT` 路径，现有目标不会覆盖。
 
-独立脚本仍适用于专项流程：`setup-models.py`、`setup-heif-runtime.py`、
+可选模型入口为 `make models-dino`、`make models-scrfd ARGS=--research-only`、
+`make models-dino-directml`，需先查阅对应许可及依赖，不由 setup 自动触发。
+内部脚本仍适用于 CI 和专项流程：`setup-models.py`、`setup-heif-runtime.py`、
 `setup-raw-runtime.py`、`setup-directml-runtime.py` 负责准备；`verify_*.py` 负责
 校验；`package-*.py` / `package-*.ps1` 负责打包；`evaluate.py` 只读取数据库并要求
 独立人工标注。可选 DINOv3 和 SCRFD 的来源、许可与限制见 [DINOV3.md](DINOV3.md)
@@ -49,7 +64,8 @@ python tools/dev.py verify
 | `benchmark_worker_limits.py` | worker 并发/限制基准；需要本地分析数据 |
 | `benchmark_worker_threads.py` | worker 线程基准；需要 daemon 和测试照片 |
 | `benchmark-expanded.py` | 扩展媒体/规模基准；需要本机媒体与照片 |
-| `dev.py` | 统一检查、测试、构建、API、模型、媒体和打包任务入口 |
+| `development.mjs` / `backend.mjs` | Make 的平台辅助操作与隔离后端工具桥接，不另设任务调度器 |
+| `api.mjs` | 生成或只读比较 API 契约与前端声明 |
 | `check-public-tree.py` | 检查暂存公开树、链接、许可证和敏感文件 |
 | `check-staged.py` | 检查暂存内容是否越过公开边界 |
 | `compare_scoring.py` | 比较评分数据库/报告；只读输入数据库 |
@@ -69,7 +85,7 @@ python tools/dev.py verify
 | `setup-dinov3.py` | 下载/校验可选 DINOv3；需用户明确运行并接受其许可条件 |
 | `setup-dinov3-directml.py` | 从 CPU 图生成校验过的 DirectML 图；需 DINOv3 与 Windows ORT |
 | `setup-directml-runtime.py` | 准备 DirectML 运行库；Windows，可能下载文件 |
-| `setup-git-hooks.py` | 安装仓库本地 Git hooks；只改本机 `.git` 配置 |
+| `install-hooks.mjs` | 安装仓库本地 Git hooks；只改本机 `.git` 配置 |
 | `setup-heif-runtime.py` | 准备固定来源 HEIF 运行库；Windows/MinGW，可能下载文件 |
 | `setup-models.py` | 下载/校验默认模型；需用户明确运行和新模型目录 |
 | `setup-raw-runtime.py` | 准备 Windows ExifTool/RAW 运行库；Windows，可能下载文件 |
@@ -98,7 +114,7 @@ python tools/dev.py verify
 `test_package_dinov3.py`、`test_package_installer.py`、`test_public_source.py`、
 `test_runtime_closure.py`、`test_scrfd_tools.py` 和 `test_release.py` 分别覆盖规模、DINOv3、评估、
 hooks、打包、公开树、运行库闭包、SCRFD 工具及发布版本/原生运行库契约。统一运行：
-`python -m unittest discover -s tools/tests -p 'test_*.py' -v`。
+`make test-tools`，包含 Make 编排和 Node 辅助工具的回归测试。
 
 ## 平台边界
 

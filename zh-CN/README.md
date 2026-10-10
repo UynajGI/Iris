@@ -89,19 +89,19 @@ macOS 的二进制位于 `Iris.app/Contents/MacOS/`。配置、目录授权和�
 
 ## 🔧 开发
 
-需要 Git、Rust stable、Node.js 22+、Python 3.12+ 和对应平台的 [Tauri 系统依赖](https://v2.tauri.app/start/prerequisites/)。在开发目录打开终端，运行：
+需要 Git、GNU Make、Rust stable、Node.js 22+、[uv](https://docs.astral.sh/uv/getting-started/installation/) 和对应平台的 [Tauri 系统依赖](https://v2.tauri.app/start/prerequisites/)。Windows 同样使用 GNU Make，可用 `make --version` 确认。然后运行：
 
 ```bash
 git clone https://github.com/UynajGI/Iris.git
 cd Iris
-python tools/dev.py setup
-python tools/dev.py check
-python tools/dev.py test
+make setup
+make check
+make test
 ```
 
-Windows PowerShell 使用相同命令。若 Unix 的 Python 可执行文件名为 `python3`，将命令中的 `python` 替换为 `python3`。命令成功时退出码为零。这些命令用于准备和验证源码，发行包启动方式见快速开始。
+Windows PowerShell 使用相同命令。`make setup` 准备隔离的后端工具环境、安装锁定依赖并配置本地 Lefthook 钩子，无需手动激活环境。命令成功时退出码为零。
 
-工具链文件选择本机 Rust stable；Windows GNU 构建可设置 `RUSTUP_TOOLCHAIN=stable-x86_64-pc-windows-gnu`。也可使用 `make help`、`make check` 和 `make test`。构建、模型准备和打包命令见[工具索引](../tools/README.md)，原生开发见[桌面文档](../apps/shell/README.md)。照片、下载权重、运行库与本机报告不进入 Git。
+工具链文件选择本机 Rust stable；Windows GNU 构建可设置 `RUSTUP_TOOLCHAIN=stable-x86_64-pc-windows-gnu`。`make help` 列出全部任务，`make models` 准备默认模型，`make codegraph` 安装项目内的可选 CodeGraph；索引需显式执行 `make codegraph-init`。构建、模型准备和打包命令见[工具索引](../tools/README.md)，原生开发见[桌面文档](../apps/shell/README.md)。照片、下载权重、运行库与本机报告不进入 Git。
 
 ## 📚 文档
 

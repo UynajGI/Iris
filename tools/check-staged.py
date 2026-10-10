@@ -11,7 +11,7 @@ import sys
 MAX_BYTES = 5 * 1024 * 1024
 DENIED_ROOTS = (
     "test-photos/", "artifacts/", ".iris/", ".iris-mcp/", ".impeccable/",
-    ".agents/", ".codegraph/", "reference/", "archive/", "archives/",
+    ".agents/", ".codegraph/", ".tools/", "reference/", "archive/", "archives/",
     "models/optional/", "models/directml/", "models/media/", "models/raw/",
 )
 DENIED_PARTS = {"node_modules", "target", "dist", "out", "__pycache__", ".venv"}

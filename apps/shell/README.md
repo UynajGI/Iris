@@ -7,8 +7,8 @@ reconnect are implemented, while the interactive native dialog, close protection
 and cross-platform native validation remain follow-up work. See
 `../../docs/frontend-implementation.md` for the current boundary.
 
-`npm ci`, `npm run check`, `npm test`, and `npm run build` validate and compile the
-TypeScript application. `src/index.ts` exports `IrisClient`, `IrisStore`,
+From the repository root, `make setup`, `make check-web`, `make test-web`, and
+`make build-web` prepare, validate and compile the TypeScript application. `src/index.ts` exports `IrisClient`, `IrisStore`,
 `CommandSystem`, and `EventBus`; `src/react.ts` exports React hooks used by the
 presentation. The Tauri host owns the local daemon and exposes `window.iris` to
 the UI; headless CLI and stdio MCP remain separate entry points.

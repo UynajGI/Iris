@@ -22,9 +22,9 @@ archive also contains a face-recognition model; that member is not installed or
 used. Existing package scripts exclude `models/optional`.
 
 ```powershell
-python tools/setup_scrfd.py --research-only
+make models-scrfd ARGS=--research-only
 # Or verify an already downloaded archive with the same pinned hashes:
-python tools/setup_scrfd.py --research-only --archive artifacts/scrfd-research/buffalo_sc.zip
+make models-scrfd ARGS="--research-only --archive artifacts/scrfd-research/buffalo_sc.zip"
 ```
 
 | Artifact | SHA-256 |

@@ -45,7 +45,7 @@ The paired-operation fixture uses a real camera RAW with a JPEG rendered from
 its preview. It validates pairing and linked operations, not a separately
 downloaded camera-card RAW+JPEG pair or color agreement between those captures.
 
-Run `python tools/setup-raw-runtime.py` to provision the hash-pinned standalone
+Run `make raw` to provision the hash-pinned standalone
 ExifTool 13.59.3 package into `<models>/raw`. `IRIS_EXIFTOOL_PATH` overrides its
 executable explicitly; custom model roots do not fall back to developer runtimes.
 Portable packaging validates the entire runtime manifest, includes licenses and
@@ -58,7 +58,7 @@ components/raw-decoder/Cargo.toml`. Keep its executable beside Iris, or set
 
 ## Runtime provisioning and distribution
 
-Run `python tools/setup-heif-runtime.py` with x64 MinGW GCC, mingw32-make and
+Run `make media` with x64 MinGW GCC, mingw32-make and
 CMake available. It verifies pinned upstream source SHA-256 hashes, builds only
 the HEVC decoder (external plugins and encoders disabled), and creates
 `models/media`. Distribution must include that **entire directory**, including

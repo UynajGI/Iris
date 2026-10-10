@@ -3,7 +3,7 @@ lefthook: node node_modules/lefthook/bin/index.js
 pre-commit:
   commands:
     staged-source:
-      run: python tools/check-staged.py
+      run: node tools/backend.mjs tools/check-staged.py
 
 commit-msg:
   commands:

@@ -4,9 +4,8 @@
   "license": "GPL-3.0-or-later",
   "description": "Repository-local Git tooling; not part of the application runtime",
   "scripts": {
-    "prepare": "python tools/setup-git-hooks.py",
-    "hooks:install": "python tools/setup-git-hooks.py",
-    "hooks:test": "python -m unittest discover -s tools/tests -p test_git_hooks.py -v"
+    "hooks:install": "node tools/install-hooks.mjs",
+    "hooks:test": "node tools/backend.mjs -m unittest discover -s tools/tests -p test_git_hooks.py -v"
   },
   "devDependencies": {
     "@commitlint/cli": "21.2.3",

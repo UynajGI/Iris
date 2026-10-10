@@ -57,6 +57,7 @@ models/raw/
 # Local agent tools and indexes are not product source.
 .agents/
 .codegraph/
+.tools/
 .impeccable/
 reference/
 archive/
