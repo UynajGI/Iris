@@ -7,7 +7,7 @@
     <a href="https://github.com/UynajGI/Iris"><img alt="GitHub stars" src="https://img.shields.io/github/stars/UynajGI/Iris?style=social"></a>
   </p>
   <p><strong>Language:</strong> <a href="README.md">English</a> | <a href="zh-CN/README.md">简体中文</a></p>
-  <p><a href="https://github.com/UynajGI/Iris/releases/tag/v0.1.0-beta">Download Beta</a> · <a href="docs/README.md">Documentation</a> · <a href="https://github.com/UynajGI/Iris/issues">Report an issue</a></p>
+  <p><a href="https://github.com/UynajGI/Iris/releases/tag/v0.1.0-beta2">Download Beta</a> · <a href="CHANGELOG.md">Changelog</a> · <a href="docs/README.md">Documentation</a> · <a href="https://github.com/UynajGI/Iris/issues">Report an issue</a></p>
 </div>
 
 ## 📋 Contents
@@ -65,7 +65,7 @@ Linux: open Terminal in the extracted directory and run:
 bash Launch.sh
 ```
 
-macOS may require confirmation in Privacy & Security because this beta is not notarized. All release packages use CPU inference. macOS/Linux include JPEG, PNG and WebP analysis and bounded RAW fallback conversion. Automatic updates are not enabled. See the [release notes](docs/releases/v0.1.0-beta.md) for platform limits.
+macOS may require confirmation in Privacy & Security because this beta is not notarized. All release packages use CPU inference. macOS/Linux include JPEG, PNG and WebP analysis and bounded RAW fallback conversion. Automatic updates are not enabled. See the [release notes](docs/releases/v0.1.0-beta2.md) for platform limits.
 
 **3. Verify the workflow.** When the project screen opens, choose a folder of authorized photo copies, confirm the scan scope and start analysis. Results appear in the photo list and analysis details, where you can review and mark them. Native builds, CPU inference and package self-checks passed on all four CI targets; interaction on other computers remains part of beta testing.
 

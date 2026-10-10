@@ -7,7 +7,7 @@
       "name": "GPL-3.0-or-later",
       "identifier": "GPL-3.0-or-later"
     },
-    "version": "0.1.0-beta"
+    "version": "0.1.0-beta2"
   },
   "paths": {
     "/api/v1/bootstrap": {
@@ -1795,12 +1795,12 @@
           "exposure_weight": {
             "type": "number",
             "format": "double",
-            "default": 20.0
+            "default": 20
           },
           "eyes_weight": {
             "type": "number",
             "format": "double",
-            "default": 25.0
+            "default": 25
           },
           "face_confidence": {
             "type": "number",
@@ -1818,7 +1818,7 @@
           "face_weight": {
             "type": "number",
             "format": "double",
-            "default": 20.0
+            "default": 20
           },
           "max_faces": {
             "type": "integer",
@@ -1856,12 +1856,12 @@
           "recommend_threshold": {
             "type": "number",
             "format": "double",
-            "default": 70.0
+            "default": 70
           },
           "reject_threshold": {
             "type": "number",
             "format": "double",
-            "default": 25.0
+            "default": 25
           },
           "scrfd_model_sha256": {
             "type": [
@@ -1881,12 +1881,12 @@
           "sharpness_weight": {
             "type": "number",
             "format": "double",
-            "default": 25.0
+            "default": 25
           },
           "smile_weight": {
             "type": "number",
             "format": "double",
-            "default": 10.0
+            "default": 10
           }
         },
         "additionalProperties": false

@@ -4,12 +4,16 @@
   "license": "GPL-3.0-or-later",
   "description": "Repository-local Git tooling; not part of the application runtime",
   "scripts": {
+    "changelog": "node tools/changelog.mjs",
+    "changelog:check": "node tools/changelog.mjs --check",
+    "release:notes": "node tools/changelog.mjs --release",
     "hooks:install": "node tools/install-hooks.mjs",
     "hooks:test": "node tools/backend.mjs -m unittest discover -s tools/tests -p test_git_hooks.py -v"
   },
   "devDependencies": {
     "@commitlint/cli": "21.2.3",
     "@commitlint/config-conventional": "21.2.3",
+    "git-cliff": "2.14.2",
     "lefthook": "2.1.17"
   }
 }

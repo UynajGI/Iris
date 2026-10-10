@@ -20,6 +20,11 @@ make build-web
 
 使用 Conventional Commits，例如 `fix(mcp): reject paths outside allowed roots`。提交前检查 `git diff --cached`，再运行 `make public-check`。
 
+变更日志由仓库本地锁定的 git-cliff 生成，不手工编辑条目。完成常规变更提交、同步下一版本后运行
+`make changelog`，以 `chore(release): ...` 提交版本元数据和生成结果。该类发布提交不进入变更列表，
+避免生成结果依赖自身提交；其余提交按类型分类。Release CI 的 `make changelog-check` 检查新鲜度。
+需要完整 Git 历史和 Tag（浅克隆先补全），工具不会替你提高版本、推送或公开发布。
+
 钩子检查暂存快照的空白、Python/JSON 语法、禁入目录、文件大小和常见密钥格式，不自动修改文件，也不是完整密钥审计。新检出执行 `make setup`，已有依赖时可用 `make hooks` 重新安装钩子。
 
 照片、模型权重、运行库、数据库、报告、安装包、本机 Agent 工具和参考资料不进入 Git。新增测试使用合成或有明确授权的样本，保留来源，写入测试使用临时副本。

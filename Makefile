@@ -27,7 +27,7 @@ endif
  check check-rust check-web fmt fmt-check test test-rust test-tools test-web \
  test-native build build-core build-web build-desktop api api-check public-check \
  staged-check verify models models-dino models-scrfd models-dino-directml \
- media raw directml source portable installer-native require-output require-windows
+ media raw directml source portable installer-native changelog changelog-check release-notes require-output require-windows
 
 help: ## List commands and configuration
 	@$(NODE) tools/development.mjs help
@@ -76,6 +76,7 @@ test-rust: ## Test the core workspace (ignored media tests stay ignored)
 	$(CARGO) test --workspace --locked $(PROFILE_FLAGS)
 test-tools: ## Test Make integration and internal provisioning/packaging tools
 	$(NODE) --test tools/tests/development.test.mjs
+	$(NODE) --test tools/tests/changelog.test.mjs
 	$(BACKEND) -m unittest discover -s tools/tests -p test_*.py -v
 test-web: ## Test the frontend (live API requires configured fixtures)
 	npm --prefix apps/shell test
@@ -120,6 +121,12 @@ portable: require-windows require-output ## Build a Windows portable package in 
 	$(NODE) tools/development.mjs portable
 installer-native: require-output ## Build macOS PKG or Linux DEB from PORTABLE (native OS required)
 	$(BACKEND) tools/package-native-installer.py --portable "$(PORTABLE)" --output "$(OUTPUT)"
+changelog: ## Regenerate CHANGELOG.md from full Git history and the current version
+	npm run changelog
+changelog-check: ## Fail if the committed changelog is stale
+	npm run changelog:check
+release-notes: ## Combine maintained release instructions and generated changes
+	npm run release:notes
 require-output:
 	@$(NODE) tools/development.mjs require-output
 require-windows:

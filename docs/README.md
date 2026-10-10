@@ -52,6 +52,8 @@
 | [releasing.md](releasing.md) | Tag、EXE/PKG/DEB 与便携包、完整附件门禁和发布 |
 | [安装器界面](../apps/shell/installer/README.md) | 原生平台资源、NSIS 模板来源、升级与验收边界 |
 | [v0.1.0-beta](releases/v0.1.0-beta.md) | 首版下载与测试说明 |
+| [v0.1.0-beta2](releases/v0.1.0-beta2.md) | 原生安装包、安全修复与当前测试边界 |
+| [CHANGELOG.md](../CHANGELOG.md) | git-cliff 从提交历史自动生成的分类变更记录 |
 | [scoring-v5.md](scoring-v5.md) | v5 评分与验证方法 |
 | [updates.md](updates.md) | 更新检查、下载和安装协议 |
 | [validation.md](validation.md) | 总体验证证据和限制 |

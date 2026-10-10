@@ -353,7 +353,7 @@ dependencies = [
 
 [[package]]
 name = "iris-raw-decoder"
-version = "0.1.0-beta"
+version = "0.1.0-beta2"
 dependencies = [
  "anyhow",
  "rawler",

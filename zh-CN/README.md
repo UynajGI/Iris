@@ -7,7 +7,7 @@
     <a href="https://github.com/UynajGI/Iris"><img alt="GitHub stars" src="https://img.shields.io/github/stars/UynajGI/Iris?style=social"></a>
   </p>
   <p><strong>Language:</strong> <a href="../README.md">English</a> | <a href="README.md">简体中文</a></p>
-  <p><a href="https://github.com/UynajGI/Iris/releases/tag/v0.1.0-beta">下载 Beta</a> · <a href="../docs/README.md">文档</a> · <a href="https://github.com/UynajGI/Iris/issues">反馈问题</a></p>
+  <p><a href="https://github.com/UynajGI/Iris/releases/tag/v0.1.0-beta2">下载 Beta</a> · <a href="../CHANGELOG.md">变更日志</a> · <a href="../docs/README.md">文档</a> · <a href="https://github.com/UynajGI/Iris/issues">反馈问题</a></p>
 </div>
 
 ## 📋 目录
@@ -65,7 +65,7 @@ Linux：在解压目录打开终端，运行：
 bash Launch.sh
 ```
 
-macOS 可能要求在“隐私与安全性”中确认打开未公证应用。所有发行包均使用 CPU 推理。macOS/Linux 包含 JPEG、PNG、WebP 分析与有尺寸上限的 RAW 后备转换。自动更新尚未启用，平台限制见[发行说明](../docs/releases/v0.1.0-beta.md)。
+macOS 可能要求在“隐私与安全性”中确认打开未公证应用。所有发行包均使用 CPU 推理。macOS/Linux 包含 JPEG、PNG、WebP 分析与有尺寸上限的 RAW 后备转换。自动更新尚未启用，平台限制见[发行说明](../docs/releases/v0.1.0-beta2.md)。
 
 **3. 确认工作流可用。** 项目页打开后，选择包含授权照片副本的文件夹，确认扫描范围并开始分析。成功后，可在照片列表及分析详情中查看结果并标记。四个平台的 CI 已通过原生构建、CPU 推理和包内自检，其他电脑上的原生交互仍属于 Beta 测试范围。
 

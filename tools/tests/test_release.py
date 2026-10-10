@@ -1,6 +1,7 @@
 """Release identity and native runtime integrity regressions."""
 import importlib.util
 import io
+import json
 from pathlib import Path
 import sys
 import tempfile
@@ -18,7 +19,8 @@ spec.loader.exec_module(release)
 
 class ReleaseTests(unittest.TestCase):
     def test_current_tag_matches_and_wrong_tag_fails(self):
-        self.assertEqual(release.check("v0.1.0-beta"), "0.1.0-beta")
+        version = json.loads((TOOLS.parent / "apps/shell/package.json").read_text())["version"]
+        self.assertEqual(release.check(f"v{version}"), version)
         with self.assertRaises(ValueError):
             release.check("v9.0.0")
         with self.assertRaises(ValueError):

@@ -2,7 +2,7 @@
 
 更新：2026-10-10。主软件现采用 **GPL-3.0-or-later**，以当前开源初始提交为源码基线。旧参考资料、开发历史与旧文档已保存在仓库外的私人归档；公开检出不需要它们，也不需要任何 submodule。
 
-公开产品名已统一为 **Iris / 伊人**，首个预发布版本为 `v0.1.0-beta`。Tag 构建与平台测试包见[发布流程](releasing.md)；历史验证包名称保留。GitHub 状态以仓库 Actions 和 Release 为准，下列本机证据不能替代新平台验收。
+公开产品名已统一为 **Iris / 伊人**，当前准备发布 `v0.1.0-beta2`，保留首版 `v0.1.0-beta` 的 Tag 和附件。Tag 构建与平台测试包见[发布流程](releasing.md)；历史验证包名称保留。GitHub 状态以仓库 Actions 和 Release 为准，下列本机证据不能替代新平台验收。
 
 ## 当前实现
 
@@ -11,7 +11,7 @@
 * MCP 使用官方 Rust SDK，复用 daemon/core；不打开桌面、不监听 TCP，包含 44 个工具、目录范围限制、写入审计、请求去重和数据库互斥。
 * 分析版本为 `iris-vision-v6-local-pipeline-2026-10-07`。数据库迁移以源码为准，旧笔记中的 schema 数字不是当前契约。
 * 独立 RAW 转换器继续保留；开源不要求重新合并已验证的进程边界。
-* Release CI 现配置 Windows EXE、macOS arm64/x64 PKG、Linux x64 DEB，以及四份便携包、对应源码和 SHA256 完整性门禁。安装界面源码在 `apps/shell/installer/`；新增流程尚未在远端运行，不能沿用历史便携包通过记录。细节见[发布流程](releasing.md)。
+* Release CI 配置 Windows EXE、macOS arm64/x64 PKG、Linux x64 DEB，以及四份便携包、对应源码和 SHA256 完整性门禁。安装界面源码在 `apps/shell/installer/`；beta2 必须重新运行完整安装器流水线，不能沿用历史便携包通过记录。git-cliff 自动生成变更日志，手动入口可在验证后创建新 Tag 和草稿，详见[发布流程](releasing.md)。
 
 ## 下一步
 

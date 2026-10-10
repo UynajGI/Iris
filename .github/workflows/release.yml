@@ -3,6 +3,12 @@ on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      create_draft:
+        description: 'After successful verification, create the new version tag and release draft (never replace existing tags/releases)'
+        type: boolean
+        required: false
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -13,6 +19,13 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm run changelog:check
       - name: Validate release identity
         run: |
           if [ -z "$RELEASE_TAG" ]; then RELEASE_TAG="v$(python -c 'import json; print(json.load(open("apps/shell/package.json"))["version"])')"; fi
@@ -171,13 +184,23 @@ jobs:
           path: dist/release/*
           if-no-files-found: error
   draft:
-    if: github.ref_type == 'tag'
+    if: github.ref_type == 'tag' || (github.event_name == 'workflow_dispatch' && inputs.create_draft)
     needs: assets
     runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - name: Verify changelog and compose release notes
+        run: |
+          npm run changelog:check
+          npm run release:notes
       - uses: actions/download-artifact@v4
         with:
           name: release-assets
@@ -187,11 +210,21 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_REF_TYPE: ${{ github.ref_type }}
         run: |
           set -euo pipefail
+          VERSION=$(python -c 'import json; print(json.load(open("apps/shell/package.json"))["version"])')
+          if [[ "$RELEASE_REF_TYPE" != tag ]]; then
+            RELEASE_TAG="v$VERSION"
+            # Only create a new ref after all four platform builds and Verify pass.
+            # The default GITHUB_TOKEN avoids recursively triggering a second build.
+            gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" -f "ref=refs/tags/$RELEASE_TAG" -f "sha=$GITHUB_SHA"
+          fi
+          python tools/check-release.py "$RELEASE_TAG"
+          TAG_COMMIT=$(git ls-remote origin "refs/tags/$RELEASE_TAG^{}" | cut -f1)
+          if [[ -z "$TAG_COMMIT" ]]; then TAG_COMMIT=$(git ls-remote origin "refs/tags/$RELEASE_TAG" | cut -f1); fi
+          [[ "$TAG_COMMIT" == "$GITHUB_SHA" ]] || { echo 'Release tag does not match the verified commit'; exit 1; }
           cd dist/release
-          args=(--draft --verify-tag --latest=false --title "Iris $RELEASE_TAG")
+          args=(--draft --verify-tag --latest=false --title "Iris $RELEASE_TAG" --notes-file ../release-notes.md)
           if [[ "$RELEASE_TAG" == *-* ]]; then args+=(--prerelease); fi
-          notes="../../docs/releases/$RELEASE_TAG.md"
-          if [[ -f "$notes" ]]; then args+=(--notes-file "$notes"); else args+=(--generate-notes); fi
           gh release create "$RELEASE_TAG" *.zip *.tar.gz *.exe *.pkg *.deb SHA256SUMS.txt "${args[@]}"

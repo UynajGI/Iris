@@ -73,6 +73,7 @@ make verify
 | `benchmark-expanded.py` | 扩展媒体/规模基准；需要本机媒体与照片 |
 | `development.mjs` / `backend.mjs` | Make 的平台辅助操作与隔离后端工具桥接，不另设任务调度器 |
 | `api.mjs` | 生成或只读比较 API 契约与前端声明 |
+| `changelog.mjs` | 使用锁定的 git-cliff 生成/检查 CHANGELOG 与组合 Release 说明，不打 Tag 或发布 |
 | `check-public-tree.py` | 检查暂存公开树、链接、许可证和敏感文件 |
 | `check-staged.py` | 检查暂存内容是否越过公开边界 |
 | `compare_scoring.py` | 比较评分数据库/报告；只读输入数据库 |
