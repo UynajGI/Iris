@@ -21,10 +21,11 @@ const DIRECTML_BYTES: u64 = 86_415_189;
 const DIRECTML_SHA256: &str = "cb115eebbe83bb4f592845203dbee5f98253a63292210ff9ab3e73062c46dde5";
 
 fn verified_directml_bytes(model_dir: &Path) -> Result<Option<Vec<u8>>> {
-    let path = model_dir.join(DIRECTML_FILE);
-    if !path.try_exists()? {
+    // Missing optional GPU graph is not an error; unsafe paths still fail closed.
+    if !crate::model_paths::model_path_exists(model_dir, DIRECTML_FILE)? {
         return Ok(None);
     }
+    let path = crate::model_paths::checked_model_path(model_dir, DIRECTML_FILE)?;
     anyhow::ensure!(
         std::fs::metadata(&path)?.len() == DIRECTML_BYTES,
         "DINOv3 DirectML artifact size mismatch"
@@ -41,7 +42,7 @@ fn verified_bytes(model_dir: &Path, expected_hash: &str) -> Result<Vec<u8>> {
     if !expected_hash.eq_ignore_ascii_case(MODEL_SHA256) {
         bail!("DINOv3 requires the pinned ViT-S/16 artifact SHA-256 {MODEL_SHA256}; no substitute model");
     }
-    let path = model_dir.join(MODEL_FILE);
+    let path = crate::model_paths::checked_model_path(model_dir, MODEL_FILE)?;
     let length = std::fs::metadata(&path)
         .with_context(|| {
             format!(

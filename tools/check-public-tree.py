@@ -37,9 +37,10 @@ def inspect(root: Path) -> list[str]:
             errors.append(f"{path}: exceeds source size limit")
             continue
         data = git("cat-file", "blob", oid.decode())
-        for label, pattern in policy.SECRET_PATTERNS.items():
+        for pattern in policy.SECRET_PATTERNS.values():
             if pattern.search(data):
-                errors.append(f"{path}: possible {label} (value omitted)")
+                # Do not reflect rule labels or matched data into public logs.
+                errors.append(f"{path}: possible credential material (value omitted)")
         if path.endswith(".md"):
             documents[path] = data.decode("utf-8-sig")
     for path, content in documents.items():

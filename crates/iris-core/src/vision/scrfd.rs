@@ -82,7 +82,10 @@ fn inspect(dir: &Path, settings: &AnalysisSettings) -> (DetectorModelStatus, Opt
     let result = (|| -> Result<Vec<u8>> {
         settings.validate()?;
         let is_scrfd = settings.face_detector == FaceDetectorProvider::Scrfd500m;
-        let path = dir.join(if is_scrfd { MODEL } else { "yunet.onnx" });
+        let path = crate::model_paths::checked_model_path(
+            dir,
+            if is_scrfd { MODEL } else { "yunet.onnx" },
+        )?;
         if !path.exists() {
             status.state = ModelAvailability::Missing;
             bail!("model missing: {}", path.display());
@@ -102,7 +105,7 @@ fn inspect(dir: &Path, settings: &AnalysisSettings) -> (DetectorModelStatus, Opt
             bail!("model SHA-256 mismatch; expected {expected}, actual {actual}");
         }
         if is_scrfd {
-            let metadata_path = dir.join(METADATA);
+            let metadata_path = crate::model_paths::checked_model_path(dir, METADATA)?;
             if !metadata_path.exists() {
                 status.state = ModelAvailability::Missing;
                 bail!("SCRFD metadata missing: {}", metadata_path.display());
@@ -129,6 +132,11 @@ fn inspect(dir: &Path, settings: &AnalysisSettings) -> (DetectorModelStatus, Opt
             (status, Some(bytes))
         }
         Err(e) => {
+            if e.downcast_ref::<std::io::Error>()
+                .is_some_and(|error| error.kind() == std::io::ErrorKind::NotFound)
+            {
+                status.state = ModelAvailability::Missing;
+            }
             status.reason = Some(format!("{e:#}"));
             (status, None)
         }

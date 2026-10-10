@@ -1,6 +1,7 @@
 mod cache_publish;
 pub mod devices;
 pub mod domain;
+pub mod model_paths;
 #[cfg(windows)]
 pub mod owned_job;
 pub mod services;

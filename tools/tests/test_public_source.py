@@ -1,7 +1,9 @@
 """Public source export must not accidentally include local/private material."""
 import importlib.util
 from pathlib import Path
+import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 import zipfile
@@ -84,6 +86,21 @@ class PublicSourceTests(unittest.TestCase):
         # Git may report the absent checkout as dirty; either check must refuse.
         with self.assertRaises(ValueError):
             module.package(self.root, Path(self.temp.name) / "gitlink.zip")
+
+    def test_public_check_logs_location_but_never_credential_or_dynamic_rule_label(self):
+        fixture_value = "ghp_" + "A" * 36
+        self.write("fixture.txt", fixture_value + "\n")
+        self.git("add", "fixture.txt")
+        tools = self.root / "tools"
+        tools.mkdir()
+        for name in ("check-public-tree.py", "check-staged.py"):
+            shutil.copy2(ROOT / "tools" / name, tools / name)
+        result = subprocess.run([sys.executable, str(tools / "check-public-tree.py")],
+                                cwd=self.root, capture_output=True, text=True, timeout=30)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("fixture.txt: possible credential material (value omitted)", result.stderr)
+        self.assertNotIn(fixture_value, result.stdout + result.stderr)
+        self.assertNotIn("GitHub token", result.stdout + result.stderr)
 
 
 if __name__ == "__main__":

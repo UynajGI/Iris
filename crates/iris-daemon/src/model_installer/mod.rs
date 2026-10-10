@@ -1,6 +1,7 @@
 //! Explicit optional-model installation. No project settings are changed here.
 use crate::*;
 use anyhow::{ensure, Context};
+use iris_core::model_paths::{checked_model_path, model_path_exists};
 use sha2::{Digest, Sha256};
 use std::{fs, io::Read, path::Path as FsPath, time::Duration};
 mod onnx;
@@ -103,9 +104,16 @@ fn read(
     }
     checked(bytes, size, hash)
 }
-fn local(path: &FsPath, size: usize, hash: &str, installer: &Installer) -> anyhow::Result<Vec<u8>> {
+fn local(
+    directory: &FsPath,
+    name: &str,
+    size: usize,
+    hash: &str,
+    installer: &Installer,
+) -> anyhow::Result<Vec<u8>> {
+    let path = checked_model_path(directory, name)?;
     read(
-        fs::File::open(path).with_context(|| format!("cannot read {}", path.display()))?,
+        fs::File::open(&path).with_context(|| format!("cannot read {}", path.display()))?,
         size,
         hash,
         installer,
@@ -158,13 +166,8 @@ fn install(
         });
         let source = FsPath::new(source);
         (
-            local(&source.join(MODEL), SIZE, HASH, installer)?,
-            local(
-                &source.join("LICENSE-DINOv3.md"),
-                7502,
-                LICENSE_HASH,
-                installer,
-            )?,
+            local(source, MODEL, SIZE, HASH, installer)?,
+            local(source, "LICENSE-DINOv3.md", 7502, LICENSE_HASH, installer)?,
         )
     } else {
         update(installer, |progress| {
@@ -191,26 +194,46 @@ fn install(
             license,
         )
     };
+    publish_verified(model_dir, &model, &license, installer)
+}
+
+// Separate publication from download/hash validation so filesystem failure and
+// confinement tests can use small synthetic bytes without network/model weights.
+fn publish_verified(
+    model_dir: &FsPath,
+    model: &[u8],
+    license: &[u8],
+    installer: &Installer,
+) -> anyhow::Result<()> {
     check_cancel(installer)?;
     update(installer, |progress| progress.state = "installing".into());
-    let optional = model_dir.join("optional");
+    let optional = checked_model_path(model_dir, "optional")?;
     fs::create_dir_all(&optional)?;
-    let stage = Staging(optional.join(format!(".install-{}", uuid::Uuid::new_v4())));
+    // Reject unsafe destinations before publishing either artifact.
+    for name in ["LICENSE-DINOv3.md", MODEL] {
+        let target = checked_model_path(model_dir, &format!("optional/{name}"))?;
+        if target.exists() {
+            ensure!(
+                fs::metadata(target)?.is_file(),
+                "model installation target is not a file"
+            );
+        }
+    }
+    let stage_name = format!("optional/.install-{}", uuid::Uuid::new_v4());
+    let stage = Staging(checked_model_path(model_dir, &stage_name)?);
     fs::create_dir(&stage.0)?;
     // Stage all verified bytes before repairing either fixed installation filename.
-    for (name, bytes) in [
-        ("LICENSE-DINOv3.md", license.as_slice()),
-        (MODEL, model.as_slice()),
-    ] {
-        fs::write(stage.0.join(name), bytes)?;
+    for (name, bytes) in [("LICENSE-DINOv3.md", license), (MODEL, model)] {
+        fs::write(
+            checked_model_path(model_dir, &format!("{stage_name}/{name}"))?,
+            bytes,
+        )?;
     }
     check_cancel(installer)?;
-    for (name, expected) in [
-        ("LICENSE-DINOv3.md", license.as_slice()),
-        (MODEL, model.as_slice()),
-    ] {
-        let target = optional.join(name);
-        let previous = stage.0.join(format!("{name}.previous"));
+    for (name, expected) in [("LICENSE-DINOv3.md", license), (MODEL, model)] {
+        let target = checked_model_path(model_dir, &format!("optional/{name}"))?;
+        let previous = checked_model_path(model_dir, &format!("{stage_name}/{name}.previous"))?;
+        let staged = checked_model_path(model_dir, &format!("{stage_name}/{name}"))?;
         if target.exists() {
             let metadata = fs::metadata(&target)?;
             ensure!(
@@ -222,7 +245,7 @@ fn install(
             }
             fs::rename(&target, &previous)?;
         }
-        if let Err(error) = fs::rename(stage.0.join(name), &target) {
+        if let Err(error) = fs::rename(&staged, &target) {
             if previous.exists() && fs::rename(&previous, &target).is_err() {
                 let recovery = stage.0.clone();
                 std::mem::forget(stage);
@@ -240,13 +263,22 @@ fn install(
 #[utoipa::path(get,path="/api/v1/models/optional",responses((status=200,body=Vec<OptionalModel>)))]
 pub async fn catalog(State(s): State<AppState>) -> ApiResult<Vec<OptionalModel>> {
     let state = tokio::task::spawn_blocking(move || {
-        let path = s.model_dir.join("optional").join(MODEL);
-        if !path.exists() {
-            return "missing";
+        match model_path_exists(&s.model_dir, &format!("optional/{MODEL}")) {
+            Ok(false) => return "missing",
+            Err(_) => return "invalid",
+            Ok(true) => {}
         }
-        if local(&path, SIZE, HASH, &Installer::default()).is_ok()
+        if local(
+            &s.model_dir,
+            &format!("optional/{MODEL}"),
+            SIZE,
+            HASH,
+            &Installer::default(),
+        )
+        .is_ok()
             && local(
-                &s.model_dir.join("optional/LICENSE-DINOv3.md"),
+                &s.model_dir,
+                "optional/LICENSE-DINOv3.md",
                 7502,
                 LICENSE_HASH,
                 &Installer::default(),
@@ -340,6 +372,99 @@ pub async fn cancel(State(s): State<AppState>) -> ApiResult<InstallProgress> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn verified_publication_repairs_only_fixed_files_and_cleans_staging() {
+        let root = tempfile::tempdir().unwrap();
+        let optional = root.path().join("optional");
+        fs::create_dir(&optional).unwrap();
+        fs::write(optional.join(MODEL), b"corrupt").unwrap();
+        fs::write(optional.join("unrelated.txt"), b"preserve").unwrap();
+        for _ in 0..2 {
+            publish_verified(
+                root.path(),
+                b"synthetic model",
+                b"synthetic license",
+                &Installer::default(),
+            )
+            .unwrap();
+            assert_eq!(fs::read(optional.join(MODEL)).unwrap(), b"synthetic model");
+            assert_eq!(
+                fs::read(optional.join("LICENSE-DINOv3.md")).unwrap(),
+                b"synthetic license"
+            );
+            assert_eq!(
+                fs::read(optional.join("unrelated.txt")).unwrap(),
+                b"preserve"
+            );
+            assert_eq!(fs::read_dir(&optional).unwrap().count(), 3);
+        }
+    }
+
+    #[test]
+    fn publication_rejects_linked_optional_directory_without_touching_outside() {
+        let root = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        fs::write(outside.path().join(MODEL), b"outside remains unchanged").unwrap();
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(outside.path(), root.path().join("optional")).unwrap();
+        #[cfg(windows)]
+        assert!(std::process::Command::new("cmd")
+            .args(["/C", "mklink", "/J"])
+            .arg(root.path().join("optional"))
+            .arg(outside.path())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+            .unwrap()
+            .success());
+        assert!(
+            publish_verified(root.path(), b"model", b"license", &Installer::default()).is_err()
+        );
+        assert_eq!(
+            fs::read(outside.path().join(MODEL)).unwrap(),
+            b"outside remains unchanged"
+        );
+        assert_eq!(fs::read_dir(outside.path()).unwrap().count(), 1);
+        assert!(local(
+            root.path(),
+            &format!("optional/{MODEL}"),
+            7,
+            HASH,
+            &Installer::default()
+        )
+        .is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn publication_and_import_reject_linked_model_files() {
+        let root = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        fs::create_dir(root.path().join("optional")).unwrap();
+        let external = outside.path().join(MODEL);
+        fs::write(&external, b"outside remains unchanged").unwrap();
+        std::os::unix::fs::symlink(&external, root.path().join("optional").join(MODEL)).unwrap();
+        assert!(
+            publish_verified(root.path(), b"model", b"license", &Installer::default()).is_err()
+        );
+        assert!(local(
+            root.path(),
+            &format!("optional/{MODEL}"),
+            7,
+            HASH,
+            &Installer::default()
+        )
+        .is_err());
+        assert_eq!(fs::read(&external).unwrap(), b"outside remains unchanged");
+        assert!(!fs::read_dir(root.path().join("optional"))
+            .unwrap()
+            .any(|entry| entry
+                .unwrap()
+                .file_name()
+                .to_string_lossy()
+                .starts_with(".install-")));
+    }
+
     #[test]
     fn wrong_bytes_and_cancel_never_install() {
         let directory = tempfile::tempdir().unwrap();

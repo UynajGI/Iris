@@ -102,10 +102,13 @@ pub fn embedding_model_status(
             status.sha256 = Some(dinov3::MODEL_SHA256.into());
         }
         Err(error) => {
-            status.state = if model_dir.join(dinov3::MODEL_FILE).exists() {
-                ModelAvailability::Invalid
-            } else {
+            status.state = if matches!(
+                crate::model_paths::model_path_exists(model_dir, dinov3::MODEL_FILE),
+                Ok(false)
+            ) {
                 ModelAvailability::Missing
+            } else {
+                ModelAvailability::Invalid
             };
             status.reason = Some(error.to_string());
         }

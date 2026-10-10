@@ -55,7 +55,7 @@ fn inspect(dir: &Path, settings: &AnalysisSettings) -> (OcclusionModelStatus, Op
     }
     let result = (|| -> Result<Vec<u8>> {
         settings.validate()?;
-        let path = dir.join(MODEL);
+        let path = crate::model_paths::checked_model_path(dir, MODEL)?;
         if !path.exists() {
             status.state = ModelAvailability::Missing;
             bail!("FaceOcc model missing: {}", path.display());
@@ -71,7 +71,7 @@ fn inspect(dir: &Path, settings: &AnalysisSettings) -> (OcclusionModelStatus, Op
         ) {
             bail!("FaceOcc SHA-256 mismatch; actual {hash}");
         }
-        let path = dir.join(METADATA);
+        let path = crate::model_paths::checked_model_path(dir, METADATA)?;
         if !path.exists() {
             status.state = ModelAvailability::Missing;
             bail!("FaceOcc metadata missing: {}", path.display());
@@ -97,6 +97,12 @@ fn inspect(dir: &Path, settings: &AnalysisSettings) -> (OcclusionModelStatus, Op
             (status, Some(bytes))
         }
         Err(error) => {
+            if error
+                .downcast_ref::<std::io::Error>()
+                .is_some_and(|error| error.kind() == std::io::ErrorKind::NotFound)
+            {
+                status.state = ModelAvailability::Missing;
+            }
             status.reason = Some(format!("{error:#}"));
             (status, None)
         }
