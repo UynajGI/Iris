@@ -4,13 +4,33 @@
 
 默认工作流不下载用户照片或可选研究权重。手动 DINO/DirectML 项须按模型许可明确选择；托管 runner 的 CPU 回退不代表真实 GPU 执行。
 
-## 安装器门禁（2026-10-10，待远端运行）
+## beta2 安装器发版（2026-10-10，已通过并公开）
 
-Release 增加 Windows EXE、macOS arm64/x64 PKG 和 Linux DEB。Windows 执行独立 QA 身份的
-安装/替换/卸载；Unix 从最终安装器解包后验证哈希、宿主及合成 PNG 推理，并检查安装 UI/desktop
-资源。全部 9 个发行附件齐全后生成 SHA256 清单，手动演练也汇总，但仅 Tag 创建草稿。
-本次未推送或触发 Actions；下文通过记录只覆盖旧便携包流程，不代表新增安装器门禁已通过。
-实现与原生验收边界见[发布流程](releasing.md)。
+[Release 运行 38042575141](https://github.com/UynajGI/Iris/actions/runs/38042575141) 对提交
+`882b7990007e46a5d3a1fce713fcb4b932b76789` 完成全部门禁，随后创建新 Tag 和草稿。
+按已获授权公开 [v0.1.0-beta2](https://github.com/UynajGI/Iris/releases/tag/v0.1.0-beta2)；
+旧版 `v0.1.0-beta` 的 Tag 和附件保持不变，未修改仓库保护规则。
+
+| 平台 | 本次实际通过的范围 |
+| :--- | :--- |
+| Windows x64 GNU | 便携包闭包检查、带界面的 EXE 编译、独立 QA 身份安装/版本替换/卸载；应用数据保留、注册和快捷方式清理、真实产品状态不变 |
+| macOS arm64 / x64 | 两个原生 runner 独立编译和测试；PKG 资源检查、最终安装器解包、文件哈希、宿主/daemon 心跳与合成 PNG CPU 推理 |
+| Linux x64 | Ubuntu 22.04 原生编译和测试；DEB 与 desktop entry 检查、最终安装器解包、文件哈希、宿主/daemon 心跳与合成 PNG CPU 推理 |
+
+4 个安装包、4 个便携包和源码 ZIP 共 9 件载荷，加上 `SHA256SUMS.txt` 为 10 个附件。
+公开前核对全部 9 件载荷和清单本身的 SHA256 与 GitHub 附件 digest 一致，Tag 精确指向
+本次已验证提交。诊断报告保留在 Actions artifacts，不混入发行附件。
+
+同提交 [Verify](https://github.com/UynajGI/Iris/actions/runs/38042526971) 与
+[CodeQL](https://github.com/UynajGI/Iris/actions/runs/38042527029) 均通过，发版核对时开放
+code-scanning 告警为 0。本机工具测试为 78 项 Python、11 项 Node，均通过。
+git-cliff 生成分类 Changelog，并与维护的安装说明、已知限制组合为 Release 正文。
+
+这些结果**不代表**正式签名/公证、干净系统安装、真实应用版本迁移或自动更新端到端验收。
+Unix 报告的 `installer_executed` 为 false（执行的是解包后载荷）；Windows 生命周期使用
+独立 QA 产品身份，`real_application_version_migration_tested` 和 `updater_install_e2e_tested`
+为 false。原生视觉、交互、多机器和真实升级仍待人工验证。
+实现与验收边界见[发布流程](releasing.md)。
 
 ## 2026-10-09 Beta 预演
 

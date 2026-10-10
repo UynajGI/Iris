@@ -1,6 +1,6 @@
 # 发布流程
 
-产品为 Iris / 伊人。当前准备发布 `v0.1.0-beta2`，应用版本为 `0.1.0-beta2`；首版为 `v0.1.0-beta`。
+产品为 Iris / 伊人。当前预发布为 `v0.1.0-beta2`，应用版本为 `0.1.0-beta2`；首版为 `v0.1.0-beta`。
 已公开 Tag 和附件不移动、不静默覆盖；历史便携包不因新流程而自动获得安装器。
 本页描述当前源码的发版契约，实际可下载内容以对应 Release 附件为准。
 
@@ -103,9 +103,10 @@ Windows Authenticode/更新签名工具见[原生更新](native-updates.md)。�
 公证凭据和更新端点须独立配置，不能把“生成安装器”记为“通过正式发行认证”。
 
 CI 文件存在、静态检查通过、解包自检通过和实际安装通过是不同证据。
-**本次新增 PKG/DEB/EXE 发版门禁尚待新提交在四个 runner 上运行**，不能沿用
-[历史便携包 CI](ci-verification.md) 的通过结论。原生安装器视觉、干净系统、
-真实应用版本升级及签名/公证仍须在相应原生机器验收。
+**beta2 的 PKG/DEB/EXE 发版门禁已在四个原生 runner 上通过并公开发布**，对应提交为
+`882b799`，实际运行、附件哈希核对与证据边界见 [CI 验证](ci-verification.md)。
+Windows 的独立 QA 替换不代表真实应用版本迁移；Unix 解包运行不代表执行系统安装器。
+原生安装器视觉、干净系统、真实应用版本升级及签名/公证仍须在相应原生机器验收。
 
 实际结果以 [Actions](https://github.com/UynajGI/Iris/actions) 和
 [Releases](https://github.com/UynajGI/Iris/releases) 为准。失败作业可以重跑；已有 Release 须先检查，
