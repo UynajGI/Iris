@@ -27,7 +27,9 @@ PPR10K/PIQ23 均限非商业研究，不将图片打包分发；数据到位后�
 Tab、面板/对话框隔离、缩放拖动、全屏、组刷新、星级/人脸框、草稿离开保护及损坏图像回退。
 真实目录选择、CSV 保存、原生关闭与托管生命周期不由此脚本验收。
 
-`prepare-public-fixtures.py` 下载 PIQ23 官方仓库的 50 张场景示例；加 `--raw` 额外下载 6 种格式的 CC0 RAW 样本（每张不超过 40MB）。保存到忽略的 `reference/test-data/`，校验 Git blob / 官方 SHA256 并保存逐文件来源清单，不下载整套数据集。`verify-public-fixtures.py` 只读取这份清单，用临时副本执行真实 debug daemon 的扫描、预览、分析及增量复用，并复核源文件哈希；报告位于忽略的 `artifacts/`。研究素材不随产品分发，场景示例没有被当作带评分的质量基准。
+`prepare-public-fixtures.py` 下载 PIQ23 官方仓库的 50 张场景示例；加 `--raw` 额外下载 6 种格式的 CC0 RAW 样本（每张不超过 40MB）。随后运行 `expand-public-fixtures.py` 可扩充为 600 张不同源照片：Google HDR+ 的 60 组完整连拍、528 帧 DNG，加上原有 PIQ23 50 张和扩展后的 CC0 RAW 22 张，共约 12.53 GB。两个下载入口须串行运行；均保留已有清单，扩充支持重试已核验文件。数据保存到忽略的 `reference/test-data/`，校验 Git blob / 官方 SHA256 / HDR+ 官方 MD5，保留逐文件来源、许可和帧顺序；不把复制或转码当作独立照片。
+
+`verify-public-fixtures.py` 只读取这份清单，用临时副本执行真实 debug daemon 的扫描、预览、分析及增量复用，并复核源文件哈希；报告位于忽略的 `artifacts/`。IIQ 样本为当前不支持的导入跳过对照。可用 `--dataset HDR --limit 10 --output artifacts/hdrplus-probe.json` 做诊断子集；整套临时副本另需约 13 GB 空间。研究素材不随产品分发，手机 HDR 连拍及无评分场景示例没有被当作选片准确率基准。
 
 `tools/` 是内部环境、模型准备、媒体、验证、评估和打包的实现层。公开开发入口统一为
 根目录 Makefile；任务组合、顺序和失败传播由 Make 管理：
