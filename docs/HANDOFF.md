@@ -31,6 +31,8 @@
 
 ## 验证与本地数据
 
+600 文件公开素材回归已完成：597 张导入、预览、分析成功，二次分析全部复用，源文件校验值全部保持一致。1 张 SX40 HS CR2 无法读取元数据、2 张 IIQ 暂不支持，均保留作异常样本；完整报告不是全绿。使用本机 release daemon 及其同目录的独立 RAW 解码器，报告在 `artifacts/public-fixtures-verification.json`；该报告未记录构建提交号，不作为 PR 最终提交的完整素材重跑证明。详情见[选片升级计划](selection-upgrade-plan.md)。
+
 2026-10-09 完成三位 Luna 分工复核、统一 Make/Python 命令及文档索引；本轮测试与修复见[全库复核](repository-review.md)。当前统一入口为 `make help`；2026-10-10 将任务编排迁入 Make，`make setup` 管理隔离工具环境、锁定依赖及 Lefthook，可选 CodeGraph 与模型通过独立目标准备。旧的双入口复核属于历史记录。
 
 [验证总览](validation.md)、[MCP 验证](mcp-validation.md)、[GPU/规模验证](gpu-scale-validation.md)保留本机证据边界。原始报告在本地 `artifacts/`，不随公开仓库分发；旧结果不是本次重跑或远端 CI 通过。
