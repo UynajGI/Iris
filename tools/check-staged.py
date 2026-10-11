@@ -8,10 +8,11 @@ import re
 import subprocess
 import sys
 
+
 MAX_BYTES = 5 * 1024 * 1024
 DENIED_ROOTS = (
     "test-photos/", "artifacts/", ".iris/", ".iris-mcp/", ".impeccable/",
-    ".agents/", ".codegraph/", ".tools/", "reference/", "archive/", "archives/",
+    ".agents/", ".codegraph/", ".tools/", ".playwright-cli/", "reference/", "archive/", "archives/",
     "models/optional/", "models/directml/", "models/media/", "models/raw/",
 )
 DENIED_PARTS = {"node_modules", "target", "dist", "out", "__pycache__", ".venv"}
@@ -88,6 +89,15 @@ def pre_commit() -> None:
                 ast.parse(data, filename=name)
             elif name.endswith(".json"):
                 json.loads(data.decode("utf-8-sig"))
+            elif name.endswith((".yml", ".yaml")):
+                from yaml import YAMLError, safe_load
+                try:
+                    safe_load(data.decode("utf-8-sig"))
+                except YAMLError as error:
+                    raise ValueError("invalid YAML") from error
+            if PurePosixPath(name).suffix in {".py", ".rs", ".ts", ".tsx", ".js", ".mjs", ".json", ".yaml", ".yml", ".toml", ".md"}:
+                if data and not data.endswith(b"\n"):
+                    errors.append(f"{name}: missing final newline")
         except (SyntaxError, ValueError, UnicodeError) as error:
             errors.append(f"{name}: invalid staged syntax ({type(error).__name__})")
     if errors:

@@ -11,6 +11,7 @@ PORTABLE ?=
 ARGS ?=
 CODEGRAPH_VERSION := 1.6.2
 BACKEND = $(NODE) tools/backend.mjs
+QUALITY = $(UV) run --locked --inexact --default-index https://pypi.org/simple python tools/quality.py
 export UV
 export IRIS_PROFILE = $(PROFILE)
 export IRIS_OUTPUT = $(OUTPUT)
@@ -24,7 +25,7 @@ endif
 
 .PHONY: help doctor env env-validation env-models setup deps hooks hooks-test \
  codegraph codegraph-install codegraph-init codegraph-sync codegraph-status \
- check check-rust check-web fmt fmt-check test test-rust test-tools test-web \
+ check check-rust check-web complexity fmt fmt-check test test-rust test-tools test-web \
  test-native build build-core build-web build-desktop api api-check public-check \
  staged-check verify models models-dino models-scrfd models-dino-directml \
  media raw directml source portable installer-native changelog changelog-check release-notes require-output require-windows
@@ -39,7 +40,7 @@ env-validation: env ## Install optional media validation dependencies
 	$(UV) pip install --python "$(CURDIR)/.venv/$(if $(filter Windows_NT,$(OS)),Scripts/python.exe,bin/python)" -r tools/validation-requirements.txt
 env-models: env ## Install optional model conversion dependencies
 	$(UV) pip install --python "$(CURDIR)/.venv/$(if $(filter Windows_NT,$(OS)),Scripts/python.exe,bin/python)" onnx==1.23.2
-setup: env deps hooks ## Prepare environment, locked dependencies and repository Git hooks
+setup: env deps quality-setup hooks ## Prepare environment, locked dependencies and repository Git hooks
 deps: ## Install locked repository and frontend dependencies
 	npm ci
 	npm --prefix apps/shell ci
@@ -63,6 +64,8 @@ check-rust: ## Check the core Rust workspace
 	$(CARGO) check --workspace --locked
 check-web: ## Check frontend types
 	npm --prefix apps/shell run check
+complexity: ## Inventory first-party complexity with pinned Lizard (ARGS supports --scope/--baseline/--json/--fail)
+	$(UV) run --locked --inexact --default-index https://pypi.org/simple python tools/check-complexity.py $(ARGS)
 fmt: ## Format all three Rust workspaces
 	$(CARGO) fmt --all
 	$(CARGO) fmt --manifest-path apps/shell/src-tauri/Cargo.toml --all
@@ -98,7 +101,32 @@ public-check: ## Check the staged public-source tree and documentation links
 	$(BACKEND) tools/check-public-tree.py
 staged-check: ## Check staged syntax and source boundaries
 	$(BACKEND) tools/check-staged.py
-verify: check test api-check public-check ## Run source checks, tests, API comparison and public-tree validation
+verify: check lint-python complexity-check workflow-check test api-check public-check ## Run source gates and tests (dependency audit is separate)
+
+.PHONY: quality-setup lint-python complexity-check workflow-check secrets-check quality-staged pre-push audit-setup audit audit-js audit-python audit-rust
+quality-setup: ## Download hash-pinned actionlint and Gitleaks into ignored local tools
+	$(QUALITY) setup
+lint-python: ## Check Python tool correctness without rewriting files
+	$(UV) run --locked --inexact --default-index https://pypi.org/simple ruff check --no-cache tools
+complexity-check: ## Reject new complexity violations and regressions beyond explicit legacy limits
+	$(QUALITY) complexity
+workflow-check: ## Validate GitHub Actions with pinned actionlint
+	$(QUALITY) workflows
+secrets-check: ## Scan all reachable Git history with redacted Gitleaks output
+	$(QUALITY) secrets
+quality-staged: ## Check staged secrets, Python correctness, workflow syntax and complexity
+	$(QUALITY) staged
+pre-push: verify secrets-check ## Run shared local gates before pushing
+audit: audit-js audit-python audit-rust ## Audit locked dependencies (network required; failures block)
+audit-setup: ## Install the pinned Rust auditor in ignored repository-local tools
+	$(CARGO) install cargo-audit --locked --version 0.22.2 --root .tools/cargo-audit
+audit-js: ## Audit both npm lockfiles including development dependencies
+	npm audit --registry=https://registry.npmjs.org --package-lock-only --audit-level=low
+	npm --prefix apps/shell audit --registry=https://registry.npmjs.org --package-lock-only --audit-level=low
+audit-python: ## Audit requirements exported from uv.lock, including development tooling
+	$(QUALITY) audit-python
+audit-rust: ## Audit all three Cargo lockfiles (requires cargo-audit 0.22.2)
+	$(QUALITY) audit-rust
 
 models: ## Download and hash-check default inference models
 	$(BACKEND) tools/setup-models.py $(ARGS)

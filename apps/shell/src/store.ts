@@ -45,7 +45,7 @@ export class IrisStore {
   private queue: Promise<unknown> = Promise.resolve();
   private readonly optimisticMarks = new OptimisticMarks();
   private markRevision = 0;
-  constructor(readonly client: IrisClient, private readonly viewPreferences = new ViewPreferencesRepository()) {}
+  constructor(readonly client: IrisClient, private readonly viewPreferences = new ViewPreferencesRepository()) { }
   getSnapshot = (): ApplicationState => this.state;
   clearError = (): void => { this.update({ error: null }); };
   photoAnalysis = (id: number): PhotoAnalysisReadout | null => {
@@ -121,17 +121,25 @@ export class IrisStore {
     const analyzing = progress.kind === 'analysis' && ['running', 'paused', 'cancelling'].includes(progress.state);
     // Project-wide counters also cover stale/missing analyses outside this page.
     const reanalysisRequired = analyzing || project.groups_dirty || project.pending_analysis > 0;
+    this.reconcileGroupSession(groups, photos, reanalysisRequired);
+    this.update({ project, photos, groups: project.groups_dirty || analyzing ? [] : groups, progress, quarantinePlans, reanalysisRequired, selectedIds: this.state.selectedIds.filter(id => ids.has(id)), focusedId: this.refreshedFocus(photos, ids) });
+  };
+  private refreshedFocus(photos: Photo[], ids: Set<number>): number | null {
+    const focused = this.state.focusedId;
+    return focused !== null && ids.has(focused) ? focused : photos[0]?.id ?? null;
+  }
+  private reconcileGroupSession(groups: BurstGroup[], photos: Photo[], reanalysisRequired: boolean): void {
     const session = this.state.groupSession;
     if (session) {
       const group = groups.find(group => group.id === session.groupId);
-      if (reanalysisRequired || progress.kind === 'analysis' && ['running', 'paused'].includes(progress.state) || !group || group.member_photo_ids.join(',') !== session.memberIds.join(',')) this.closeGroup();
+      // A live analysis already sets reanalysisRequired in refresh().
+      if (reanalysisRequired || !group || group.member_photo_ids.join(',') !== session.memberIds.join(',')) this.closeGroup();
       else {
         const refreshed = new Map(photos.map(photo => [photo.id, photo]));
         this.update({ groupSession: { ...session, photos: session.photos.map(photo => refreshed.get(photo.id) ?? photo) } });
       }
     }
-    this.update({ project, photos, groups: project.groups_dirty || analyzing ? [] : groups, progress, quarantinePlans, reanalysisRequired, selectedIds: this.state.selectedIds.filter(id => ids.has(id)), focusedId: this.state.focusedId !== null && ids.has(this.state.focusedId) ? this.state.focusedId : photos[0]?.id ?? null });
-  };
+  }
   setFilter = async (filter: PhotoFilter): Promise<void> => this.execute(async () => {
     const valid = validatedPhotoFilter(filter, true);
     ++this.viewRevision;
@@ -207,23 +215,26 @@ export class IrisStore {
       // Linked capture variants may include members outside the library page.
       await this.refreshWithGroup();
       if (!advance || !this.sameView(scope, revision)) return;
-      const visible = new Set(this.state.photos.map(photo => photo.id));
-      const next = before.slice(index + 1).find(photo => visible.has(photo.id));
-      if (next) { this.update({ focusedId: next.id, selectedIds: [] }); return; }
-      if (focusedId !== null && visible.has(focusedId)) {
-        this.update({ focusedId });
-        await this.navigate(1, scope, revision);
-      } else if (this.state.photos.length) {
-        // Under a pending-only filter, the decided row disappears. Continue at
-        // its shifted position, including a successor pulled in from next page.
-        const preceding = before.slice(0, Math.max(0, index)).filter(photo => visible.has(photo.id)).length;
-        this.update({ focusedId: this.state.photos[Math.min(preceding, this.state.photos.length - 1)]!.id, selectedIds: [] });
-      } else if ((this.state.filter.offset ?? 0) > 0) {
-        const limit = this.state.filter.limit ?? 200;
-        await this.loadPage(scope, revision, Math.max(0, (this.state.filter.offset ?? 0) - limit), limit - 1);
-      }
+      await this.advanceAfterDecision(scope, revision, before, focusedId, index);
     }, scope);
   };
+  private async advanceAfterDecision(scope: ProjectScope, revision: number, before: Photo[], focusedId: number | null, index: number): Promise<void> {
+    const visible = new Set(this.state.photos.map(photo => photo.id));
+    const next = before.slice(index + 1).find(photo => visible.has(photo.id));
+    if (next) { this.update({ focusedId: next.id, selectedIds: [] }); return; }
+    if (focusedId !== null && visible.has(focusedId)) {
+      this.update({ focusedId });
+      await this.navigate(1, scope, revision);
+    } else if (this.state.photos.length) {
+      // Under a pending-only filter, the decided row disappears. Continue at
+      // its shifted position, including a successor pulled in from next page.
+      const preceding = before.slice(0, Math.max(0, index)).filter(photo => visible.has(photo.id)).length;
+      this.update({ focusedId: this.state.photos[Math.min(preceding, this.state.photos.length - 1)]!.id, selectedIds: [] });
+    } else if ((this.state.filter.offset ?? 0) > 0) {
+      const limit = this.state.filter.limit ?? 200;
+      await this.loadPage(scope, revision, Math.max(0, (this.state.filter.offset ?? 0) - limit), limit - 1);
+    }
+  }
   undo = (): Promise<void> => {
     const scope = this.scope();
     return this.enqueue(async () => { await this.client.undo(scope.id); if (this.isCurrent(scope)) await this.refreshWithGroup(); }, scope);

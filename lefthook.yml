@@ -3,7 +3,14 @@ lefthook: node node_modules/lefthook/bin/index.js
 pre-commit:
   commands:
     staged-source:
-      run: node tools/backend.mjs tools/check-staged.py
+      run: make staged-check
+    staged-quality:
+      run: make quality-staged
+
+pre-push:
+  commands:
+    shared-gates:
+      run: make pre-push
 
 commit-msg:
   commands:

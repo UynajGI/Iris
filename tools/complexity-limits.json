@@ -1,0 +1,341 @@
+{
+  "policy": "Legacy ceilings as of 2026-10-11. New functions: CCN <= 15, NLOC <= 120. Tighten or remove entries when debt is fixed; do not raise limits to pass CI.",
+  "legacy": {
+    "apps/shell/src-tauri/src/main.rs::main": {
+      "ccn": 17,
+      "nloc": 120
+    },
+    "apps/shell/src-tauri/src/main.rs::verify_host": {
+      "ccn": 18,
+      "nloc": 120
+    },
+    "apps/shell/src-tauri/src/updater_workload_test.rs::real_active_analysis_workers_exit_before_update_and_database_recovers": {
+      "ccn": 37,
+      "nloc": 191
+    },
+    "apps/shell/test/application.test.ts::fetcher": {
+      "ccn": 38,
+      "nloc": 120
+    },
+    "apps/shell/test/project-state.test.ts::(anonymous)": {
+      "ccn": 27,
+      "nloc": 120
+    },
+    "components/raw-decoder/src/main.rs::run": {
+      "ccn": 17,
+      "nloc": 120
+    },
+    "crates/iris-core/examples/probe_dino_directml.rs::main": {
+      "ccn": 22,
+      "nloc": 120
+    },
+    "crates/iris-core/src/services.rs::photo_row": {
+      "ccn": 21,
+      "nloc": 120
+    },
+    "crates/iris-core/src/services/cache.rs::cache_cleanup_old": {
+      "ccn": 32,
+      "nloc": 120
+    },
+    "crates/iris-core/src/services/cache.rs::cache_migrate": {
+      "ccn": 31,
+      "nloc": 120
+    },
+    "crates/iris-core/src/services/cache.rs::guard_cache_storage": {
+      "ccn": 21,
+      "nloc": 120
+    },
+    "crates/iris-core/src/services/decisions.rs::accept_scoped": {
+      "ccn": 17,
+      "nloc": 120
+    },
+    "crates/iris-core/src/services/decisions.rs::mark_photos_as": {
+      "ccn": 20,
+      "nloc": 120
+    },
+    "crates/iris-core/src/services/exports.rs::export_xmp": {
+      "ccn": 24,
+      "nloc": 120
+    },
+    "crates/iris-core/src/services/media.rs::cached_image": {
+      "ccn": 22,
+      "nloc": 120
+    },
+    "crates/iris-core/src/services/photos.rs::photos": {
+      "ccn": 21,
+      "nloc": 120
+    },
+    "crates/iris-core/src/services/quarantine.rs::compensate_restore": {
+      "ccn": 19,
+      "nloc": 120
+    },
+    "crates/iris-core/src/services/quarantine.rs::quarantine_commit": {
+      "ccn": 30,
+      "nloc": 120
+    },
+    "crates/iris-core/src/services/quarantine.rs::quarantine_restore": {
+      "ccn": 27,
+      "nloc": 120
+    },
+    "crates/iris-core/src/services/settings.rs::estimate_profile": {
+      "ccn": 16,
+      "nloc": 120
+    },
+    "crates/iris-core/src/store.rs::open": {
+      "ccn": 24,
+      "nloc": 120
+    },
+    "crates/iris-core/src/vision/composition.rs::measure": {
+      "ccn": 20,
+      "nloc": 120
+    },
+    "crates/iris-core/src/vision/decode.rs::decode_jpeg_preview": {
+      "ccn": 18,
+      "nloc": 120
+    },
+    "crates/iris-core/src/vision/dinov3.rs::load": {
+      "ccn": 30,
+      "nloc": 120
+    },
+    "crates/iris-core/src/vision/eye_quality.rs::rejection_reason": {
+      "ccn": 20,
+      "nloc": 120
+    },
+    "crates/iris-core/src/vision/faceocc.rs::inspect": {
+      "ccn": 21,
+      "nloc": 120
+    },
+    "crates/iris-core/src/vision/faceocc.rs::observe": {
+      "ccn": 21,
+      "nloc": 120
+    },
+    "crates/iris-core/src/vision/heic.rs::decode_inner": {
+      "ccn": 26,
+      "nloc": 120
+    },
+    "crates/iris-core/src/vision/mod.rs::analyze_pipeline": {
+      "ccn": 17,
+      "nloc": 120
+    },
+    "crates/iris-core/src/vision/mod.rs::group_similar": {
+      "ccn": 16,
+      "nloc": 120
+    },
+    "crates/iris-core/src/vision/mod.rs::rescore": {
+      "ccn": 17,
+      "nloc": 120
+    },
+    "crates/iris-core/src/vision/models.rs::bundled_onnx_tensor_smoke": {
+      "ccn": 18,
+      "nloc": 120
+    },
+    "crates/iris-core/src/vision/models.rs::detect": {
+      "ccn": 20,
+      "nloc": 120
+    },
+    "crates/iris-core/src/vision/models.rs::faces": {
+      "ccn": 17,
+      "nloc": 120
+    },
+    "crates/iris-core/src/vision/models.rs::landmark_face": {
+      "ccn": 25,
+      "nloc": 131
+    },
+    "crates/iris-core/src/vision/niqe.rs::score_luma": {
+      "ccn": 19,
+      "nloc": 120
+    },
+    "crates/iris-core/src/vision/raw.rs::convert": {
+      "ccn": 16,
+      "nloc": 120
+    },
+    "crates/iris-core/src/vision/raw.rs::metadata": {
+      "ccn": 22,
+      "nloc": 120
+    },
+    "crates/iris-core/src/vision/runtime.rs::initialize": {
+      "ccn": 28,
+      "nloc": 120
+    },
+    "crates/iris-core/src/vision/scoring.rs::breakdown": {
+      "ccn": 22,
+      "nloc": 162
+    },
+    "crates/iris-core/src/vision/scrfd.rs::decode": {
+      "ccn": 19,
+      "nloc": 120
+    },
+    "crates/iris-core/src/vision/scrfd.rs::inspect": {
+      "ccn": 23,
+      "nloc": 120
+    },
+    "crates/iris-core/src/vision/scrfd.rs::research_official_scrfd_onnx_and_optional_geometry_capture": {
+      "ccn": 17,
+      "nloc": 120
+    },
+    "crates/iris-core/src/vision/semantic.rs::group_semantic": {
+      "ccn": 17,
+      "nloc": 120
+    },
+    "crates/iris-core/tests/jpeg_read_profile.rs::decode_mode": {
+      "ccn": 22,
+      "nloc": 120
+    },
+    "crates/iris-core/tests/jpeg_read_profile.rs::decode_reader": {
+      "ccn": 16,
+      "nloc": 120
+    },
+    "crates/iris-core/tests/services.rs::detector_provider_and_hash_changes_invalidate_features_and_profile_estimates": {
+      "ccn": 15,
+      "nloc": 861
+    },
+    "crates/iris-daemon/src/model_installer/mod.rs::publish_verified": {
+      "ccn": 27,
+      "nloc": 120
+    },
+    "crates/iris-daemon/src/operations/scan.rs::scan": {
+      "ccn": 18,
+      "nloc": 120
+    },
+    "crates/iris-daemon/src/worker.rs::execute": {
+      "ccn": 23,
+      "nloc": 120
+    },
+    "crates/iris-daemon/src/worker.rs::start": {
+      "ccn": 24,
+      "nloc": 120
+    },
+    "crates/iris-daemon/tests/lifecycle.rs::recent_projects_and_manifest_cache_cleanup_have_authenticated_scoped_routes": {
+      "ccn": 15,
+      "nloc": 128
+    },
+    "tools/benchmark-expanded.py::main": {
+      "ccn": 45,
+      "nloc": 130
+    },
+    "tools/benchmark_scale.py::main": {
+      "ccn": 22,
+      "nloc": 120
+    },
+    "tools/benchmark_worker_limits.py::main": {
+      "ccn": 18,
+      "nloc": 120
+    },
+    "tools/benchmark_worker_limits.py::monitored_run": {
+      "ccn": 24,
+      "nloc": 120
+    },
+    "tools/check-public-tree.py::inspect": {
+      "ccn": 21,
+      "nloc": 120
+    },
+    "tools/evaluate.py::evaluate": {
+      "ccn": 38,
+      "nloc": 120
+    },
+    "tools/evaluate.py::evaluate_quality_preferences": {
+      "ccn": 28,
+      "nloc": 120
+    },
+    "tools/evaluate.py::match_faces": {
+      "ccn": 22,
+      "nloc": 120
+    },
+    "tools/evaluate.py::quality_scores": {
+      "ccn": 32,
+      "nloc": 120
+    },
+    "tools/faceocc-research.py::acquire": {
+      "ccn": 18,
+      "nloc": 120
+    },
+    "tools/faceocc-research.py::verify": {
+      "ccn": 19,
+      "nloc": 120
+    },
+    "tools/package-dinov3.py::preflight": {
+      "ccn": 27,
+      "nloc": 120
+    },
+    "tools/package-native-installer.py::build": {
+      "ccn": 23,
+      "nloc": 120
+    },
+    "tools/package-native-installer.py::validate": {
+      "ccn": 29,
+      "nloc": 120
+    },
+    "tools/package-runtime-closure.py::copy_closure": {
+      "ccn": 30,
+      "nloc": 120
+    },
+    "tools/package-unix.py::main": {
+      "ccn": 23,
+      "nloc": 120
+    },
+    "tools/prepare-public-corpus.py::portraits": {
+      "ccn": 21,
+      "nloc": 120
+    },
+    "tools/preview-frontend.mjs::(anonymous)": {
+      "ccn": 32,
+      "nloc": 120
+    },
+    "tools/setup-heif-runtime.py::main": {
+      "ccn": 30,
+      "nloc": 120
+    },
+    "tools/setup-models.py::main": {
+      "ccn": 21,
+      "nloc": 120
+    },
+    "tools/setup-raw-runtime.py::main": {
+      "ccn": 20,
+      "nloc": 120
+    },
+    "tools/test-workbench.mjs::(anonymous)": {
+      "ccn": 17,
+      "nloc": 120
+    },
+    "tools/verify-directml.py::main": {
+      "ccn": 68,
+      "nloc": 128
+    },
+    "tools/verify-expanded-media.py::main": {
+      "ccn": 28,
+      "nloc": 120
+    },
+    "tools/verify-local-expansion.py::main": {
+      "ccn": 29,
+      "nloc": 125
+    },
+    "tools/verify-mcp.py::verify": {
+      "ccn": 27,
+      "nloc": 147
+    },
+    "tools/verify-raw-fallback.py::main": {
+      "ccn": 17,
+      "nloc": 120
+    },
+    "tools/verify_faceocc.py::main": {
+      "ccn": 23,
+      "nloc": 120
+    },
+    "tools/verify_sample.py::main": {
+      "ccn": 40,
+      "nloc": 197
+    },
+    "tools/verify_sample.py::verify_score_breakdown": {
+      "ccn": 20,
+      "nloc": 120
+    },
+    "tools/verify_scrfd.py::main": {
+      "ccn": 24,
+      "nloc": 120
+    },
+    "tools/verify_scrfd.py::verify_geometry": {
+      "ccn": 25,
+      "nloc": 120
+    }
+  }
+}

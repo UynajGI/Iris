@@ -70,10 +70,14 @@ try {
     if (response.exceptionDetails) throw new Error(response.exceptionDetails.exception?.description ?? response.exceptionDetails.text);
     return response.result.value;
   }
-  async function wait(expression, name = expression, timeout = 20000) {
+  async function eventually(predicate, timeout = 20000) {
     const until = Date.now() + timeout;
-    while (Date.now() < until) { if (await evaluate(expression)) return; await delay(100); }
-    const state = await evaluate('({ alerts: [...document.querySelectorAll(".error-bar")].map(n=>n.textContent), group: document.querySelector(".subbar")?.textContent, loading: document.querySelector(".compare-stage")?.getAttribute("aria-busy"), cells: document.querySelectorAll(".compare-cell").length, task: document.querySelector(".task-strip")?.textContent, empty: document.querySelector(".canvas-empty")?.textContent })');
+    while (Date.now() < until) { if (await predicate()) return true; await delay(100); }
+    return false;
+  }
+  async function wait(expression, name = expression, timeout = 20000) {
+    if (await eventually(() => evaluate(expression), timeout)) return;
+    const state = await evaluate('({ alerts: [...document.querySelectorAll(".error-bar")].map(n=>n.textContent), page: document.querySelector(".module[aria-current=page]")?.textContent, dialogs: [...document.querySelectorAll("dialog")].map(n=>({open:n.open,title:n.querySelector("h2")?.textContent})), group: document.querySelector(".subbar")?.textContent, loading: document.querySelector(".compare-stage")?.getAttribute("aria-busy"), cells: document.querySelectorAll(".compare-cell").length, task: document.querySelector(".task-strip")?.textContent, empty: document.querySelector(".canvas-empty")?.textContent })');
     throw new Error(`Timed out: ${name}; ${JSON.stringify(state)}`);
   }
   async function click(selector) {
@@ -100,6 +104,13 @@ try {
   await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 960, deviceScaleFactor: 1, mobile: false });
   await send('Page.navigate', { url: origin });
   await wait('!!document.querySelector(".projects-heading")');
+  await evaluate(`(() => {
+    const invoke = window.__TAURI__.core.invoke;
+    window.__TAURI__.core.invoke = function(command, args) {
+      if (command === 'set_unsaved_changes') window.__workbenchUnsavedChanges = args.dirty;
+      return invoke.call(this, command, args);
+    };
+  })()`);
   await shot('01-projects');
   await click('.projects-heading .primary');
   await wait('!!document.querySelector("dialog[open] .path-box")');
@@ -289,6 +300,7 @@ try {
     await key('Escape'); await wait('!document.querySelector("dialog[open]")');
   });
   await check('scope modes replace one plot, channels overlay and clipping labels align', async () => {
+    await wait('document.querySelectorAll(".histogram-curves path").length === 4', 'histogram ready after reopening inspector');
     await click('.scope-channel.channel-l');
     assert.equal(await evaluate('document.querySelectorAll(".histogram-curves path").length'), 3);
     await click('.scope-channel.channel-r'); await click('.scope-channel.channel-g'); await click('.scope-channel.channel-b');
@@ -327,6 +339,7 @@ try {
     await click('.color-button.color-blue');
     assert.equal(await evaluate('document.querySelector(".star-button[aria-label=\\"5 星\\"]").getAttribute("aria-pressed")'), 'true');
     assert.equal(await evaluate('document.querySelector(".color-button.color-blue").getAttribute("aria-pressed")'), 'true');
+    assert.ok(await eventually(() => heldMarks.length > 0), 'first mark request reached the network');
     assert.equal(heldMarks.length, 1, 'only first serialized request has reached the network');
     assert.equal(await evaluate('document.querySelector(".mark-tools").getAttribute("aria-busy")'), 'false');
     assert.equal(await evaluate('document.querySelectorAll(".mark-tools button:disabled").length'), 0);
@@ -423,6 +436,7 @@ try {
     await click('[aria-label="人脸与眼部标注"]');
     await wait('document.querySelectorAll(".face-box").length > 0');
     await click('[aria-label="实际像素"]');
+    await wait('!!document.querySelector(".zoom-image.loaded") && !!document.querySelector(".face-layer")', 'original image and overlay ready');
     await wait('!document.querySelector(".zoom-stage").classList.contains("zoom-animating")');
     assert.ok(await evaluate('(() => {const a=document.querySelector(".face-layer").getBoundingClientRect(),b=document.querySelector(".zoom-image").getBoundingClientRect();return ["x","y","width","height"].every(key=>Math.abs(a[key]-b[key])<1);})()'));
     await shot('12-faces');
@@ -446,6 +460,7 @@ try {
     await click('input[aria-label="人脸置信度"]');
     await key('ArrowRight');
     await wait('!![...document.querySelectorAll("button")].find(node=>node.textContent==="保存设置" && !node.disabled)', 'settings draft changed');
+    await wait('window.__workbenchUnsavedChanges === true', 'unsaved-change guard registered');
     await click('.module:nth-child(2)'); await wait('!!document.querySelector("dialog[open]")');
     assert.equal(await evaluate('document.querySelector("dialog h2").textContent'), '离开设置？');
     await click('dialog .dialog-actions button:first-child');

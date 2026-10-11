@@ -12,30 +12,14 @@ const groupKeyboardCommands: Partial<Record<Command, Command>> = {
   previous: 'previousGroupPhoto', next: 'nextGroupPhoto',
 };
 export class CommandSystem {
-  constructor(private readonly store: IrisStore, readonly bindings: Readonly<Record<string, Command>> = defaultBindings) {}
-  async dispatch(command: Command): Promise<void> {
-    switch (command) {
-      case 'keep': return this.store.decide('keep', true);
-      case 'reject': return this.store.decide('reject', true);
-      case 'flag': return this.store.decide('flag');
-      case 'clear': return this.store.decide('pending');
-      case 'undo': return this.store.undo();
-      case 'previous': return this.store.move(-1);
-      case 'next': return this.store.move(1);
-      case 'review': return this.store.toggleReview();
-      case 'selectAll': return this.store.select(this.store.getSnapshot().photos.map(photo => photo.id));
-      case 'groupKeep': return this.store.decideGroup('keep', true);
-      case 'groupReject': return this.store.decideGroup('reject', true);
-      case 'groupFlag': return this.store.decideGroup('flag');
-      case 'groupClear': return this.store.decideGroup('pending');
-      case 'previousGroup': return this.store.moveGroup(-1);
-      case 'nextGroup': return this.store.moveGroup(1);
-      case 'previousGroupPhoto': return this.store.moveGroupPhoto(-1);
-      case 'nextGroupPhoto': return this.store.moveGroupPhoto(1);
-      case 'closeGroup': return this.store.closeGroup();
-    }
+  private readonly handlers: Record<Command, () => void | Promise<void>>;
+  constructor(private readonly store: IrisStore, readonly bindings: Readonly<Record<string, Command>> = defaultBindings) {
+    this.handlers = commandHandlers(store);
   }
-  handle(event: KeyboardEvent, onError: (error: unknown) => void = () => {}): boolean {
+  async dispatch(command: Command): Promise<void> {
+    return this.handlers[command]?.();
+  }
+  handle(event: KeyboardEvent, onError: (error: unknown) => void = () => { }): boolean {
     const target = event.target as HTMLElement | null;
     if (event.defaultPrevented || event.isComposing || event.repeat || target?.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target?.tagName ?? '')) return false;
     // Space activates the focused native control; it only changes review mode on the canvas.
@@ -66,4 +50,19 @@ export class CommandSystem {
     target.addEventListener('keydown', handler);
     return () => target.removeEventListener('keydown', handler);
   }
+}
+
+/** The type-checked table makes every command's side effect explicit in review. */
+function commandHandlers(store: IrisStore): Record<Command, () => void | Promise<void>> {
+  return {
+    keep: () => store.decide('keep', true), reject: () => store.decide('reject', true),
+    flag: () => store.decide('flag'), clear: () => store.decide('pending'),
+    undo: () => store.undo(), previous: () => store.move(-1), next: () => store.move(1),
+    review: () => store.toggleReview(), selectAll: () => store.select(store.getSnapshot().photos.map(photo => photo.id)),
+    groupKeep: () => store.decideGroup('keep', true), groupReject: () => store.decideGroup('reject', true),
+    groupFlag: () => store.decideGroup('flag'), groupClear: () => store.decideGroup('pending'),
+    previousGroup: () => store.moveGroup(-1), nextGroup: () => store.moveGroup(1),
+    previousGroupPhoto: () => store.moveGroupPhoto(-1), nextGroupPhoto: () => store.moveGroupPhoto(1),
+    closeGroup: () => store.closeGroup(),
+  };
 }

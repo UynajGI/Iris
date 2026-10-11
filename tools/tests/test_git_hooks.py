@@ -25,6 +25,13 @@ class GitHookIntegrationTests(unittest.TestCase):
         (self.root / "tools").mkdir()
         shutil.copy2(ROOT / "tools/check-staged.py", self.root / "tools/check-staged.py")
         shutil.copy2(ROOT / "tools/backend.mjs", self.root / "tools/backend.mjs")
+        for name in ["quality.py", "quality-tools.json", "check-complexity.py", "complexity-limits.json"]:
+            shutil.copy2(ROOT / "tools" / name, self.root / "tools" / name)
+        for name in ["Makefile", "pyproject.toml", "uv.lock"]:
+            shutil.copy2(ROOT / name, self.root / name)
+        self.env["IRIS_QUALITY_CACHE"] = str(ROOT / ".tools/quality")
+        self.env["UV_PROJECT_ENVIRONMENT"] = str(ROOT / ".venv")
+        self.git("add", "pyproject.toml", "tools/complexity-limits.json")
         shutil.copy2(ROOT / ".gitignore", self.root / ".gitignore")
         config = (ROOT / "lefthook.yml").read_text("utf-8")
         entry = (ROOT / "node_modules/lefthook/bin/index.js").as_posix()
@@ -133,6 +140,36 @@ class GitHookIntegrationTests(unittest.TestCase):
     def test_large_blob_is_rejected(self):
         self.stage("large.txt", b"x" * (5 * 1024 * 1024 + 1))
         self.assert_rejected(self.commit(), "5 MiB source-file limit")
+
+    def test_invalid_staged_yaml_is_rejected(self):
+        self.stage("invalid.yaml", b"items: [\n")
+        self.assert_rejected(self.commit(), "invalid staged syntax")
+
+    def test_missing_final_newline_is_rejected(self):
+        self.stage("good.json", b"{}")
+        self.assert_rejected(self.commit(), "missing final newline")
+
+    def test_staged_ruff_error_cannot_be_hidden_by_worktree_fix(self):
+        self.seed_commit()
+        path = self.stage("tools/bad.py", b"def bad():\n    return missing_name\n")
+        path.write_text("def bad():\n    return 1\n", encoding="utf-8")
+        self.assert_rejected(self.commit(), "F821", self.git("rev-parse", "HEAD").stdout.strip())
+        self.assertIn("missing_name", self.git("show", ":tools/bad.py").stdout)
+
+    def test_staged_workflow_error_cannot_be_hidden_by_worktree_fix(self):
+        self.seed_commit()
+        bad = b"name: bad\non: push\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo ${{ nonexistent.value }}\n"
+        path = self.stage(".github/workflows/bad.yml", bad)
+        path.write_bytes(bad.replace(b"nonexistent.value", b"github.sha"))
+        result = self.commit()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("nonexistent", result.stdout + result.stderr)
+        self.assertEqual(self.git("show", ":.github/workflows/bad.yml").stdout.encode(), bad)
+
+    def test_new_complex_function_is_rejected(self):
+        body = "def complicated(value):\n" + "".join(f"    if value == {i}:\n        print(value)\n" for i in range(16))
+        self.stage("tools/complicated.py", body.encode())
+        self.assert_rejected(self.commit(), "CCN=17")
 
 
 if __name__ == "__main__":

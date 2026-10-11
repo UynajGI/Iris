@@ -1,11 +1,6 @@
+import { ApiError } from './api-error.js';
+export { ApiError } from './api-error.js';
 export interface Session { base_url: string; token: string; version: string }
-export class ApiError extends Error {
-  constructor(public readonly status: number, public readonly body: unknown) {
-    const detail = typeof body === 'object' && body !== null && 'error' in body ? String(body.error) : typeof body === 'string' ? body : '';
-    super(`Iris API request failed (${status})${detail ? `: ${detail}` : ''}`);
-    this.name = 'ApiError';
-  }
-}
 export type Fetch = typeof fetch;
 
 /** Tokens remain in memory and headers: never URLs, local storage, or logs. */

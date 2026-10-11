@@ -5,7 +5,7 @@ import { usePhotoUrl } from '../react.js';
 import { channels, histogramPeak, sampleScopes, type Channel, type ScopeData, type ScopeMode } from './scopes.js';
 
 const preferenceKey = 'iris.scopes.v1';
-const channelNames = { l: '白色亮度', r: '红色通道', g: '绿色通道', b: '蓝色通道' };
+const channelNames = { l: 'Y 亮度通道', r: '红色通道', g: '绿色通道', b: '蓝色通道' };
 function preferences(): { mode: ScopeMode; selected: Channel[] } {
   try {
     const saved = JSON.parse(localStorage.getItem(preferenceKey) ?? 'null');
@@ -95,7 +95,7 @@ export function Histogram({ client, photo }: { client: IrisClient; photo: Photo 
         : <div className="histogram-empty">{!photo ? '未选择照片' : failed ? '示波图暂不可用' : !selected.length ? '选择下方通道' : '正在读取预览'}</div>}
     </div>
     <div className="scope-channels" role="group" aria-label="叠加通道">
-      {channels.map(channel => <button type="button" key={channel} className={`scope-channel channel-${channel}`} aria-label={channelNames[channel]} aria-pressed={selected.includes(channel)} title={channelNames[channel]} onClick={() => setSettings(current => ({ ...current, selected: current.selected.includes(channel) ? current.selected.filter(value => value !== channel) : channels.filter(value => value === channel || current.selected.includes(value)) }))}>{channel === 'l' ? 'W' : channel.toUpperCase()}</button>)}
+      {channels.map(channel => <button type="button" key={channel} className={`scope-channel channel-${channel}`} aria-label={channelNames[channel]} aria-pressed={selected.includes(channel)} title={channelNames[channel]} onClick={() => setSettings(current => ({ ...current, selected: current.selected.includes(channel) ? current.selected.filter(value => value !== channel) : channels.filter(value => value === channel || current.selected.includes(value)) }))}>{channel === 'l' ? 'Y' : channel.toUpperCase()}</button>)}
     </div>
     <div className="histogram-meta tabular">
       <span className={data && data.clipLow > 0.01 ? 'clip-warn' : ''}>暗部 {data ? `${(data.clipLow * 100).toFixed(1)}%` : '—'}</span>

@@ -11,6 +11,7 @@ pub mod runtime;
 mod scoring;
 mod scrfd;
 mod semantic;
+mod settings_validation;
 use anyhow::{bail, Result};
 pub use decode::{
     decode_jpeg_preview, decode_preview, decode_preview_with_media, image_dimensions_with_media,
@@ -139,85 +140,6 @@ impl Default for AnalysisSettings {
             embedding_model_sha256: None,
             semantic_similarity_threshold: None,
         }
-    }
-}
-impl AnalysisSettings {
-    pub fn validate(&self) -> Result<()> {
-        if self
-            .directml_device_id
-            .is_some_and(|id| id > i32::MAX as u32)
-        {
-            bail!("directml_device_id must fit a nonnegative 32-bit device index");
-        }
-        if let Some(hash) = &self.embedding_model_sha256 {
-            if hash.len() != 64 || !hash.bytes().all(|c| c.is_ascii_hexdigit()) {
-                bail!("embedding_model_sha256 must contain exactly 64 hexadecimal characters");
-            }
-        }
-        if let Some(value) = self.semantic_similarity_threshold {
-            if !value.is_finite() || value <= 0. || value > 1. {
-                bail!("semantic_similarity_threshold must be finite and satisfy 0 < value <= 1");
-            }
-        }
-        if self.embedding_provider == EmbeddingProvider::Dinov3Vits16
-            && (self.embedding_model_sha256.is_none()
-                || self.semantic_similarity_threshold.is_none())
-        {
-            bail!("DINOv3 requires an explicit model SHA-256 and semantic similarity threshold");
-        }
-        if let Some(hash) = &self.occlusion_model_sha256 {
-            if hash.len() != 64 || !hash.bytes().all(|c| c.is_ascii_hexdigit()) {
-                bail!("occlusion_model_sha256 must contain exactly 64 hexadecimal characters");
-            }
-        }
-        if let Some(value) = self.occlusion_min_visible_fraction {
-            if !value.is_finite() || value <= 0. || value > 1. {
-                bail!("occlusion_min_visible_fraction must be finite and satisfy 0 < value <= 1");
-            }
-        }
-        if self.occlusion_provider == OcclusionProvider::Faceocc
-            && (self.occlusion_model_sha256.is_none()
-                || self.occlusion_min_visible_fraction.is_none())
-        {
-            bail!("FaceOcc requires an explicit model SHA-256 and minimum visible fraction; no calibrated default exists");
-        }
-        if let Some(hash) = &self.scrfd_model_sha256 {
-            if hash.len() != 64 || !hash.bytes().all(|c| c.is_ascii_hexdigit()) {
-                bail!("scrfd_model_sha256 must contain exactly 64 hexadecimal characters");
-            }
-        }
-        if self.face_detector == FaceDetectorProvider::Scrfd500m
-            && self.scrfd_model_sha256.is_none()
-        {
-            bail!("SCRFD requires an explicit scrfd_model_sha256");
-        }
-        let weights = [
-            self.eyes_weight,
-            self.sharpness_weight,
-            self.face_weight,
-            self.exposure_weight,
-            self.smile_weight,
-        ];
-        if weights
-            .iter()
-            .any(|w| !w.is_finite() || *w < 0. || *w > 100.)
-            || weights.iter().sum::<f64>() <= 0.
-        {
-            bail!("weights must be finite 0..100 with positive total");
-        }
-        if !(0.1..=0.99).contains(&self.face_confidence) || !(1..=10).contains(&self.max_faces) {
-            bail!("invalid face confidence or face limit");
-        }
-        if !(0.0..=1.0).contains(&self.niqe_weight) {
-            bail!("NIQE weight must be a fraction in 0..1");
-        }
-        if !(0.0..=100.0).contains(&self.reject_threshold)
-            || !(0.0..=100.0).contains(&self.recommend_threshold)
-            || self.reject_threshold >= self.recommend_threshold
-        {
-            bail!("verdict thresholds must satisfy 0 <= reject < recommend <= 100");
-        }
-        Ok(())
     }
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]

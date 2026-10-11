@@ -13,6 +13,56 @@ export function containRect(frame: Rect, aspect: number): Rect {
   return { left: frame.left + (frame.width - width) / 2, top: frame.top + (frame.height - height) / 2, width, height };
 }
 
+/** Resolve the destination before writing animation styles. */
+function flightTarget(canvas: HTMLElement, grid: HTMLElement | null, snapshot: Snapshot, scrollTop: number): Rect | undefined {
+  if (grid) {
+    grid.scrollTop = scrollTop;
+    const cell = grid.querySelector<HTMLElement>(`.cell[data-photo-id="${snapshot.id}"]`);
+    cell?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
+    const frame = cell?.querySelector('.cell-photo')?.getBoundingClientRect();
+    return frame ? containRect(frame, snapshot.aspect) : undefined;
+  }
+  const stage = canvas.querySelector('.zoom-stage')?.getBoundingClientRect();
+  if (!stage) return;
+  const gutter = stage.width > 600 ? 56 : 24;
+  return containRect({ left: stage.left + gutter, top: stage.top + gutter / 2, width: Math.max(1, stage.width - gutter * 2), height: Math.max(1, stage.height - gutter) }, snapshot.aspect);
+}
+
+function animateFlight(canvas: HTMLElement, grid: HTMLElement | null, snapshot: Snapshot, clone: HTMLImageElement, scrollTop: number, onReveal: () => void) {
+  const target = flightTarget(canvas, grid, snapshot, scrollTop);
+  if (!target || reduced()) return null;
+  const targetImage = () => canvas.querySelector<HTMLImageElement>(grid ? `.cell[data-photo-id="${snapshot.id}"] img` : '.zoom-image');
+  const destination = grid?.querySelector<HTMLElement>(`.cell[data-photo-id="${snapshot.id}"] .cell-photo`) ?? canvas.querySelector<HTMLElement>('.zoom-stage');
+  destination?.classList.add('gallery-arriving');
+  const animation = clone.animate([
+    { transform: 'translate(0, 0) scale(1)' },
+    { transform: `translate(${target.left - snapshot.rect.left}px, ${target.top - snapshot.rect.top}px) scale(${target.width / snapshot.rect.width})` },
+  ], { duration: 300, easing, fill: 'forwards' });
+  let finished = false;
+  const reveal = () => { destination?.classList.remove('gallery-arriving'); clone.remove(); onReveal(); };
+  const onLoad = () => { if (finished && targetImage()?.complete && targetImage()?.naturalWidth) reveal(); };
+  canvas.addEventListener('load', onLoad, true);
+  // A failed preview must reveal its fallback, not strand a frozen thumbnail.
+  const timeout = window.setTimeout(reveal, 1800);
+  const cleanup = () => { window.clearTimeout(timeout); canvas.removeEventListener('load', onLoad, true); reveal(); };
+  animation.onfinish = () => { finished = true; onLoad(); };
+  return { animation, cleanup };
+}
+
+function animateTiles(grid: HTMLElement, before: Map<string, Rect>): Animation[] {
+  const bounds = grid.getBoundingClientRect();
+  const changes = Array.from(grid.querySelectorAll<HTMLElement>('.cell')).map(node => ({ node, old: before.get(node.dataset.photoId!), next: node.getBoundingClientRect() }));
+  const animations: Animation[] = [];
+  for (const { node, old, next } of changes) {
+    if (!old || next.bottom < bounds.top || next.top > bounds.bottom || !next.width || reduced()) continue;
+    animations.push(node.animate([
+      { transform: `translate(${old.left - next.left}px, ${old.top - next.top}px) scale(${old.width / next.width}, ${old.height / next.height})` },
+      { transform: 'none' },
+    ], { duration: 200, easing }));
+  }
+  return animations;
+}
+
 /** Only visible tiles animate. Reads are batched before writes; rapid gestures
  * retarget from the currently painted positions, never queue old transitions. */
 export function useGalleryMotion(root: RefObject<HTMLElement | null>, view: string, tileSize: number, identity: string) {
@@ -67,51 +117,13 @@ export function useGalleryMotion(root: RefObject<HTMLElement | null>, view: stri
     pending.current = null;
     if (snapshot && overlay.current) {
       const clone = overlay.current;
-      let target: Rect | undefined;
-      if (grid) {
-        grid.scrollTop = scrollTop.current;
-        const cell = grid.querySelector<HTMLElement>(`.cell[data-photo-id="${snapshot.id}"]`);
-        cell?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
-        const frame = cell?.querySelector('.cell-photo')?.getBoundingClientRect();
-        if (frame) target = containRect(frame, snapshot.aspect);
-      } else {
-        const stage = canvas.querySelector('.zoom-stage')?.getBoundingClientRect();
-        if (stage) {
-          const gutter = stage.width > 600 ? 56 : 24;
-          target = containRect({ left: stage.left + gutter, top: stage.top + gutter / 2, width: Math.max(1, stage.width - gutter * 2), height: Math.max(1, stage.height - gutter) }, snapshot.aspect);
-        }
-      }
-      if (!target || reduced()) { cancel(); return; }
-      const targetImage = () => canvas.querySelector<HTMLImageElement>(grid ? `.cell[data-photo-id="${snapshot.id}"] img` : '.zoom-image');
-      const destination = grid?.querySelector<HTMLElement>(`.cell[data-photo-id="${snapshot.id}"] .cell-photo`) ?? canvas.querySelector<HTMLElement>('.zoom-stage');
-      destination?.classList.add('gallery-arriving');
-      const animation = clone.animate([
-        { transform: 'translate(0, 0) scale(1)' },
-        { transform: `translate(${target.left - snapshot.rect.left}px, ${target.top - snapshot.rect.top}px) scale(${target.width / snapshot.rect.width})` },
-      ], { duration: 300, easing, fill: 'forwards' });
-      animations.current.push(animation);
-      let finished = false;
-      const reveal = () => {
-        destination?.classList.remove('gallery-arriving');
-        clone.remove(); if (overlay.current === clone) overlay.current = null;
-      };
-      const onLoad = () => { if (finished && targetImage()?.complete && targetImage()?.naturalWidth) reveal(); };
-      canvas.addEventListener('load', onLoad, true);
-      // A failed preview must reveal its real fallback, not strand a frozen thumbnail.
-      const timeout = window.setTimeout(reveal, 1800);
-      cleanup.current = () => { window.clearTimeout(timeout); canvas.removeEventListener('load', onLoad, true); reveal(); };
-      animation.onfinish = () => { finished = true; onLoad(); };
+      const flight = animateFlight(canvas, grid, snapshot, clone, scrollTop.current, () => { if (overlay.current === clone) overlay.current = null; });
+      if (!flight) { cancel(); return; }
+      animations.current.push(flight.animation);
+      cleanup.current = flight.cleanup;
     } else if (tiles.current && grid) {
       const before = tiles.current; tiles.current = null;
-      const bounds = grid.getBoundingClientRect();
-      const changes = Array.from(grid.querySelectorAll<HTMLElement>('.cell')).map(node => ({ node, old: before.get(node.dataset.photoId!), next: node.getBoundingClientRect() }));
-      for (const { node, old, next } of changes) {
-        if (!old || next.bottom < bounds.top || next.top > bounds.bottom || !next.width || reduced()) continue;
-        animations.current.push(node.animate([
-          { transform: `translate(${old.left - next.left}px, ${old.top - next.top}px) scale(${old.width / next.width}, ${old.height / next.height})` },
-          { transform: 'none' },
-        ], { duration: 200, easing }));
-      }
+      animations.current.push(...animateTiles(grid, before));
     }
   }, [view, tileSize]);
   useEffect(() => () => { cancel(); pending.current = null; tiles.current = null; }, [identity]);

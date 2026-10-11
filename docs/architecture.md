@@ -20,6 +20,8 @@ Windows DirectML 可选，设备与回退可观察。前端 Auto 策略和后端
 
 事务见 [core-services.md](core-services.md)，协议见 [api-contract.md](api-contract.md)，证据见 [validation.md](validation.md)。
 
+源码按职责分模块：前端入口负责应用装配，工作区组件与状态 hooks 独立；core `services/` 按业务领域组织，daemon `operations/` 按路由职责组织；CLI 分离参数与命令执行，MCP 分离调用调度与授权。入口继续共享核心服务，不复制业务逻辑。拆分范围、复杂度命令与剩余风险见[复杂度检查](complexity.md)。
+
 发行层复用已验证的便携载荷，不复制业务逻辑。Windows NSIS 保持相邻 daemon/模型布局；
 macOS PKG 将自包含 App 安装到 Applications，Linux DEB 将载荷放在 `/opt/iris` 并提供 PATH/菜单入口。
 版本化安装界面、对应源码和完整发行附件门禁由[发布流程](releasing.md)管理，解包验证不等于真实安装或签名验收。

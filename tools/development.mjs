@@ -19,6 +19,8 @@ try {
         run(process.env.UV || 'uv', ['venv', '--python', '3.12', '.venv']);
       }
       run(backend, ['-c', 'import sys; assert sys.version_info >= (3,12), "Backend runtime requires 3.12+"']);
+      // Keep explicitly provisioned optional model/media packages in local environments.
+      run(process.env.UV || 'uv', ['sync', '--locked', '--inexact', '--default-index', 'https://pypi.org/simple']);
       console.log('Backend environment ready; no activation needed.');
       break;
     case 'doctor': {

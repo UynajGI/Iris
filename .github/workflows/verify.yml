@@ -31,13 +31,15 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          version: '0.11.26'
       - name: Ensure GNU Make on Windows
         if: runner.os == 'Windows'
         shell: pwsh
@@ -48,59 +50,96 @@ jobs:
           }
       - run: make setup
       - run: make test-tools
+      - run: make lint-python complexity-check workflow-check
       - run: make public-check
+  security:
+    name: Dependency and secret audit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          version: '0.11.26'
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+      - run: make env quality-setup audit-setup
+      - run: make secrets-check
+      - name: Audit npm lockfiles
+        if: ${{ !cancelled() }}
+        run: make audit-js
+      - name: Audit Python tool lock
+        if: ${{ !cancelled() }}
+        run: make audit-python
+      - name: Audit all Cargo locks
+        if: ${{ !cancelled() }}
+        run: make audit-rust
   rust:
     runs-on: windows-latest
+    timeout-minutes: 45
     env:
       RUSTUP_TOOLCHAIN: stable-x86_64-pc-windows-msvc
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.12'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - run: npm --prefix apps/shell ci
       - name: Check public source boundaries and documentation links
         run: python tools/check-public-tree.py
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
         with:
           toolchain: stable-x86_64-pc-windows-msvc
           components: rustfmt
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
       - name: Check formatting
-        run: cargo +stable-x86_64-pc-windows-msvc fmt --all -- --check
+        shell: bash
+        run: |
+          cargo fmt --all -- --check
+          cargo fmt --manifest-path apps/shell/src-tauri/Cargo.toml --all -- --check
+          cargo fmt --manifest-path components/raw-decoder/Cargo.toml --all -- --check
       - name: Test workspace
-        run: cargo +stable-x86_64-pc-windows-msvc test --workspace
+        run: cargo +stable-x86_64-pc-windows-msvc test --locked --workspace
       - name: Verify bundled model hashes
         run: python tools/setup-models.py
       - name: Exercise all bundled ONNX models
-        run: cargo +stable-x86_64-pc-windows-msvc test -p iris-core bundled_onnx_tensor_smoke -- --ignored --nocapture
+        run: cargo +stable-x86_64-pc-windows-msvc test --locked -p iris-core bundled_onnx_tensor_smoke -- --ignored --nocapture
       - name: Exercise persistent model worker
-        run: cargo +stable-x86_64-pc-windows-msvc test -p iris-daemon --test worker actual_models_run_in_persistent_daemon_child -- --ignored --nocapture
+        run: cargo +stable-x86_64-pc-windows-msvc test --locked -p iris-daemon --test worker actual_models_run_in_persistent_daemon_child -- --ignored --nocapture
       - name: Test native updater protocol and host lifecycle
-        run: cargo +stable-x86_64-pc-windows-msvc test --manifest-path apps/shell/src-tauri/Cargo.toml --features updater-client --lib
+        run: cargo +stable-x86_64-pc-windows-msvc test --locked --manifest-path apps/shell/src-tauri/Cargo.toml --features updater-client --lib
       - name: Test native host with real daemon
         run: |
           $env:IRIS_TEST_DAEMON = (Resolve-Path target/debug/iris-daemon.exe).Path
-          cargo +stable-x86_64-pc-windows-msvc test --manifest-path apps/shell/src-tauri/Cargo.toml --features updater-client --lib real_daemon_update_pause_and_failed_install_recovery -- --ignored
-      - name: Test Python tools (including DINOv3 packaging and SCRFD geometry; no weight downloads)
-        run: python -m unittest discover -s tools/tests -p 'test_*.py' -v
+          cargo +stable-x86_64-pc-windows-msvc test --locked --manifest-path apps/shell/src-tauri/Cargo.toml --features updater-client --lib real_daemon_update_pause_and_failed_install_recovery -- --ignored
       - name: Check API schema
-        run: cargo +stable-x86_64-pc-windows-msvc run -p iris-daemon -- --openapi > openapi.json
+        run: node tools/api.mjs --check
   local-media:
     runs-on: windows-latest
     env:
       RUSTUP_TOOLCHAIN: stable-x86_64-pc-windows-msvc
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.12'
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
         with:
           toolchain: stable-x86_64-pc-windows-msvc
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
       # MINGW64 is deliberate: the runtime dependency allowlist targets MSVCRT.
-      - uses: msys2/setup-msys2@v2
+      - uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2
         with:
           msystem: MINGW64
           update: true
@@ -111,9 +150,9 @@ jobs:
       - name: Build HEIC runtime from hash-pinned source archives
         run: python tools/setup-heif-runtime.py --jobs 2
       - name: Test image decoding, orientation, cache migration and corrupt inputs
-        run: cargo +stable-x86_64-pc-windows-msvc test -p iris-core --test media -- --include-ignored
+        run: cargo +stable-x86_64-pc-windows-msvc test --locked -p iris-core --test media -- --include-ignored
       - name: Test background HEIC scanning and HTTP media responses
-        run: cargo +stable-x86_64-pc-windows-msvc test -p iris-daemon --test media -- --include-ignored
+        run: cargo +stable-x86_64-pc-windows-msvc test --locked -p iris-daemon --test media -- --include-ignored
       - name: Provision standalone RAW runtime and licensed native compatibility corpus
         run: |
           python tools/setup-raw-runtime.py
@@ -124,7 +163,7 @@ jobs:
           cargo +stable-x86_64-pc-windows-msvc build --release --locked --manifest-path components/raw-decoder/Cargo.toml
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $env:IRIS_RAW_DECODER_PATH = (Resolve-Path components/raw-decoder/target/release/iris-raw-decoder.exe).Path
-          cargo +stable-x86_64-pc-windows-msvc test -p iris-core --test raw -- --ignored
+          cargo +stable-x86_64-pc-windows-msvc test --locked -p iris-core --test raw -- --ignored
       - name: Verify explicitly requested DirectML fallback paths (no GPU claim)
         if: github.event_name == 'workflow_dispatch' && inputs.verify_directml_fallback
         run: |
@@ -134,7 +173,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python tools/setup-directml-runtime.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          cargo +stable-x86_64-pc-windows-msvc build --release -p iris-daemon
+          cargo +stable-x86_64-pc-windows-msvc build --locked --release -p iris-daemon
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python tools/verify-directml.py --fallback-only --photos crates/iris-core/tests/fixtures/media --count 1 --output artifacts/ci-directml-fallback
       # Optional weights are never fetched on push/PR. SCRFD research weights
@@ -149,13 +188,13 @@ jobs:
           python tools/setup-dinov3.py
       - name: Test real DINOv3 CPU embeddings
         if: github.event_name == 'workflow_dispatch' && inputs.verify_dinov3
-        run: cargo +stable-x86_64-pc-windows-msvc test -p iris-core --lib vision::dinov3::tests::real_dinov3_cpu_embedding -- --exact --ignored --nocapture
+        run: cargo +stable-x86_64-pc-windows-msvc test --locked -p iris-core --lib vision::dinov3::tests::real_dinov3_cpu_embedding -- --exact --ignored --nocapture
       - name: Verify optional DINOv3 offline package closure
         if: github.event_name == 'workflow_dispatch' && inputs.verify_dinov3
         run: python tools/package-dinov3.py --output artifacts/ci-dinov3-offline
       - name: Retain HEIC build diagnostics
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: heic-build-diagnostics
           path: |
@@ -168,8 +207,8 @@ jobs:
   application:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: npm
