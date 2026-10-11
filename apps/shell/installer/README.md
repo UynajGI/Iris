@@ -3,11 +3,11 @@
 安装界面是发行源码的一部分，不依赖开发者本机临时资源。构建步骤见
 [发布流程](../../../docs/releasing.md)。本目录不保存生成的 BMP 或安装包。
 
-| 平台 | 实现 | 使用方式 |
-| :--- | :--- | :--- |
-| Windows | `installer.nsi`、`hooks.nsh`、`ui.nsh` | `package-installer.ps1` 注入欢迎、路径、进度与完成页；中英文 |
-| macOS | `macos/welcome.html`、`macos/conclusion.html` | Distribution XML 注入系统 Installer；介绍、许可、安装与完成步骤 |
-| Linux | `linux/iris.desktop` | 系统软件安装器；元数据提供名称、说明及应用菜单入口 |
+| 平台    | 实现                                          | 使用方式                                                        |
+| :------ | :-------------------------------------------- | :-------------------------------------------------------------- |
+| Windows | `installer.nsi`、`hooks.nsh`、`ui.nsh`        | `package-installer.ps1` 注入欢迎、路径、进度与完成页；中英文    |
+| macOS   | `macos/welcome.html`、`macos/conclusion.html` | Distribution XML 注入系统 Installer；介绍、许可、安装与完成步骤 |
+| Linux   | `linux/iris.desktop`                          | 系统软件安装器；元数据提供名称、说明及应用菜单入口              |
 
 Windows 沿用 [DESIGN.md](../../../DESIGN.md) 中性深灰与低饱和紫色；使用原生中文 UI 字体，
 保留系统按钮、键盘导航。`tools/build-installer-artwork.ps1` 在 CI 暂存目录确定性绘制

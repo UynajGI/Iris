@@ -1,11 +1,12 @@
 """Check the complete Git index before publishing; never print secret values."""
+
 from __future__ import annotations
 
 import importlib.util
-from pathlib import Path
 import re
 import subprocess
 import sys
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location("staged_policy", ROOT / "tools/check-staged.py")
@@ -63,7 +64,9 @@ def inspect_document_links(root: Path, paths: set[str], documents: dict[str, str
             except ValueError:
                 errors.append(f"{path}: link escapes repository")
                 continue
-            if relative not in paths and not any(p.startswith(relative.rstrip('/') + '/') for p in paths):
+            if relative not in paths and not any(
+                p.startswith(relative.rstrip("/") + "/") for p in paths
+            ):
                 errors.append(f"{path}: link is not in public index: {target}")
     return errors
 
@@ -73,4 +76,6 @@ if __name__ == "__main__":
     if issues:
         print("\n".join(issues), file=sys.stderr)
         raise SystemExit(1)
-    print("Public index: regular source files, required notices, relative links and known secret patterns checked.")
+    print(
+        "Public index: regular source files, required notices, relative links and known secret patterns checked."
+    )

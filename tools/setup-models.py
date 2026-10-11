@@ -1,16 +1,18 @@
 """Fetch pinned, licensed model assets; no photographs are transmitted."""
-import hashlib
-import json
-from pathlib import Path
-import urllib.request
-import io
-import zipfile
+
 import ast
+import hashlib
+import io
+import json
 import struct
+import urllib.request
+import zipfile
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1] / "models"
 REV = "7c463946f31bcb95be863a6dfa4538b235f7248c"
 ZOO = "47534e27c9851bb1128ccc0102f1145e27f23f98"
+
 
 def main():
     ROOT.mkdir(exist_ok=True)
@@ -29,8 +31,10 @@ def main():
     }.items():
         (ROOT / name).write_bytes(urllib.request.urlopen(url, timeout=30).read())
     import os
+
     if os.name != "nt":
         from onnx_runtime import install
+
         install(ROOT)
     else:
         setup_windows_runtime(manifest["runtime"])
@@ -50,20 +54,24 @@ def setup_niqe(niqe):
                 if raw[:8] != b"\x93NUMPY\x01\x00":
                     raise RuntimeError("Unexpected NPY statistics encoding")
                 size = struct.unpack("<H", raw[8:10])[0]
-                header = ast.literal_eval(raw[10:10 + size].decode())
+                header = ast.literal_eval(raw[10 : 10 + size].decode())
                 if header["descr"] != "<f8":
                     raise RuntimeError("Unexpected NIQE statistics dtype or layout")
-                payload = raw[10 + size:]
+                payload = raw[10 + size :]
                 numbers = list(struct.unpack("<" + "d" * (len(payload) // 8), payload))
                 if header["fortran_order"]:
                     rows, cols = header["shape"]
-                    numbers = [numbers[col * rows + row] for row in range(rows) for col in range(cols)]
+                    numbers = [
+                        numbers[col * rows + row] for row in range(rows) for col in range(cols)
+                    ]
                 values[name] = numbers
         converted = json.dumps(values, separators=(",", ":")).encode()
         if hashlib.sha256(converted).hexdigest() != niqe["sha256"]:
             raise RuntimeError("Converted NIQE statistics hash mismatch")
         target.write_bytes(converted)
-    (ROOT / "LICENSE-BasicSR.txt").write_bytes(urllib.request.urlopen(niqe["license_url"], timeout=30).read())
+    (ROOT / "LICENSE-BasicSR.txt").write_bytes(
+        urllib.request.urlopen(niqe["license_url"], timeout=30).read()
+    )
     print("Verified classical NIQE pristine statistics")
 
 
@@ -80,8 +88,11 @@ def setup_windows_runtime(runtime):
                 raise RuntimeError("ONNX Runtime DLL hash mismatch")
             target.write_bytes(dll)
             (ROOT / "LICENSE-ONNXRuntime.txt").write_bytes(archive.read(prefix + "LICENSE"))
-            (ROOT / "ThirdPartyNotices-ONNXRuntime.txt").write_bytes(archive.read(prefix + "ThirdPartyNotices.txt"))
+            (ROOT / "ThirdPartyNotices-ONNXRuntime.txt").write_bytes(
+                archive.read(prefix + "ThirdPartyNotices.txt")
+            )
     print("Verified ONNX Runtime 1.22.0 Windows x64")
+
 
 if __name__ == "__main__":
     main()

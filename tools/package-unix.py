@@ -1,15 +1,16 @@
 """Assemble an experimental macOS/Linux CPU package from release binaries."""
+
 import argparse
 import hashlib
 import json
 import os
-from pathlib import Path
 import platform
 import plistlib
 import shutil
 import subprocess
 import sys
 import tarfile
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -29,22 +30,63 @@ def main():
         parser.error("Output must be new")
     output.mkdir(parents=True)
     version = json.loads((ROOT / "apps/shell/package.json").read_text())["version"]
-    label = "macos-" + ("arm64" if machine in ("arm64", "aarch64") else "x64") if mac else "linux-x64"
-    (output / "release.json").write_text(json.dumps({"product": "Iris", "version": version, "platform": label}) + "\n")
+    label = (
+        "macos-" + ("arm64" if machine in ("arm64", "aarch64") else "x64") if mac else "linux-x64"
+    )
+    (output / "release.json").write_text(
+        json.dumps({"product": "Iris", "version": version, "platform": label}) + "\n"
+    )
     binary = output / "Iris.app/Contents/MacOS" if mac else output
     binary.mkdir(parents=True, exist_ok=True)
-    for name, directory in [("iris-shell", "apps/shell/src-tauri"), ("iris-daemon", "."), ("iris-cli", "."), ("iris-mcp", "."), ("iris-raw-decoder", "components/raw-decoder")]:
+    for name, directory in [
+        ("iris-shell", "apps/shell/src-tauri"),
+        ("iris-daemon", "."),
+        ("iris-cli", "."),
+        ("iris-mcp", "."),
+        ("iris-raw-decoder", "components/raw-decoder"),
+    ]:
         shutil.copy2(ROOT / directory / "target/release" / name, binary / name)
         (binary / name).chmod(0o755)
     copy_models(binary, mac)
     for name in ["LICENSE", "THIRD_PARTY_NOTICES.md"]:
         shutil.copy2(ROOT / name, output / name)
     shutil.copytree(ROOT / "apps/shell/dist", binary / "frontend")
-    subprocess.run([sys.executable, ROOT / "tools/package-source.py", "--output", output / "sources/iris-application-source.zip"], check=True)
-    subprocess.run([sys.executable, ROOT / "tools/package-relink-source.py", "--output", output / "sources/raw-decoder-source.zip"], check=True)
-    subprocess.run([sys.executable, ROOT / "tools/package-dependency-source.py", "--output", output / "sources/dependency-sources.zip"], check=True)
+    subprocess.run(
+        [
+            sys.executable,
+            ROOT / "tools/package-source.py",
+            "--output",
+            output / "sources/iris-application-source.zip",
+        ],
+        check=True,
+    )
+    subprocess.run(
+        [
+            sys.executable,
+            ROOT / "tools/package-relink-source.py",
+            "--output",
+            output / "sources/raw-decoder-source.zip",
+        ],
+        check=True,
+    )
+    subprocess.run(
+        [
+            sys.executable,
+            ROOT / "tools/package-dependency-source.py",
+            "--output",
+            output / "sources/dependency-sources.zip",
+        ],
+        check=True,
+    )
     write_launcher(output, mac, version)
-    entries = [{"path": p.relative_to(output).as_posix(), "sha256": hashlib.sha256(p.read_bytes()).hexdigest()} for p in sorted(output.rglob("*")) if p.is_file()]
+    entries = [
+        {
+            "path": p.relative_to(output).as_posix(),
+            "sha256": hashlib.sha256(p.read_bytes()).hexdigest(),
+        }
+        for p in sorted(output.rglob("*"))
+        if p.is_file()
+    ]
     (output / "checksums.json").write_text(json.dumps(entries, indent=2) + "\n")
     subprocess.run([sys.executable, ROOT / "tools/verify-unix.py", "--bundle", output], check=True)
     archive = Path(str(output) + ".tar.gz")
@@ -55,12 +97,16 @@ def main():
     print(archive)
 
 
-
 def copy_models(binary, mac):
     models = binary / "models"
     models.mkdir()
     manifest = json.loads((ROOT / "models/manifest.json").read_text())
-    names = [m["file"] for m in manifest["models"]] + ["manifest.json", "niqe_params.json", "README.md", "libonnxruntime.dylib" if mac else "libonnxruntime.so"]
+    names = [m["file"] for m in manifest["models"]] + [
+        "manifest.json",
+        "niqe_params.json",
+        "README.md",
+        "libonnxruntime.dylib" if mac else "libonnxruntime.so",
+    ]
     names += [p.name for p in (ROOT / "models").glob("*LICENSE*.txt")]
     names += [p.name for p in (ROOT / "models").glob("ThirdPartyNotices-*.txt")]
     for name in sorted(set(names)):
@@ -71,13 +117,28 @@ def copy_models(binary, mac):
 
 def write_launcher(output, mac, version):
     if mac:
-        info = {"CFBundleExecutable": "iris-shell", "CFBundleName": "Iris", "CFBundleIdentifier": "local.irisvision.app", "CFBundlePackageType": "APPL", "CFBundleShortVersionString": version.split("-")[0], "CFBundleVersion": version.split("-")[0], "NSHighResolutionCapable": True}
+        info = {
+            "CFBundleExecutable": "iris-shell",
+            "CFBundleName": "Iris",
+            "CFBundleIdentifier": "local.irisvision.app",
+            "CFBundlePackageType": "APPL",
+            "CFBundleShortVersionString": version.split("-")[0],
+            "CFBundleVersion": version.split("-")[0],
+            "NSHighResolutionCapable": True,
+        }
         (output / "Iris.app/Contents/Info.plist").write_bytes(plistlib.dumps(info))
     launcher = output / ("Launch.command" if mac else "Launch.sh")
-    executable = 'Iris.app/Contents/MacOS/iris-shell' if mac else 'iris-shell'
-    launcher.write_text('#!/bin/sh\nset -eu\ncd "$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"\nexec "./' + executable + '"\n')
+    executable = "Iris.app/Contents/MacOS/iris-shell" if mac else "iris-shell"
+    launcher.write_text(
+        '#!/bin/sh\nset -eu\ncd "$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"\nexec "./'
+        + executable
+        + '"\n'
+    )
     launcher.chmod(0o755)
-    (output / "README.txt").write_text("Iris experimental CPU beta. Start with Launch.command (macOS) or ./Launch.sh (Linux).\nLinux requires WebKitGTK 4.1 and GTK 3 (Ubuntu 22.04+). macOS is not notarized.\nJPEG/PNG/WebP and CPU analysis are included. HEIC runtime and ExifTool are not bundled on Unix yet; RAW uses the independent bounded converter. DirectML is Windows-only.\nCLI/MCP executables and models are beside iris-shell; on macOS inside Iris.app/Contents/MacOS.\nUse disposable authorized photos for testing and report OS, architecture and reproduction steps.\nSources and third-party notices are included. No user photographs or optional model weights are included.\n")
+    (output / "README.txt").write_text(
+        "Iris experimental CPU beta. Start with Launch.command (macOS) or ./Launch.sh (Linux).\nLinux requires WebKitGTK 4.1 and GTK 3 (Ubuntu 22.04+). macOS is not notarized.\nJPEG/PNG/WebP and CPU analysis are included. HEIC runtime and ExifTool are not bundled on Unix yet; RAW uses the independent bounded converter. DirectML is Windows-only.\nCLI/MCP executables and models are beside iris-shell; on macOS inside Iris.app/Contents/MacOS.\nUse disposable authorized photos for testing and report OS, architecture and reproduction steps.\nSources and third-party notices are included. No user photographs or optional model weights are included.\n"
+    )
+
 
 if __name__ == "__main__":
     main()

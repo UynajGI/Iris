@@ -6,8 +6,20 @@
   "build": { "frontendDist": "../dist", "beforeBuildCommand": "npm run build" },
   "app": {
     "withGlobalTauri": true,
-    "windows": [{ "label": "main", "title": "Iris", "visible": false, "width": 1440, "height": 900, "minWidth": 800, "minHeight": 560 }],
-    "security": { "csp": "default-src 'self'; script-src 'self'; connect-src ipc: http://ipc.localhost http://127.0.0.1:* ws://127.0.0.1:*; img-src 'self' blob:; style-src 'self'" }
+    "windows": [
+      {
+        "label": "main",
+        "title": "Iris",
+        "visible": false,
+        "width": 1440,
+        "height": 900,
+        "minWidth": 800,
+        "minHeight": 560
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; connect-src ipc: http://ipc.localhost http://127.0.0.1:* ws://127.0.0.1:*; img-src 'self' blob:; style-src 'self'"
+    }
   },
   "bundle": { "active": false },
   "plugins": { "updater": { "pubkey": "", "requireSignedVersion": true } }

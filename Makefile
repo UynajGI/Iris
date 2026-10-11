@@ -5,6 +5,7 @@
 NODE ?= node
 CARGO ?= cargo
 UV ?= uv
+FORMATTER ?= tools/format.mjs
 PROFILE ?= debug
 OUTPUT ?=
 PORTABLE ?=
@@ -59,25 +60,33 @@ codegraph-sync: ## Refresh an existing local graph
 codegraph-status: ## Inspect the local graph
 	npm --prefix .tools/codegraph exec --no -- codegraph status "$(CURDIR)"
 
-check: fmt-check check-rust check-web ## Check all Rust formatting, core compilation and frontend types
+check: fmt-check check-rust check-web ## Check source formatting, core compilation and frontend types
 check-rust: ## Check the core Rust workspace
 	$(CARGO) check --workspace --locked
 check-web: ## Check frontend types
 	npm --prefix apps/shell run check
 complexity: ## Inventory first-party complexity with pinned Lizard (ARGS supports --scope/--baseline/--json/--fail)
 	$(UV) run --locked --inexact --default-index https://pypi.org/simple python tools/check-complexity.py $(ARGS)
-fmt: ## Format all three Rust workspaces
-	$(CARGO) fmt --all
-	$(CARGO) fmt --manifest-path apps/shell/src-tauri/Cargo.toml --all
-	$(CARGO) fmt --manifest-path components/raw-decoder/Cargo.toml --all
-fmt-check: ## Check formatting in all three Rust workspaces
+fmt: ## Format source, imports, documentation and supported configuration files
+	$(NODE) "$(FORMATTER)"
+fmt-check: ## Check all source formatting without modifying files
 	$(CARGO) fmt --all -- --check
 	$(CARGO) fmt --manifest-path apps/shell/src-tauri/Cargo.toml --all -- --check
 	$(CARGO) fmt --manifest-path components/raw-decoder/Cargo.toml --all -- --check
+	$(NODE) "$(FORMATTER)" --check
+
+.PHONY: fmt-staged staged-safety commit-check
+commit-check: ## Format and validate with a temporary index; Lefthook stages the result
+	$(NODE) tools/commit-format.mjs
+fmt-staged: ## Format and stage commit files (Lefthook protects partially staged changes)
+	$(NODE) "$(FORMATTER)" --staged
+staged-safety: ## Reject secrets, private files and invalid syntax before formatting
+	$(BACKEND) tools/check-staged.py --before-format
 test: test-rust test-tools test-web test-native ## Run core, tooling, frontend and native library tests
 test-rust: ## Test the core workspace (ignored media tests stay ignored)
 	$(CARGO) test --workspace --locked $(PROFILE_FLAGS)
 test-tools: ## Test Make integration and internal provisioning/packaging tools
+	$(NODE) --test tools/tests/cdp-page.test.mjs
 	$(NODE) --test tools/tests/development.test.mjs
 	$(NODE) --test tools/tests/changelog.test.mjs
 	$(BACKEND) -m unittest discover -s tools/tests -p test_*.py -v

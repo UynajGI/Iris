@@ -1,4 +1,5 @@
 """Known-answer checks for the sustained-load evidence verifier."""
+
 import json
 import sqlite3
 import sys
@@ -20,9 +21,19 @@ class PredictionConsistencyTests(unittest.TestCase):
         self.paths = {"batch-000/a.jpg": 0, "batch-001/a.jpg": 0, "batch-000/b.jpg": 1}
         for index, (path, source) in enumerate(self.paths.items()):
             self.database.execute("INSERT INTO photos VALUES (?,?)", (index, path))
-            self.database.execute("INSERT INTO analyses VALUES (?,?)", (index, json.dumps(
-                {"elapsed_ms": index * 10, "score": source + 50, "faces": [{"confidence": 0.9}]}
-            )))
+            self.database.execute(
+                "INSERT INTO analyses VALUES (?,?)",
+                (
+                    index,
+                    json.dumps(
+                        {
+                            "elapsed_ms": index * 10,
+                            "score": source + 50,
+                            "faces": [{"confidence": 0.9}],
+                        }
+                    ),
+                ),
+            )
 
     def test_timing_differences_and_distinct_sources_are_allowed(self):
         report = verify_repeated_predictions(self.database, self.paths)
@@ -30,9 +41,10 @@ class PredictionConsistencyTests(unittest.TestCase):
         self.assertEqual(report["unique_sources"], 2)
 
     def test_nested_prediction_corruption_is_rejected(self):
-        self.database.execute("UPDATE analyses SET data=? WHERE photo_id=1", (
-            json.dumps({"score": 50, "faces": [{"confidence": 0.8}]}),
-        ))
+        self.database.execute(
+            "UPDATE analyses SET data=? WHERE photo_id=1",
+            (json.dumps({"score": 50, "faces": [{"confidence": 0.8}]}),),
+        )
         with self.assertRaisesRegex(AssertionError, "prediction differs"):
             verify_repeated_predictions(self.database, self.paths)
 

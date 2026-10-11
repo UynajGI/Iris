@@ -10,7 +10,7 @@ const root = createRoot(element);
 function FirstPaint({ children }: { children: ReactNode }) {
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
-      void window.__TAURI__?.core.invoke('frontend_ready').catch(error => {
+      void window.__TAURI__?.core.invoke('frontend_ready').catch((error) => {
         window.dispatchEvent(new CustomEvent('iris:error', { detail: String(error) }));
       });
     });
@@ -20,14 +20,57 @@ function FirstPaint({ children }: { children: ReactNode }) {
 }
 let readyApplication: Window['iris'];
 function renderApplication(failure?: string) {
-  root.render(<FirstPaint><AppBoundary>
-    {failure && <div className="error-bar" role="alert"><span>照片服务连接未恢复</span><details><summary>查看原因</summary><p>{failure}</p></details><span className="spacer" /><button className="button" onClick={() => { if (window.__TAURI__) void connectDesktop(window.__TAURI__).catch(error => renderApplication(String(error))); }}>重试连接</button></div>}
-    {readyApplication ? <App key="application" store={readyApplication.store} commands={readyApplication.commands} /> : !failure && <div className="app"><main className="splash" role="status"><h1 className="brand">伊人</h1><p className="muted">正在连接照片服务</p><span className="splash-line" aria-hidden="true" /></main></div>}
-  </AppBoundary></FirstPaint>);
+  root.render(
+    <FirstPaint>
+      <AppBoundary>
+        {failure && (
+          <div className="error-bar" role="alert">
+            <span>照片服务连接未恢复</span>
+            <details>
+              <summary>查看原因</summary>
+              <p>{failure}</p>
+            </details>
+            <span className="spacer" />
+            <button
+              className="button"
+              onClick={() => {
+                if (window.__TAURI__)
+                  void connectDesktop(window.__TAURI__).catch((error) =>
+                    renderApplication(String(error))
+                  );
+              }}
+            >
+              重试连接
+            </button>
+          </div>
+        )}
+        {readyApplication ? (
+          <App
+            key="application"
+            store={readyApplication.store}
+            commands={readyApplication.commands}
+          />
+        ) : (
+          !failure && (
+            <div className="app">
+              <main className="splash" role="status">
+                <h1 className="brand">伊人</h1>
+                <p className="muted">正在连接照片服务</p>
+                <span className="splash-line" aria-hidden="true" />
+              </main>
+            </div>
+          )
+        )}
+      </AppBoundary>
+    </FirstPaint>
+  );
 }
 renderApplication();
-window.addEventListener('iris:ready', () => { readyApplication = window.iris; renderApplication(); });
-window.addEventListener('iris:error', event => {
+window.addEventListener('iris:ready', () => {
+  readyApplication = window.iris;
+  renderApplication();
+});
+window.addEventListener('iris:error', (event) => {
   const message = String((event as CustomEvent<unknown>).detail);
   renderApplication(message);
 });

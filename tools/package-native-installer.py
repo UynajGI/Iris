@@ -3,11 +3,11 @@
 No signing, installation, publication, optional downloads or third-party Python
 dependencies. All payload paths remain adjacent to the daemon as in the portable.
 """
+
 # SPDX-License-Identifier: GPL-3.0-or-later
 import argparse
 import hashlib
 import json
-from pathlib import Path, PurePosixPath
 import platform
 import plistlib
 import shutil
@@ -15,12 +15,25 @@ import subprocess
 import sys
 import tempfile
 import xml.etree.ElementTree as ET
+from pathlib import Path, PurePosixPath
 
 ROOT = Path(__file__).resolve().parents[1]
-REQUIRED = {"iris-shell", "iris-daemon", "iris-cli", "iris-mcp", "iris-raw-decoder", "release.json", "README.txt",
-            "models/manifest.json", "models/niqe_params.json", "LICENSE",
-            "THIRD_PARTY_NOTICES.md", "sources/iris-application-source.zip",
-            "sources/raw-decoder-source.zip", "sources/dependency-sources.zip"}
+REQUIRED = {
+    "iris-shell",
+    "iris-daemon",
+    "iris-cli",
+    "iris-mcp",
+    "iris-raw-decoder",
+    "release.json",
+    "README.txt",
+    "models/manifest.json",
+    "models/niqe_params.json",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md",
+    "sources/iris-application-source.zip",
+    "sources/raw-decoder-source.zip",
+    "sources/dependency-sources.zip",
+}
 
 
 def digest(path):
@@ -33,8 +46,17 @@ def validate(portable, mac):
     entries = json.loads((portable / "checksums.json").read_text(encoding="utf-8"))
     seen = set()
     prefix = "Iris.app/Contents/MacOS/" if mac else ""
-    model_names = {m["file"] for m in json.loads((ROOT / "models/manifest.json").read_text(encoding="utf-8"))["models"]}
-    model_names |= {"manifest.json", "niqe_params.json", "README.md", "libonnxruntime.dylib", "libonnxruntime.so"}
+    model_names = {
+        m["file"]
+        for m in json.loads((ROOT / "models/manifest.json").read_text(encoding="utf-8"))["models"]
+    }
+    model_names |= {
+        "manifest.json",
+        "niqe_params.json",
+        "README.md",
+        "libonnxruntime.dylib",
+        "libonnxruntime.so",
+    }
     for entry in entries:
         name = entry["path"]
         validate_installer_path(name, seen)
@@ -42,10 +64,16 @@ def validate(portable, mac):
             raise ValueError(f"Unapproved installer payload: {name}")
         seen.add(name)
         file = portable / name
-        if (not file.resolve().is_relative_to(portable) or file.is_symlink()
-                or not file.is_file() or digest(file) != entry["sha256"]):
+        if (
+            not file.resolve().is_relative_to(portable)
+            or file.is_symlink()
+            or not file.is_file()
+            or digest(file) != entry["sha256"]
+        ):
             raise ValueError(f"Portable checksum mismatch: {name}")
-    required = {prefix + name if name.startswith(("iris-", "models/")) else name for name in REQUIRED}
+    required = {
+        prefix + name if name.startswith(("iris-", "models/")) else name for name in REQUIRED
+    }
     required.add(prefix + ("models/libonnxruntime.dylib" if mac else "models/libonnxruntime.so"))
     if mac:
         required.add("Iris.app/Contents/Info.plist")
@@ -57,8 +85,15 @@ def validate(portable, mac):
 
 def validate_installer_path(name, seen):
     path = PurePosixPath(name)
-    if (not name or "\\" in name or ":" in name or path.is_absolute()
-            or ".." in path.parts or name != path.as_posix() or name in seen):
+    if (
+        not name
+        or "\\" in name
+        or ":" in name
+        or path.is_absolute()
+        or ".." in path.parts
+        or name != path.as_posix()
+        or name in seen
+    ):
         raise ValueError(f"Invalid or duplicate manifest path: {name}")
     if "/optional/" in "/" + name.lower() or name.lower().endswith((".sqlite3", ".sqlite", ".db")):
         raise ValueError(f"Private or optional payload is not permitted: {name}")
@@ -66,14 +101,27 @@ def validate_installer_path(name, seen):
 
 def allowed_installer_payload(name, prefix, mac, model_names):
     relative = name.removeprefix(prefix)
-    allowed = name in {"LICENSE", "THIRD_PARTY_NOTICES.md", "README.txt", "release.json",
-                       "Launch.command" if mac else "Launch.sh", "Iris.app/Contents/Info.plist"}
-    allowed |= name in {"sources/iris-application-source.zip", "sources/raw-decoder-source.zip", "sources/dependency-sources.zip"}
+    allowed = name in {
+        "LICENSE",
+        "THIRD_PARTY_NOTICES.md",
+        "README.txt",
+        "release.json",
+        "Launch.command" if mac else "Launch.sh",
+        "Iris.app/Contents/Info.plist",
+    }
+    allowed |= name in {
+        "sources/iris-application-source.zip",
+        "sources/raw-decoder-source.zip",
+        "sources/dependency-sources.zip",
+    }
     allowed |= relative in {"iris-shell", "iris-daemon", "iris-cli", "iris-mcp", "iris-raw-decoder"}
     allowed |= relative.startswith("frontend/")
     if relative.startswith("models/") and len(PurePosixPath(relative).parts) == 2:
         model = PurePosixPath(relative).name
-        allowed |= model in model_names or (model.endswith(".txt") and ("LICENSE" in model or model.startswith("ThirdPartyNotices-")))
+        allowed |= model in model_names or (
+            model.endswith(".txt")
+            and ("LICENSE" in model or model.startswith("ThirdPartyNotices-"))
+        )
     return allowed
 
 
@@ -87,41 +135,62 @@ def copy_entries(portable, target, entries):
 
 
 def manifest(root):
-    entries = [{"path": file.relative_to(root).as_posix(), "sha256": digest(file)}
-               for file in sorted(root.rglob("*")) if file.is_file() and file.name != "checksums.json"]
+    entries = [
+        {"path": file.relative_to(root).as_posix(), "sha256": digest(file)}
+        for file in sorted(root.rglob("*"))
+        if file.is_file() and file.name != "checksums.json"
+    ]
     (root / "checksums.json").write_text(json.dumps(entries, indent=2) + "\n", encoding="utf-8")
 
 
 def distribution(version, architecture):
     root = ET.Element("installer-gui-script", {"minSpecVersion": "2"})
     ET.SubElement(root, "title").text = f"Iris / 伊人 {version}"
-    ET.SubElement(root, "options", {"customize": "never", "require-scripts": "false",
-                                    "hostArchitectures": architecture})
-    ET.SubElement(root, "domains", {"enable_localSystem": "true", "enable_currentUserHome": "false",
-                                    "enable_anywhere": "false"})
+    ET.SubElement(
+        root,
+        "options",
+        {"customize": "never", "require-scripts": "false", "hostArchitectures": architecture},
+    )
+    ET.SubElement(
+        root,
+        "domains",
+        {
+            "enable_localSystem": "true",
+            "enable_currentUserHome": "false",
+            "enable_anywhere": "false",
+        },
+    )
     ET.SubElement(root, "welcome", {"file": "welcome.html", "mime-type": "text/html"})
     ET.SubElement(root, "conclusion", {"file": "conclusion.html", "mime-type": "text/html"})
     ET.SubElement(root, "license", {"file": "LICENSE.txt", "mime-type": "text/plain"})
     outline = ET.SubElement(root, "choices-outline")
     ET.SubElement(outline, "line", {"choice": "iris"})
-    choice = ET.SubElement(root, "choice", {"id": "iris", "title": "Iris", "description": "Local photo workspace", "visible": "false"})
+    choice = ET.SubElement(
+        root,
+        "choice",
+        {"id": "iris", "title": "Iris", "description": "Local photo workspace", "visible": "false"},
+    )
     ET.SubElement(choice, "pkg-ref", {"id": "local.irisvision.app"})
-    ET.SubElement(root, "pkg-ref", {"id": "local.irisvision.app", "version": version.split("-")[0]}).text = "iris-component.pkg"
+    ET.SubElement(
+        root, "pkg-ref", {"id": "local.irisvision.app", "version": version.split("-")[0]}
+    ).text = "iris-component.pkg"
     return ET.tostring(root, encoding="unicode", xml_declaration=True)
 
 
 def deb_control(version, installed_size):
     # Debian sorts a pre-release before its corresponding stable version.
     version = version.replace("-", "~", 1)
-    return (f"Package: iris\nVersion: {version}\nArchitecture: amd64\n"
-            "Maintainer: Iris contributors <UynajGI@users.noreply.github.com>\n"
-            "Section: graphics\nPriority: optional\n"
-            f"Installed-Size: {installed_size}\n"
-            "Depends: libc6 (>= 2.35), libgcc-s1, libstdc++6, libgtk-3-0, libwebkit2gtk-4.1-0\n"
-            "Homepage: https://github.com/UynajGI/Iris\n"
-            "Description: Local-first photo culling workspace\n"
-            " Desktop, CLI and MCP with bundled default CPU models.\n"
-            " HEIC runtime and ExifTool are not bundled on Linux.\n")
+    return (
+        f"Package: iris\nVersion: {version}\nArchitecture: amd64\n"
+        "Maintainer: Iris contributors <UynajGI@users.noreply.github.com>\n"
+        "Section: graphics\nPriority: optional\n"
+        f"Installed-Size: {installed_size}\n"
+        "Depends: libc6 (>= 2.35), libgcc-s1, libstdc++6, libgtk-3-0, libwebkit2gtk-4.1-0\n"
+        "Homepage: https://github.com/UynajGI/Iris\n"
+        "Description: Local-first photo culling workspace\n"
+        " Desktop, CLI and MCP with bundled default CPU models.\n"
+        " HEIC runtime and ExifTool are not bundled on Linux.\n"
+    )
 
 
 def run(*args):
@@ -145,22 +214,43 @@ def build_macos(stage, payload, artifact, version, label):
         component["BundleIsRelocatable"] = False
         component["BundleOverwriteAction"] = "upgrade"
     components.write_bytes(plistlib.dumps(properties))
-    run("pkgbuild", "--root", pkg_root.parent, "--install-location", "/", "--identifier",
-        "local.irisvision.app", "--version", version.split("-")[0], "--component-plist", components,
-        stage / "iris-component.pkg")
+    run(
+        "pkgbuild",
+        "--root",
+        pkg_root.parent,
+        "--install-location",
+        "/",
+        "--identifier",
+        "local.irisvision.app",
+        "--version",
+        version.split("-")[0],
+        "--component-plist",
+        components,
+        stage / "iris-component.pkg",
+    )
     ui = stage / "resources"
     shutil.copytree(ROOT / "apps/shell/installer/macos", ui)
     shutil.copy2(ROOT / "LICENSE", ui / "LICENSE.txt")
     dist = stage / "distribution.xml"
-    dist.write_text(distribution(version, "arm64" if label.endswith("arm64") else "x86_64"), encoding="utf-8")
-    run("productbuild", "--distribution", dist, "--resources", ui, "--package-path", stage, artifact)
+    dist.write_text(
+        distribution(version, "arm64" if label.endswith("arm64") else "x86_64"), encoding="utf-8"
+    )
+    run(
+        "productbuild", "--distribution", dist, "--resources", ui, "--package-path", stage, artifact
+    )
     extracted = stage / "expanded"
     run("pkgutil", "--expand-full", artifact, extracted)
     apps = list(extracted.rglob("Iris.app"))
     if len(apps) != 1:
         raise ValueError("Expected exactly one extracted Iris.app")
-    run(sys.executable, ROOT / "tools/verify-unix.py", "--bundle", apps[0] / "Contents",
-        "--binary-directory", apps[0] / "Contents/MacOS")
+    run(
+        sys.executable,
+        ROOT / "tools/verify-unix.py",
+        "--bundle",
+        apps[0] / "Contents",
+        "--binary-directory",
+        apps[0] / "Contents/MacOS",
+    )
     # Gate the actual installer UI, not only the component payload.
     for name in ("welcome.html", "conclusion.html", "LICENSE.txt"):
         if not any(p.read_bytes() == (ui / name).read_bytes() for p in extracted.rglob(name)):
@@ -207,7 +297,9 @@ def build(portable, output):
         raise ValueError("Output must be new")
     entries = validate(portable, mac)
     version = json.loads((ROOT / "apps/shell/package.json").read_text(encoding="utf-8"))["version"]
-    label = "macos-" + ("arm64" if machine in {"arm64", "aarch64"} else "x64") if mac else "linux-x64"
+    label = (
+        "macos-" + ("arm64" if machine in {"arm64", "aarch64"} else "x64") if mac else "linux-x64"
+    )
     identity = json.loads((portable / "release.json").read_text(encoding="utf-8"))
     if identity != {"product": "Iris", "version": version, "platform": label}:
         raise ValueError("Portable version or architecture does not match this release builder")
@@ -227,11 +319,21 @@ def build(portable, output):
         # Exclusive destination, created only after native verification succeeds.
         output.mkdir(parents=True)
         shutil.copy2(artifact, output / artifact.name)
-        report = {"version": version, "platform": label, "artifact": artifact.name,
-                  "sha256": digest(artifact), "source_manifest_sha256": digest(portable / "checksums.json"),
-                  "extracted_payload_verified": True, "installer_executed": False,
-                  "signed": False, "notarized": False, "clean_system_verified": False}
-        (output / f"{label}-build-report.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+        report = {
+            "version": version,
+            "platform": label,
+            "artifact": artifact.name,
+            "sha256": digest(artifact),
+            "source_manifest_sha256": digest(portable / "checksums.json"),
+            "extracted_payload_verified": True,
+            "installer_executed": False,
+            "signed": False,
+            "notarized": False,
+            "clean_system_verified": False,
+        }
+        (output / f"{label}-build-report.json").write_text(
+            json.dumps(report, indent=2) + "\n", encoding="utf-8"
+        )
         print(output / artifact.name)
 
 

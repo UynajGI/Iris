@@ -3,17 +3,18 @@
 Originals are read-only test inputs. No model, inference, or identity API is called.
 The per-file manifest retains attribution, license, source and SHA-256.
 """
+
 import argparse
-from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import html
 import json
-from pathlib import Path
 import re
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
-import urllib.error
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 USER_AGENT = "IrisVision/0.1 (local image decoder compatibility research)"
@@ -74,10 +75,27 @@ def portraits(directory, count, width):
         continuation = {}
         target = count // 2 if not selected else count
         while len(selected) < target:
-            params = {"action": "query", "generator": "categorymembers", "gcmtitle": "Category:" + category,
-                      "gcmtype": "file", "gcmlimit": 50, "prop": "imageinfo", "iiprop": "url|extmetadata|size", "iiurlwidth": width, "format": "json", **continuation}
-            result = json.loads(fetch("https://commons.wikimedia.org/w/api.php?" + urllib.parse.urlencode(params), 8 * 1024 * 1024))
-            for page in sorted(result.get("query", {}).get("pages", {}).values(), key=lambda p: p["pageid"]):
+            params = {
+                "action": "query",
+                "generator": "categorymembers",
+                "gcmtitle": "Category:" + category,
+                "gcmtype": "file",
+                "gcmlimit": 50,
+                "prop": "imageinfo",
+                "iiprop": "url|extmetadata|size",
+                "iiurlwidth": width,
+                "format": "json",
+                **continuation,
+            }
+            result = json.loads(
+                fetch(
+                    "https://commons.wikimedia.org/w/api.php?" + urllib.parse.urlencode(params),
+                    8 * 1024 * 1024,
+                )
+            )
+            for page in sorted(
+                result.get("query", {}).get("pages", {}).values(), key=lambda p: p["pageid"]
+            ):
                 if len(selected) >= target:
                     break
                 entry = eligible_portrait(page, selected, category, width)
@@ -89,30 +107,48 @@ def portraits(directory, count, width):
     if len(selected) != count:
         raise ValueError(f"only {len(selected)} eligible public portraits for requested {count}")
     directory.mkdir(parents=True, exist_ok=True)
-    (directory / "selection.json").write_text(json.dumps(selected, ensure_ascii=False, indent=2), "utf-8")
+    (directory / "selection.json").write_text(
+        json.dumps(selected, ensure_ascii=False, indent=2), "utf-8"
+    )
     finish_portraits(directory, selected, count)
-
 
 
 def eligible_portrait(page, selected, category, width):
     if not page["title"].lower().endswith((".jpg", ".jpeg")):
         return None
-    if not page.get("imageinfo") or any(e["path"] == f"commons-{page['pageid']}.jpg" for e in selected):
+    if not page.get("imageinfo") or any(
+        e["path"] == f"commons-{page['pageid']}.jpg" for e in selected
+    ):
         return None
     info = page["imageinfo"][0]
     meta = info["extmetadata"]
     license_name = meta.get("LicenseShortName", {}).get("value", "")
     if not (license_name.startswith(("CC BY", "CC0")) or license_name == "Public domain"):
         return None
-    if "NC" in license_name or "ND" in license_name or info["size"] > 6 * 1024 * 1024 or info["width"] * info["height"] > 20_000_000:
+    if (
+        "NC" in license_name
+        or "ND" in license_name
+        or info["size"] > 6 * 1024 * 1024
+        or info["width"] * info["height"] > 20_000_000
+    ):
         return None
     if max(info["width"], info["height"]) < 640:
         return None
-    return {"path": f"commons-{page['pageid']}.jpg", "url": info.get("thumburl", info["url"]), "original_url": info["url"], "source_page": info["descriptionurl"],
-        "title": page["title"], "license": license_name, "license_url": meta.get("LicenseUrl", {}).get("value"),
-        "author": meta.get("Artist", {}).get("value"), "credit": meta.get("Credit", {}).get("value"),
-        "width": info.get("thumbwidth", info["width"]), "height": info.get("thumbheight", info["height"]), "category": category,
-        "modifications": f"Wikimedia standard {width}px thumbnail; original source URL retained"}
+    return {
+        "path": f"commons-{page['pageid']}.jpg",
+        "url": info.get("thumburl", info["url"]),
+        "original_url": info["url"],
+        "source_page": info["descriptionurl"],
+        "title": page["title"],
+        "license": license_name,
+        "license_url": meta.get("LicenseUrl", {}).get("value"),
+        "author": meta.get("Artist", {}).get("value"),
+        "credit": meta.get("Credit", {}).get("value"),
+        "width": info.get("thumbwidth", info["width"]),
+        "height": info.get("thumbheight", info["height"]),
+        "category": category,
+        "modifications": f"Wikimedia standard {width}px thumbnail; original source URL retained",
+    }
 
 
 def finish_portraits(directory, selected, count):
@@ -123,34 +159,76 @@ def finish_portraits(directory, selected, count):
         entry = download(item, directory)
         files.append(entry)
         print(f"portrait {len(files)}/{count}: {entry['path']}", flush=True)
-    (directory / "manifest.json").write_text(json.dumps({"count": count, "description": "independent Commons public portrait photographs; per-file license and attribution",
-        "accuracy_labels": False, "files": files}, ensure_ascii=False, indent=2), "utf-8")
+    (directory / "manifest.json").write_text(
+        json.dumps(
+            {
+                "count": count,
+                "description": "independent Commons public portrait photographs; per-file license and attribution",
+                "accuracy_labels": False,
+                "files": files,
+            },
+            ensure_ascii=False,
+            indent=2,
+        ),
+        "utf-8",
+    )
 
 
 def native(directory):
-    rows = json.loads(fetch("https://raw.pixls.us/json/getrepository.php", 16 * 1024 * 1024))["data"]
+    rows = json.loads(fetch("https://raw.pixls.us/json/getrepository.php", 16 * 1024 * 1024))[
+        "data"
+    ]
     entries = []
-    for identifier, filename in [(771, "canon-5d3.cr2"), (958, "nikon-d7000.nef"), (846, "sony-a7r.arw"), (915, "iphone-6s.dng")]:
+    for identifier, filename in [
+        (771, "canon-5d3.cr2"),
+        (958, "nikon-d7000.nef"),
+        (846, "sony-a7r.arw"),
+        (915, "iphone-6s.dng"),
+    ]:
         row = next(r for r in rows if f"getfile.php/{identifier}/" in r[7])
         assert "zero/1.0" in row[5]
         url = html.unescape(re.search(r"href='([^']+)'", row[7]).group(1))
         url = urllib.parse.quote(url, safe=":/")
         sha = re.search(r"[a-f0-9]{64}", row[7]).group()
-        entries.append({"path": filename, "url": url, "sha256": sha, "license": "CC0-1.0", "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-            "camera_make": row[0], "camera_model": row[1], "source_page": "https://raw.pixls.us/", "repository_record": row})
-    for source, filename in [("IMG_5195.HEIC", "iphone-5195.heic"), ("mobile/iphone_13_pro_max.HEIC", "iphone-13-pro-max.heic"),
-                             ("mobile/HMD_Nokia_8.3_5G.heif", "nokia-8-3.heif"), ("mobile/HMD_Nokia_8.3_5G_hdr.heif", "nokia-8-3-hdr.heif")]:
-        entries.append({"path": filename, "url": f"https://raw.githubusercontent.com/ianare/exif-samples/{REVISION}/heic/{source}",
-            "license": "CC-BY-SA-4.0", "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
-            "author": "Exif Samples contributors; see source repository history", "source_page": f"https://github.com/ianare/exif-samples/tree/{REVISION}/heic/{source}",
-            "license_evidence": f"https://github.com/ianare/exif-samples/blob/{REVISION}/README.rst"})
+        entries.append(
+            {
+                "path": filename,
+                "url": url,
+                "sha256": sha,
+                "license": "CC0-1.0",
+                "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+                "camera_make": row[0],
+                "camera_model": row[1],
+                "source_page": "https://raw.pixls.us/",
+                "repository_record": row,
+            }
+        )
+    for source, filename in [
+        ("IMG_5195.HEIC", "iphone-5195.heic"),
+        ("mobile/iphone_13_pro_max.HEIC", "iphone-13-pro-max.heic"),
+        ("mobile/HMD_Nokia_8.3_5G.heif", "nokia-8-3.heif"),
+        ("mobile/HMD_Nokia_8.3_5G_hdr.heif", "nokia-8-3-hdr.heif"),
+    ]:
+        entries.append(
+            {
+                "path": filename,
+                "url": f"https://raw.githubusercontent.com/ianare/exif-samples/{REVISION}/heic/{source}",
+                "license": "CC-BY-SA-4.0",
+                "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+                "author": "Exif Samples contributors; see source repository history",
+                "source_page": f"https://github.com/ianare/exif-samples/tree/{REVISION}/heic/{source}",
+                "license_evidence": f"https://github.com/ianare/exif-samples/blob/{REVISION}/README.rst",
+            }
+        )
     directory.mkdir(parents=True, exist_ok=True)
     files = []
     with ThreadPoolExecutor(3) as pool:
         for entry in pool.map(lambda e: download(e, directory), entries):
             files.append(entry)
             print(f"native {len(files)}/{len(entries)}: {entry['path']}", flush=True)
-    (directory / "manifest.json").write_text(json.dumps({"count": len(files), "files": files}, ensure_ascii=False, indent=2), "utf-8")
+    (directory / "manifest.json").write_text(
+        json.dumps({"count": len(files), "files": files}, ensure_ascii=False, indent=2), "utf-8"
+    )
 
 
 if __name__ == "__main__":
@@ -158,7 +236,11 @@ if __name__ == "__main__":
     parser.add_argument("--output", type=Path, default=ROOT / "artifacts/public-corpus")
     parser.add_argument("--portraits", type=int, default=100)
     parser.add_argument("--portrait-width", type=int, choices=[960, 1280], default=960)
-    parser.add_argument("--finalize-existing", action="store_true", help="Record only already downloaded licensed portraits; no network requests")
+    parser.add_argument(
+        "--finalize-existing",
+        action="store_true",
+        help="Record only already downloaded licensed portraits; no network requests",
+    )
     parser.add_argument("--native-only", action="store_true")
     args = parser.parse_args()
     if args.finalize_existing:
@@ -170,4 +252,8 @@ if __name__ == "__main__":
     else:
         native(args.output / "native")
         if not args.native_only:
-            portraits(args.output / f"portraits-{args.portrait_width}", args.portraits, args.portrait_width)
+            portraits(
+                args.output / f"portraits-{args.portrait_width}",
+                args.portraits,
+                args.portrait_width,
+            )

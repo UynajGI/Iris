@@ -1,25 +1,62 @@
 """Fast local Git gates. Inspect staged blobs, never rewrite working files."""
+
 from __future__ import annotations
 
 import ast
 import json
-from pathlib import PurePosixPath
 import re
 import subprocess
 import sys
-
+from pathlib import PurePosixPath
 
 MAX_BYTES = 5 * 1024 * 1024
 DENIED_ROOTS = (
-    "test-photos/", "artifacts/", ".iris/", ".iris-mcp/", ".impeccable/",
-    ".agents/", ".codegraph/", ".tools/", ".playwright-cli/", "reference/", "archive/", "archives/",
-    "models/optional/", "models/directml/", "models/media/", "models/raw/",
+    "test-photos/",
+    "artifacts/",
+    ".iris/",
+    ".iris-mcp/",
+    ".impeccable/",
+    ".agents/",
+    ".codegraph/",
+    ".tools/",
+    ".playwright-cli/",
+    "reference/",
+    "archive/",
+    "archives/",
+    "models/optional/",
+    "models/directml/",
+    "models/media/",
+    "models/raw/",
 )
 DENIED_PARTS = {"node_modules", "target", "dist", "out", "__pycache__", ".venv"}
-DENIED_SUFFIXES = {".exe", ".dll", ".onnx", ".npz", ".sqlite", ".sqlite3", ".db", ".pfx", ".p12", ".pem", ".key", ".pyc", ".log", ".sqlite-wal", ".sqlite-shm", ".sqlite3-wal", ".sqlite3-shm", ".db-wal", ".db-shm"}
+DENIED_SUFFIXES = {
+    ".exe",
+    ".dll",
+    ".onnx",
+    ".npz",
+    ".sqlite",
+    ".sqlite3",
+    ".db",
+    ".pfx",
+    ".p12",
+    ".pem",
+    ".key",
+    ".pyc",
+    ".log",
+    ".sqlite-wal",
+    ".sqlite-shm",
+    ".sqlite3-wal",
+    ".sqlite3-shm",
+    ".db-wal",
+    ".db-shm",
+}
 SECRET_PATTERNS = {
-    "private key": re.compile(rb"(?m)^-----BEGIN (?:(?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY|ENCRYPTED PRIVATE KEY)-----\s*$"),
-    "GitHub token": re.compile(rb"\b(?:gh[pousr]_[A-Za-z0-9]{36,255}|github_pat_[A-Za-z0-9_]{60,255})\b"),
+    "private key": re.compile(
+        rb"(?m)^-----BEGIN (?:(?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY|ENCRYPTED PRIVATE KEY)-----\s*$"
+    ),
+    "GitHub token": re.compile(
+        rb"\b(?:gh[pousr]_[A-Za-z0-9]{36,255}|github_pat_[A-Za-z0-9_]{60,255})\b"
+    ),
     "AWS access key": re.compile(rb"\bAKIA[A-Z0-9]{16}\b"),
     "service API key": re.compile(rb"\bsk-(?:proj-|live-)?[A-Za-z0-9_-]{32,255}\b"),
 }
@@ -42,7 +79,11 @@ def path_problem(path: str) -> str | None:
 
 
 def staged_blobs():
-    changed = {p for p in git("diff", "--cached", "--name-only", "--diff-filter=ACMR", "-z").split(b"\0") if p}
+    changed = {
+        p
+        for p in git("diff", "--cached", "--name-only", "--diff-filter=ACMR", "-z").split(b"\0")
+        if p
+    }
     entries = []
     for entry in git("ls-files", "--stage", "-z").split(b"\0"):
         if not entry:
@@ -57,19 +98,41 @@ def staged_blobs():
     blobs = [(name, oid) for name, mode, oid in entries if mode != b"160000"]
     if not blobs:
         return
-    metadata = git("cat-file", "--batch-check=%(objectname) %(objecttype) %(objectsize)",
-                   input=b"\n".join(oid for _, oid in blobs) + b"\n").splitlines()
+    metadata = git(
+        "cat-file",
+        "--batch-check=%(objectname) %(objecttype) %(objectsize)",
+        input=b"\n".join(oid for _, oid in blobs) + b"\n",
+    ).splitlines()
     for (name, oid), row in zip(blobs, metadata, strict=True):
         _, kind, size = row.split()
         if kind != b"blob":
             raise ValueError(f"{name}: expected a staged blob")
         count = int(size)
         # Reject large files before reading their bytes into the hook process.
-        yield name, count, None if count > MAX_BYTES else git("cat-file", "blob", oid.decode("ascii"))
+        yield (
+            name,
+            count,
+            None if count > MAX_BYTES else git("cat-file", "blob", oid.decode("ascii")),
+        )
 
 
-def pre_commit() -> None:
-    subprocess.run(["git", "diff", "--cached", "--check"], check=True)
+def check_syntax(name, data):
+    if name.endswith(".py"):
+        ast.parse(data, filename=name)
+    elif name.endswith(".json"):
+        json.loads(data.decode("utf-8-sig"))
+    elif name.endswith((".yml", ".yaml")):
+        from yaml import YAMLError, safe_load
+
+        try:
+            safe_load(data.decode("utf-8-sig"))
+        except YAMLError as error:
+            raise ValueError("invalid YAML") from error
+
+
+def pre_commit(before_format: bool = False) -> None:
+    if not before_format:
+        subprocess.run(["git", "diff", "--cached", "--check"], check=True)
     errors = []
     count = 0
     for name, size, data in staged_blobs():
@@ -85,18 +148,21 @@ def pre_commit() -> None:
             if pattern.search(data):
                 errors.append(f"{name}: possible {label} (value omitted)")
         try:
-            if name.endswith(".py"):
-                ast.parse(data, filename=name)
-            elif name.endswith(".json"):
-                json.loads(data.decode("utf-8-sig"))
-            elif name.endswith((".yml", ".yaml")):
-                from yaml import YAMLError, safe_load
-                try:
-                    safe_load(data.decode("utf-8-sig"))
-                except YAMLError as error:
-                    raise ValueError("invalid YAML") from error
-            if PurePosixPath(name).suffix in {".py", ".rs", ".ts", ".tsx", ".js", ".mjs", ".json", ".yaml", ".yml", ".toml", ".md"}:
-                if data and not data.endswith(b"\n"):
+            check_syntax(name, data)
+            if PurePosixPath(name).suffix in {
+                ".py",
+                ".rs",
+                ".ts",
+                ".tsx",
+                ".js",
+                ".mjs",
+                ".json",
+                ".yaml",
+                ".yml",
+                ".toml",
+                ".md",
+            }:
+                if not before_format and data and not data.endswith(b"\n"):
                     errors.append(f"{name}: missing final newline")
         except (SyntaxError, ValueError, UnicodeError) as error:
             errors.append(f"{name}: invalid staged syntax ({type(error).__name__})")
@@ -107,7 +173,7 @@ def pre_commit() -> None:
 
 def main() -> int:
     try:
-        pre_commit()
+        pre_commit(before_format="--before-format" in sys.argv[1:])
     except (ValueError, subprocess.CalledProcessError) as error:
         print(f"Git hook rejected the commit: {error}", file=sys.stderr)
         return 1

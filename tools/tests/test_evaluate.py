@@ -2,13 +2,15 @@ import copy
 import importlib.util
 import io
 import json
-from pathlib import Path
 import sqlite3
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
+from pathlib import Path
 
-SPEC = importlib.util.spec_from_file_location("iris_evaluate", Path(__file__).resolve().parents[1] / "evaluate.py")
+SPEC = importlib.util.spec_from_file_location(
+    "iris_evaluate", Path(__file__).resolve().parents[1] / "evaluate.py"
+)
 evaluate = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(evaluate)
 
@@ -16,6 +18,7 @@ SPEC.loader.exec_module(evaluate)
 def predicted(box, left="open", right="open"):
     def eye(state):
         return None if state is None else {"state": state}
+
     return {"bbox": [v * 100 for v in box], "left_eye": eye(left), "right_eye": eye(right)}
 
 
@@ -27,7 +30,13 @@ def photo(identifier=1, faces=None, elapsed=None):
     analysis = {"width": 100, "height": 100, "faces": faces or [], "version": "unit-test-fixture"}
     if elapsed is not None:
         analysis["elapsed_ms"] = elapsed
-    return {"photo_id": identifier, "path": f"{identifier}.jpg", "mtime": 123, "size_bytes": 456, "analysis": analysis}
+    return {
+        "photo_id": identifier,
+        "path": f"{identifier}.jpg",
+        "mtime": 123,
+        "size_bytes": 456,
+        "analysis": analysis,
+    }
 
 
 def complete(photos, truths=None, groups=None, acceptable=None):
@@ -38,30 +47,53 @@ def complete(photos, truths=None, groups=None, acceptable=None):
         record["ground_truth"]["faces"] = (truths or {}).get(record["photo_id"], [])
     for record in labels["groups"]:
         record["annotation_complete"] = True
-        record["ground_truth"]["acceptable_photo_ids"] = (acceptable or {}).get(record["group_id"], [])
+        record["ground_truth"]["acceptable_photo_ids"] = (acceptable or {}).get(
+            record["group_id"], []
+        )
     return labels
 
 
 def v5_photo(identifier, scores=(90, 0, 50), weights=(0.6, 0.2, 0.2), faces=None):
     p = photo(identifier, faces=faces)
-    p["analysis"].update(version="iris-vision-v5-observed-quality-2026-10-07", score_breakdown={
-        "method": evaluate.QUALITY_METHOD, "components": [{"id": "sharpness",
-            "score": sum((score or 0) * weight for score, weight in zip(scores, weights)),
-            "terms": [{"id": name, "score": score, "weight": weight}
-                      for name, score, weight in zip(("laplacian", "fft", "niqe"), scores, weights)]}]})
+    p["analysis"].update(
+        version="iris-vision-v5-observed-quality-2026-10-07",
+        score_breakdown={
+            "method": evaluate.QUALITY_METHOD,
+            "components": [
+                {
+                    "id": "sharpness",
+                    "score": sum((score or 0) * weight for score, weight in zip(scores, weights)),
+                    "terms": [
+                        {"id": name, "score": score, "weight": weight}
+                        for name, score, weight in zip(
+                            ("laplacian", "fft", "niqe"), scores, weights
+                        )
+                    ],
+                }
+            ],
+        },
+    )
     return p
 
 
 def preference(identifier, a, b, winner, dimension="sharpness"):
-    return {"id": identifier, "dimension": dimension, "a": a, "b": b,
-            "annotation_complete": True, "ground_truth": {"preference": winner}}
+    return {
+        "id": identifier,
+        "dimension": dimension,
+        "a": a,
+        "b": b,
+        "annotation_complete": True,
+        "ground_truth": {"preference": winner},
+    }
 
 
 def quality_face(box, scores):
     f = predicted(box)
-    f["quality"] = {"method": "preview_bbox_clipped_no_upscale_v1_lap50_exposure30_min_side128_20",
-                    **dict(zip(("sharpness_score", "exposure_score", "resolution_score"), scores)),
-                    "score": sum(v*w for v, w in zip(scores, (0.5, 0.3, 0.2)))}
+    f["quality"] = {
+        "method": "preview_bbox_clipped_no_upscale_v1_lap50_exposure30_min_side128_20",
+        **dict(zip(("sharpness_score", "exposure_score", "resolution_score"), scores)),
+        "score": sum(v * w for v, w in zip(scores, (0.5, 0.3, 0.2))),
+    }
     return f
 
 
@@ -92,32 +124,43 @@ class QualityPreferenceTests(unittest.TestCase):
         self.assertEqual((bucket["total"], bucket["gradable"], bucket["ungradable"]), (4, 3, 1))
         full, ablated = bucket["variants"]["full"], bucket["variants"]["without_fft"]
         self.assertEqual((full["answered"], full["correct"], full["abstained"]), (2, 1, 1))
-        self.assertEqual(full["coverage"], 2/3)
+        self.assertEqual(full["coverage"], 2 / 3)
         self.assertEqual(full["agreement_when_answered"], 0.5)
-        self.assertEqual(full["end_to_end_agreement"], 1/3)
+        self.assertEqual(full["end_to_end_agreement"], 1 / 3)
         self.assertEqual(ablated["agreement_delta_vs_full_on_paired"], 0.5)
-        self.assertEqual(q["pairs"][0]["variants"]["without_fft"]["a_score"], 80.)
+        self.assertEqual(q["pairs"][0]["variants"]["without_fft"]["a_score"], 80.0)
         self.assertEqual(q["pairs"][1]["variants"]["full"]["preference"], "tie")
         self.assertIsNone(q["pairs"][3]["variants"]["full"]["preference"])
 
     def test_local_quality_references_matched_human_faces_not_detection_order(self):
-        a, b = [0, 0, .2, .2], [.5, .5, .2, .2]
-        photos = [v5_photo(1, faces=[quality_face(a, (100, 0, 100))]),
-                  v5_photo(2, faces=[quality_face(b, (0, 100, 100)), predicted(a)])]
+        a, b = [0, 0, 0.2, 0.2], [0.5, 0.5, 0.2, 0.2]
+        photos = [
+            v5_photo(1, faces=[quality_face(a, (100, 0, 100))]),
+            v5_photo(2, faces=[quality_face(b, (0, 100, 100)), predicted(a)]),
+        ]
         labels = complete(photos, {1: [human(a)], 2: [human(a), human(b)]})
-        labels["quality_preferences"] = [preference("portrait", {"photo_id": 1, "face_index": 0},
-                                                   {"photo_id": 2, "face_index": 1}, "a", "face_quality")]
+        labels["quality_preferences"] = [
+            preference(
+                "portrait",
+                {"photo_id": 1, "face_index": 0},
+                {"photo_id": 2, "face_index": 1},
+                "a",
+                "face_quality",
+            )
+        ]
         q = evaluate.evaluate(1, photos, [], labels)["quality_preferences"]
         variants = q["dimensions"]["face_quality"]["variants"]
         self.assertEqual(variants["full"]["correct"], 1)
         self.assertEqual(variants["without_sharpness"]["correct"], 0)
-        self.assertEqual(q["pairs"][0]["variants"]["full"]["b_score"], 50.)
+        self.assertEqual(q["pairs"][0]["variants"]["full"]["b_score"], 50.0)
         labels["quality_preferences"][0]["a"]["face_index"] = 1
         with self.assertRaisesRegex(evaluate.ValidationError, "human truth face"):
             evaluate.evaluate(1, photos, [], labels)
         labels["quality_preferences"][0]["a"]["face_index"] = 0
         photos[1]["analysis"]["faces"] = []
-        q = evaluate.evaluate(1, photos, [], labels)["quality_preferences"]["dimensions"]["face_quality"]
+        q = evaluate.evaluate(1, photos, [], labels)["quality_preferences"]["dimensions"][
+            "face_quality"
+        ]
         self.assertEqual(q["variants"]["full"]["abstained"], 1)
         self.assertIsNone(q["variants"]["full"]["agreement_when_answered"])
 
@@ -144,10 +187,15 @@ class QualityPreferenceTests(unittest.TestCase):
                     evaluate.evaluate(1, photos, [], labels)
 
     def test_missing_terms_and_zero_retained_budget_never_invent_a_score(self):
-        photos = [v5_photo(1, (None, None, 50), (0, 0, 1)), v5_photo(2, (None, None, 50), (0, 0, 1))]
+        photos = [
+            v5_photo(1, (None, None, 50), (0, 0, 1)),
+            v5_photo(2, (None, None, 50), (0, 0, 1)),
+        ]
         labels = complete(photos)
         labels["quality_preferences"] = [preference("tie", {"photo_id": 1}, {"photo_id": 2}, "tie")]
-        q = evaluate.evaluate(1, photos, [], labels)["quality_preferences"]["dimensions"]["sharpness"]["variants"]
+        q = evaluate.evaluate(1, photos, [], labels)["quality_preferences"]["dimensions"][
+            "sharpness"
+        ]["variants"]
         self.assertEqual(q["full"]["correct"], 1)
         self.assertEqual(q["without_niqe"]["abstained"], 1)
         self.assertIsNone(q["without_niqe"]["agreement_delta_vs_full_on_paired"])
@@ -162,11 +210,22 @@ class EvaluationTests(unittest.TestCase):
         photos = [photo(faces=[predicted(a, "open", "uncertain"), predicted(b, None, "closed")])]
         truth = [human(box, "ungradable", "ungradable") for box in [a, b, c]]
         for face in truth:
-            face.update(left_eye_ungradable_reason="occlusion", right_eye_ungradable_reason="occlusion")
+            face.update(
+                left_eye_ungradable_reason="occlusion", right_eye_ungradable_reason="occlusion"
+            )
         report = evaluate.evaluate(1, photos, [], complete(photos, {1: truth}))
         stats = report["ungradable_eyes"]
-        self.assertEqual((stats["total"], stats["matched_face_eyes"], stats["missing_face_eyes"]), (6, 4, 2))
-        self.assertEqual((stats["determinate_predictions"], stats["uncertain_predictions"], stats["hidden_predictions"]), (2, 1, 1))
+        self.assertEqual(
+            (stats["total"], stats["matched_face_eyes"], stats["missing_face_eyes"]), (6, 4, 2)
+        )
+        self.assertEqual(
+            (
+                stats["determinate_predictions"],
+                stats["uncertain_predictions"],
+                stats["hidden_predictions"],
+            ),
+            (2, 1, 1),
+        )
         self.assertEqual(stats["determinate_rate_when_matched"], 0.5)
         self.assertEqual(stats["state_display_rate_when_matched"], 0.75)
         self.assertEqual(stats["by_reason"]["occlusion"]["total"], 6)
@@ -204,13 +263,21 @@ class EvaluationTests(unittest.TestCase):
     def test_known_false_positives_false_negatives_and_eye_abstention(self):
         a, b, false_positive = [0.1, 0.1, 0.2, 0.2], [0.5, 0.1, 0.2, 0.2], [0.8, 0.8, 0.1, 0.1]
         photos = [photo(faces=[predicted(a, "open", "uncertain"), predicted(false_positive)])]
-        labels = complete(photos, {1: [human(a, "open", "closed"), human(b, "closed", "ungradable")]})
+        labels = complete(
+            photos, {1: [human(a, "open", "closed"), human(b, "closed", "ungradable")]}
+        )
         report = evaluate.evaluate(1, photos, [], labels)
-        self.assertEqual({key: report["face_detection"][key] for key in ("tp", "fp", "fn")}, {"tp": 1, "fp": 1, "fn": 1})
+        self.assertEqual(
+            {key: report["face_detection"][key] for key in ("tp", "fp", "fn")},
+            {"tp": 1, "fp": 1, "fn": 1},
+        )
         self.assertEqual(report["face_detection"]["precision"], 0.5)
         self.assertEqual(report["face_detection"]["recall"], 0.5)
         eyes = report["eyes"]
-        self.assertEqual((eyes["gradable"], eyes["ungradable"], eyes["answered"], eyes["abstained"]), (3, 1, 1, 2))
+        self.assertEqual(
+            (eyes["gradable"], eyes["ungradable"], eyes["answered"], eyes["abstained"]),
+            (3, 1, 1, 2),
+        )
         self.assertEqual((eyes["missing_face_eyes"], eyes["uncertain_predictions"]), (1, 1))
         self.assertEqual(eyes["coverage"], 1 / 3)
         self.assertEqual(eyes["accuracy_when_answered"], 1.0)
@@ -267,7 +334,9 @@ class EvaluationTests(unittest.TestCase):
         labels = complete(photos, groups=groups, acceptable={"burst-id": [1], "duplicate-id": [2]})
         self.assertEqual([g["group_key"] for g in labels["groups"]], ["burst:1,2", "duplicate:1,2"])
         report = evaluate.evaluate(1, photos, groups, labels)
-        self.assertEqual(report["groups"], {"total": 2, "successful": 1, "top_recommendation_success_rate": 0.5})
+        self.assertEqual(
+            report["groups"], {"total": 2, "successful": 1, "top_recommendation_success_rate": 0.5}
+        )
         changed = copy.deepcopy(groups)
         changed[1]["member_photo_ids"] = [2, 1]
         changed[1]["group_id"] = "regenerated-duplicate-id"
@@ -290,7 +359,10 @@ class EvaluationTests(unittest.TestCase):
             (lambda labels: labels["photos"].pop(), "Missing or extra"),
             (lambda labels: labels["photos"][0].update(annotation_complete=False), "incomplete"),
             (lambda labels: labels["photos"][0].update(mtime=999), "fingerprint differs"),
-            (lambda labels: labels["photos"].append(copy.deepcopy(labels["photos"][0])), "Duplicate"),
+            (
+                lambda labels: labels["photos"].append(copy.deepcopy(labels["photos"][0])),
+                "Duplicate",
+            ),
         ]:
             labels = copy.deepcopy(good)
             change(labels)
@@ -321,21 +393,34 @@ class EvaluationTests(unittest.TestCase):
         labels = complete(photos)
         report = evaluate.evaluate(1, photos, [], labels)
         self.assertFalse(report["design_dataset_gate"]["satisfied"])
-        with self.assertRaisesRegex(evaluate.ValidationError, "300 photos and 60 unique burst groups"):
+        with self.assertRaisesRegex(
+            evaluate.ValidationError, "300 photos and 60 unique burst groups"
+        ):
             evaluate.evaluate(1, photos, [], labels, require_design_gate=True)
 
     def test_design_gate_counts_only_unique_burst_member_sets(self):
         photos = [photo(i) for i in range(300)]
-        bursts = [{"group_id": str(i), "kind": "burst", "member_photo_ids": [2*i, 2*i+1]} for i in range(60)]
-        duplicates = [{**g, "group_id": "d"+g["group_id"], "kind": "duplicate"} for g in bursts]
-        for groups in [duplicates, bursts[:30]+duplicates, bursts[:59]+duplicates]:
+        bursts = [
+            {"group_id": str(i), "kind": "burst", "member_photo_ids": [2 * i, 2 * i + 1]}
+            for i in range(60)
+        ]
+        duplicates = [{**g, "group_id": "d" + g["group_id"], "kind": "duplicate"} for g in bursts]
+        for groups in [duplicates, bursts[:30] + duplicates, bursts[:59] + duplicates]:
             with self.assertRaisesRegex(evaluate.ValidationError, "60 unique burst"):
-                evaluate.evaluate(1, photos, groups, complete(photos, groups=groups), require_design_gate=True)
+                evaluate.evaluate(
+                    1, photos, groups, complete(photos, groups=groups), require_design_gate=True
+                )
         repeated = [dict(bursts[0], group_id=str(i), member_photo_ids=[1, 0]) for i in range(60)]
         gate = evaluate.design_dataset_gate(photos, repeated + duplicates, True)
         self.assertEqual(gate["unique_burst_groups"], 1)
         self.assertFalse(gate["satisfied"])
-        report = evaluate.evaluate(1, photos, bursts+duplicates, complete(photos, groups=bursts+duplicates), require_design_gate=True)
+        report = evaluate.evaluate(
+            1,
+            photos,
+            bursts + duplicates,
+            complete(photos, groups=bursts + duplicates),
+            require_design_gate=True,
+        )
         self.assertTrue(report["design_dataset_gate"]["satisfied"])
         self.assertEqual(report["design_dataset_gate"]["unique_burst_groups"], 60)
         self.assertEqual(report["design_dataset_gate"]["unique_duplicate_groups"], 60)
@@ -364,12 +449,16 @@ class EvaluationTests(unittest.TestCase):
             root = Path(directory)
             database = root / "project.sqlite"
             connection = sqlite3.connect(database)
-            connection.executescript("CREATE TABLE projects(id INTEGER); INSERT INTO projects VALUES(1); "
-                                     "CREATE TABLE photos(id INTEGER,project_id INTEGER,path TEXT,mtime INTEGER,size_bytes INTEGER,missing INTEGER,quarantined INTEGER);"
-                                     "CREATE TABLE analyses(photo_id INTEGER,data TEXT);"
-                                     "CREATE TABLE burst_groups(id TEXT,project_id INTEGER,kind TEXT,members TEXT);"
-                                     "INSERT INTO photos VALUES(1,1,'1.jpg',123,456,0,0);")
-            connection.execute("INSERT INTO analyses VALUES(1,?)", (json.dumps(photo()["analysis"]),))
+            connection.executescript(
+                "CREATE TABLE projects(id INTEGER); INSERT INTO projects VALUES(1); "
+                "CREATE TABLE photos(id INTEGER,project_id INTEGER,path TEXT,mtime INTEGER,size_bytes INTEGER,missing INTEGER,quarantined INTEGER);"
+                "CREATE TABLE analyses(photo_id INTEGER,data TEXT);"
+                "CREATE TABLE burst_groups(id TEXT,project_id INTEGER,kind TEXT,members TEXT);"
+                "INSERT INTO photos VALUES(1,1,'1.jpg',123,456,0,0);"
+            )
+            connection.execute(
+                "INSERT INTO analyses VALUES(1,?)", (json.dumps(photo()["analysis"]),)
+            )
             connection.commit()
             connection.close()
             before = database.read_bytes()
@@ -378,11 +467,15 @@ class EvaluationTests(unittest.TestCase):
             with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
                 self.assertEqual(evaluate.main(["prepare", *command, "--output", str(output)]), 0)
                 self.assertEqual(evaluate.main(["prepare", *command, "--output", str(output)]), 2)
-                self.assertEqual(evaluate.main(["evaluate", *command, "--annotations", str(output)]), 2)
+                self.assertEqual(
+                    evaluate.main(["evaluate", *command, "--annotations", str(output)]), 2
+                )
                 labels = json.loads(output.read_text())
                 labels["photos"][0]["annotation_complete"] = True
                 output.write_text(json.dumps(labels))
-                self.assertEqual(evaluate.main(["evaluate", *command, "--annotations", str(output)]), 0)
+                self.assertEqual(
+                    evaluate.main(["evaluate", *command, "--annotations", str(output)]), 0
+                )
             self.assertEqual(database.read_bytes(), before)
 
 

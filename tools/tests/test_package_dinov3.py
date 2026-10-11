@@ -1,13 +1,15 @@
 import hashlib
 import importlib.util
 import json
-from pathlib import Path
 import tempfile
 import unittest
-from unittest.mock import patch
 import zipfile
+from pathlib import Path
+from unittest.mock import patch
 
-SPEC = importlib.util.spec_from_file_location("package_dinov3", Path(__file__).resolve().parents[1] / "package-dinov3.py")
+SPEC = importlib.util.spec_from_file_location(
+    "package_dinov3", Path(__file__).resolve().parents[1] / "package-dinov3.py"
+)
 package = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(package)
 
@@ -22,12 +24,26 @@ class OptionalBundleTests(unittest.TestCase):
         self.license = b"fixture-license"
         self.sha = hashlib.sha256(self.model).hexdigest()
         self.sources = {"LICENSE.md": (len(self.license), hashlib.sha256(self.license).hexdigest())}
-        self.patches = [patch.object(package.SETUP, "SIZE", len(self.model)), patch.object(package.SETUP, "SHA256", self.sha), patch.object(package.SETUP, "SOURCES", self.sources)]
+        self.patches = [
+            patch.object(package.SETUP, "SIZE", len(self.model)),
+            patch.object(package.SETUP, "SHA256", self.sha),
+            patch.object(package.SETUP, "SOURCES", self.sources),
+        ]
         for change in self.patches:
             change.start()
         (self.source / "dinov3_vits16.onnx").write_bytes(self.model)
         (self.source / "LICENSE-DINOv3.md").write_bytes(self.license)
-        metadata = {"sha256": self.sha, "bytes": len(self.model), "source_revision": package.SETUP.REVISION, "source_repository": package.SETUP.REPOSITORY, "base_model": "facebook/dinov3-vits16-pretrain-lvd1689m", "sources": {name: {"bytes": size, "sha256": digest} for name, (size, digest) in self.sources.items()}}
+        metadata = {
+            "sha256": self.sha,
+            "bytes": len(self.model),
+            "source_revision": package.SETUP.REVISION,
+            "source_repository": package.SETUP.REPOSITORY,
+            "base_model": "facebook/dinov3-vits16-pretrain-lvd1689m",
+            "sources": {
+                name: {"bytes": size, "sha256": digest}
+                for name, (size, digest) in self.sources.items()
+            },
+        }
         (self.source / "dinov3_vits16.metadata.json").write_text(json.dumps(metadata))
 
     def tearDown(self):
@@ -46,7 +62,10 @@ class OptionalBundleTests(unittest.TestCase):
             self.assertEqual(hashlib.sha256(file.read_bytes()).hexdigest(), entry["sha256"])
             self.assertEqual(file.stat().st_size, entry["bytes"])
         with zipfile.ZipFile(result["archive"]) as archive:
-            self.assertEqual(set(archive.namelist()), {entry["path"] for entry in manifest["files"]} | {"checksums.json"})
+            self.assertEqual(
+                set(archive.namelist()),
+                {entry["path"] for entry in manifest["files"]} | {"checksums.json"},
+            )
         self.assertFalse((output / "models/optional/scrfd_500m.onnx").exists())
         self.assertIn("does not enable", (output / "README.md").read_text())
 
@@ -83,7 +102,9 @@ class OptionalBundleTests(unittest.TestCase):
         sha = hashlib.sha256(data).hexdigest()
         graph = self.source / package.GPU.FILE
         graph.write_bytes(data)
-        graph.with_suffix(".metadata.json").write_text(json.dumps({"sha256": sha, "bytes": len(data), "original_sha256": self.sha}))
+        graph.with_suffix(".metadata.json").write_text(
+            json.dumps({"sha256": sha, "bytes": len(data), "original_sha256": self.sha})
+        )
         with patch.object(package.GPU, "SIZE", len(data)), patch.object(package.GPU, "SHA256", sha):
             output = self.root / "gpu"
             result = package.package(self.source, output, make_zip=False, include_directml=True)

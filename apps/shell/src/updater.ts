@@ -1,4 +1,7 @@
-export interface UpdateError { code: string; message: string }
+export interface UpdateError {
+  code: string;
+  message: string;
+}
 export interface UpdateInfo {
   version: string;
   current_version: string;
@@ -6,7 +9,16 @@ export interface UpdateInfo {
   published_at_unix: number | null;
 }
 export interface UpdateStatus {
-  state: 'not_configured' | 'idle' | 'checking' | 'up_to_date' | 'available' | 'downloading' | 'downloaded' | 'installing' | 'failed';
+  state:
+    | 'not_configured'
+    | 'idle'
+    | 'checking'
+    | 'up_to_date'
+    | 'available'
+    | 'downloading'
+    | 'downloaded'
+    | 'installing'
+    | 'failed';
   current_version: string;
   update: UpdateInfo | null;
   downloaded_bytes: number;
@@ -14,20 +26,42 @@ export interface UpdateStatus {
   reason: string | null;
   error: UpdateError | null;
 }
-export interface UpdaterState { status: UpdateStatus | null; pending: boolean; error: UpdateError | null }
+export interface UpdaterState {
+  status: UpdateStatus | null;
+  pending: boolean;
+  error: UpdateError | null;
+}
 export interface NativeUpdaterBridge {
   core: { invoke<T>(command: string): Promise<T> };
-  event: { listen<T>(event: string, callback: (event: { payload: T }) => void): Promise<() => void> };
+  event: {
+    listen<T>(event: string, callback: (event: { payload: T }) => void): Promise<() => void>;
+  };
 }
 type UpdateCommand = 'update_status' | 'check_for_update' | 'download_update' | 'install_update';
 
 export class UpdateCommandError extends Error {
-  constructor(readonly code: string, message: string) { super(message); this.name = 'UpdateCommandError'; }
+  constructor(
+    readonly code: string,
+    message: string
+  ) {
+    super(message);
+    this.name = 'UpdateCommandError';
+  }
 }
 function commandError(error: unknown): UpdateCommandError {
-  if (typeof error === 'object' && error !== null && 'code' in error && 'message' in error
-    && typeof error.code === 'string' && typeof error.message === 'string') return new UpdateCommandError(error.code, error.message);
-  return new UpdateCommandError('native_error', error instanceof Error ? error.message : String(error));
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    'message' in error &&
+    typeof error.code === 'string' &&
+    typeof error.message === 'string'
+  )
+    return new UpdateCommandError(error.code, error.message);
+  return new UpdateCommandError(
+    'native_error',
+    error instanceof Error ? error.message : String(error)
+  );
 }
 
 /** Native updater state is independent of the daemon's project/session lifecycle. */
@@ -41,7 +75,12 @@ export class UpdaterStore {
   private queue: Promise<unknown> = Promise.resolve();
   constructor(private readonly bridge: NativeUpdaterBridge) {}
   getSnapshot = (): UpdaterState => this.state;
-  subscribe = (listener: () => void): (() => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
+  subscribe = (listener: () => void): (() => void) => {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  };
   private update(patch: Partial<UpdaterState>): void {
     this.state = { ...this.state, ...patch };
     for (const listener of this.listeners) listener();
@@ -52,17 +91,22 @@ export class UpdaterStore {
     const generation = this.generation;
     const attach = async () => {
       try {
-        const unlisten = await this.bridge.event.listen<UpdateStatus>('updater:status', event => {
+        const unlisten = await this.bridge.event.listen<UpdateStatus>('updater:status', (event) => {
           if (generation !== this.generation) return;
           ++this.eventRevision;
           this.update({ status: event.payload, error: event.payload.error });
         });
-        if (generation !== this.generation) { unlisten(); return; }
+        if (generation !== this.generation) {
+          unlisten();
+          return;
+        }
         this.unlisten = unlisten;
         await this.refresh();
       } catch (error) {
         if (generation === this.generation) {
-          this.unlisten?.(); this.unlisten = undefined; this.connection = undefined;
+          this.unlisten?.();
+          this.unlisten = undefined;
+          this.connection = undefined;
           const failure = commandError(error);
           this.update({ error: { code: failure.code, message: failure.message } });
         }
@@ -80,13 +124,17 @@ export class UpdaterStore {
       this.update({ pending: true, error: null });
       try {
         const status = await this.bridge.core.invoke<UpdateStatus>(command);
-        if (generation === this.generation && revision === this.eventRevision) this.update({ status, error: status.error });
+        if (generation === this.generation && revision === this.eventRevision)
+          this.update({ status, error: status.error });
         return generation === this.generation ? this.state.status : null;
       } catch (error) {
         const failure = commandError(error);
-        if (generation === this.generation && revision === this.eventRevision) this.update({ error: { code: failure.code, message: failure.message } });
+        if (generation === this.generation && revision === this.eventRevision)
+          this.update({ error: { code: failure.code, message: failure.message } });
         throw failure;
-      } finally { if (generation === this.generation) this.update({ pending: false }); }
+      } finally {
+        if (generation === this.generation) this.update({ pending: false });
+      }
     });
     this.queue = next.catch(() => undefined);
     return next;
@@ -98,7 +146,9 @@ export class UpdaterStore {
   install = (): Promise<UpdateStatus | null> => this.command('install_update');
   dispose(): void {
     ++this.generation;
-    this.unlisten?.(); this.unlisten = undefined; this.connection = undefined;
+    this.unlisten?.();
+    this.unlisten = undefined;
+    this.connection = undefined;
     this.update({ pending: false });
     this.listeners.clear();
   }

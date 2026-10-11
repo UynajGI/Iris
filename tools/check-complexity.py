@@ -4,19 +4,23 @@ Run with: uv tool run --from lizard==1.24.1 python tools/check-complexity.py
 """
 
 import argparse
+import json
+import subprocess
 from collections import Counter
 from importlib.metadata import version
-import json
 from pathlib import Path, PurePosixPath
-import subprocess
 
 import lizard
 
 ROOT = Path(__file__).resolve().parents[1]
 LIZARD_VERSION = "1.24.1"
 SOURCE_ROOTS = (
-    "apps/shell/src/", "apps/shell/test/", "apps/shell/src-tauri/src/",
-    "crates/", "components/raw-decoder/src/", "tools/",
+    "apps/shell/src/",
+    "apps/shell/test/",
+    "apps/shell/src-tauri/src/",
+    "crates/",
+    "components/raw-decoder/src/",
+    "tools/",
 )
 EXTENSIONS = {".rs", ".ts", ".tsx", ".js", ".mjs", ".cjs", ".py"}
 
@@ -63,15 +67,22 @@ def analyze(source_files, ccn, nloc, scope):
             continue
         files += 1
         for function in lizard.analyze_file.analyze_source_code(path, code).function_list:
-            functions.append({
-                "path": path, "name": function.name, "line": function.start_line,
-                "ccn": function.cyclomatic_complexity, "nloc": function.nloc,
-                "area": area(path),
-            })
+            functions.append(
+                {
+                    "path": path,
+                    "name": function.name,
+                    "line": function.start_line,
+                    "ccn": function.cyclomatic_complexity,
+                    "nloc": function.nloc,
+                    "area": area(path),
+                }
+            )
     warnings = [f for f in functions if f["ccn"] > ccn or f["nloc"] > nloc]
     warnings.sort(key=lambda f: (-f["ccn"], -f["nloc"], f["path"], f["line"]))
     return {
-        "files": files, "functions": len(functions), "warning_count": len(warnings),
+        "files": files,
+        "functions": len(functions),
+        "warning_count": len(warnings),
         "warnings_by_area": dict(Counter(f["area"] for f in warnings)),
         "warnings": warnings,
     }
@@ -83,12 +94,16 @@ def save_report(path, report):
     if not destination.is_relative_to(artifact_root):
         raise ValueError("reports must be saved below ignored artifacts/")
     destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    destination.write_text(
+        json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
 
 
 def arguments():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--scope", choices=["repo", "frontend", "rust", "tools-and-tests"], default="repo")
+    parser.add_argument(
+        "--scope", choices=["repo", "frontend", "rust", "tools-and-tests"], default="repo"
+    )
     parser.add_argument("--ccn", type=int, default=15)
     parser.add_argument("--nloc", type=int, default=100)
     parser.add_argument("--baseline", help="compare immutable Git source without checking it out")
@@ -106,18 +121,28 @@ def main():
         raise SystemExit(f"use lizard=={LIZARD_VERSION} for comparable metrics")
     args = arguments()
     current = analyze(sources(), args.ccn, args.nloc, args.scope)
-    report = {"lizard": LIZARD_VERSION, "scope": args.scope,
-              "thresholds": {"ccn": args.ccn, "nloc": args.nloc}, "current": current}
+    report = {
+        "lizard": LIZARD_VERSION,
+        "scope": args.scope,
+        "thresholds": {"ccn": args.ccn, "nloc": args.nloc},
+        "current": current,
+    }
     if args.baseline:
         report["baseline_ref"] = args.baseline
         report["baseline"] = analyze(sources(args.baseline), args.ccn, args.nloc, args.scope)
-        print(f"Baseline: {report['baseline']['warning_count']} warnings; current: {current['warning_count']}")
-    print(f"Lizard {LIZARD_VERSION}: {current['files']} files, {current['functions']} functions; "
-          f"{current['warning_count']} warnings (CCN > {args.ccn} or NLOC > {args.nloc})")
+        print(
+            f"Baseline: {report['baseline']['warning_count']} warnings; current: {current['warning_count']}"
+        )
+    print(
+        f"Lizard {LIZARD_VERSION}: {current['files']} files, {current['functions']} functions; "
+        f"{current['warning_count']} warnings (CCN > {args.ccn} or NLOC > {int(args.nloc)})"
+    )
     print(f"By area: {current['warnings_by_area']}")
-    for function in current["warnings"][:args.top]:
-        print(f"{function['path']}:{function['line']} {function['name']} "
-              f"CCN={function['ccn']} NLOC={function['nloc']}")
+    for function in current["warnings"][: args.top]:
+        print(
+            f"{function['path']}:{function['line']} {function['name']} "
+            f"CCN={function['ccn']} NLOC={int(function['nloc'])}"
+        )
     if args.json:
         save_report(args.json, report)
     return int(args.fail and current["warning_count"] > 0)

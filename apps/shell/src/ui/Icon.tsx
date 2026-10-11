@@ -36,15 +36,53 @@ import sort from './icons/sort.svg';
 
 // Only repository-owned, pinned Material assets enter this markup; no user SVG.
 const sources = {
-  folder, grid, filter, settings, star, flag, undo, export: exportIcon, close,
-  'chevron-left': chevronLeft, 'chevron-right': chevronRight, image, compare, refresh,
-  play, stop, warning, expand, back, done, library, info,
-  'zoom-in': zoomIn, 'zoom-out': zoomOut, fullscreen, 'fullscreen-exit': fullscreenExit, fit, actual,
-  face, tune, camera, schedule, storage, 'auto-awesome': autoAwesome, sort,
+  folder,
+  grid,
+  filter,
+  settings,
+  star,
+  flag,
+  undo,
+  export: exportIcon,
+  close,
+  'chevron-left': chevronLeft,
+  'chevron-right': chevronRight,
+  image,
+  compare,
+  refresh,
+  play,
+  stop,
+  warning,
+  expand,
+  back,
+  done,
+  library,
+  info,
+  'zoom-in': zoomIn,
+  'zoom-out': zoomOut,
+  fullscreen,
+  'fullscreen-exit': fullscreenExit,
+  fit,
+  actual,
+  face,
+  tune,
+  camera,
+  schedule,
+  storage,
+  'auto-awesome': autoAwesome,
+  sort,
 };
 export type IconName = keyof typeof sources;
 export function Icon({ name, className = '' }: { name: IconName; className?: string }) {
   const source = sources[name];
-  const normalized = source.includes('viewBox=') ? source : source.replace('<svg ', '<svg viewBox="0 0 24 24" ');
-  return <span className={`icon ${className}`} aria-hidden="true" dangerouslySetInnerHTML={{ __html: normalized }} />;
+  const normalized = source.includes('viewBox=')
+    ? source
+    : source.replace('<svg ', '<svg viewBox="0 0 24 24" ');
+  return (
+    <span
+      className={`icon ${className}`}
+      aria-hidden="true"
+      dangerouslySetInnerHTML={{ __html: normalized }}
+    />
+  );
 }

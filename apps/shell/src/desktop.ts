@@ -13,12 +13,19 @@ let reconnectProjectId: number | undefined;
 
 interface TauriBridge {
   core: { invoke<T>(command: string, args?: Record<string, unknown>): Promise<T> };
-  event: { listen<T>(event: string, callback: (event: { payload: T }) => void): Promise<() => void> };
+  event: {
+    listen<T>(event: string, callback: (event: { payload: T }) => void): Promise<() => void>;
+  };
 }
 declare global {
   interface Window {
     __TAURI__?: TauriBridge;
-    iris?: { store: IrisStore; commands: CommandSystem; updater: UpdaterStore; openFolder(): Promise<boolean> };
+    iris?: {
+      store: IrisStore;
+      commands: CommandSystem;
+      updater: UpdaterStore;
+      openFolder(): Promise<boolean>;
+    };
   }
 }
 /** Future presentation mounts into #root; this entrypoint has no screen or style. */
@@ -31,14 +38,25 @@ export async function connectDesktop(bridge: TauriBridge): Promise<void> {
   if (generation !== connectionGeneration) return;
   const store = new IrisStore(new IrisClient(new Transport(session)), viewPreferences);
   const updater = window.iris?.updater ?? new UpdaterStore(bridge);
-  window.iris = { store, commands: new CommandSystem(store), updater, openFolder: () => openProjectFolder(bridge.core, store) };
+  window.iris = {
+    store,
+    commands: new CommandSystem(store),
+    updater,
+    openFolder: () => openProjectFolder(bridge.core, store),
+  };
   // Reading native updater state never initiates a network check or download.
   void updater.connect().catch(() => {}); // The updater exposes its own structured error state.
   try {
     await store.initialize();
-    if (generation !== connectionGeneration) { store.dispose(); return; }
+    if (generation !== connectionGeneration) {
+      store.dispose();
+      return;
+    }
     if (previousId !== undefined) await store.restoreProject(previousId);
-    if (generation !== connectionGeneration) { store.dispose(); return; }
+    if (generation !== connectionGeneration) {
+      store.dispose();
+      return;
+    }
   } catch (error) {
     store.dispose();
     if (generation === connectionGeneration) throw error;
@@ -49,13 +67,21 @@ export async function connectDesktop(bridge: TauriBridge): Promise<void> {
 }
 if (typeof window !== 'undefined' && window.__TAURI__) {
   const bridge = window.__TAURI__;
-  const report = (error: unknown) => window.dispatchEvent(new CustomEvent('iris:error', { detail: String(error) }));
+  const report = (error: unknown) =>
+    window.dispatchEvent(new CustomEvent('iris:error', { detail: String(error) }));
   const synchronizeTitle = createAppTitleSynchronizer(bridge.core, document);
-  const updateTitle = () => { void synchronizeTitle(navigator.language).catch(report); };
+  const updateTitle = () => {
+    void synchronizeTitle(navigator.language).catch(report);
+  };
   updateTitle();
   window.addEventListener('languagechange', updateTitle);
   void connectDesktop(bridge).catch(report);
-  void bridge.event.listen('daemon:restarted', () => { void connectDesktop(bridge).catch(report); });
+  void bridge.event.listen('daemon:restarted', () => {
+    void connectDesktop(bridge).catch(report);
+  });
   void bridge.event.listen('daemon:unavailable', () => window.iris?.store.disconnect());
-  window.addEventListener('beforeunload', () => { window.iris?.store.dispose(); window.iris?.updater.dispose(); });
+  window.addEventListener('beforeunload', () => {
+    window.iris?.store.dispose();
+    window.iris?.updater.dispose();
+  });
 }

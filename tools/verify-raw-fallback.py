@@ -1,10 +1,11 @@
 """Measure actual compiled RAW development and oversize isolation without ExifTool."""
+
 import argparse
 import hashlib
 import json
-from pathlib import Path
 import shutil
 import sys
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "artifacts/validation-python"))
@@ -23,17 +24,25 @@ def main():
     args = parser.parse_args()
     if args.output.exists():
         parser.error("output must be new")
-    photos = args.output / "photos"; photos.mkdir(parents=True)
-    models = args.output / "models"; models.mkdir()
+    photos = args.output / "photos"
+    photos.mkdir(parents=True)
+    models = args.output / "models"
+    models.mkdir()
     for source in args.models.iterdir():
         if source.is_file():
             shutil.copy2(source, models / source.name)
-    sources = [ROOT / "artifacts/public-corpus/native" / n for n in ["iphone-6s.dng", "sony-a7r.arw"]]
+    sources = [
+        ROOT / "artifacts/public-corpus/native" / n for n in ["iphone-6s.dng", "sony-a7r.arw"]
+    ]
     hashes = {str(p): digest(p) for p in sources}
     for source in sources:
         shutil.copy2(source, photos / source.name)
-    report = {"ok": False, "daemon_sha256": digest(args.daemon), "exiftool_present": False,
-        "corpus_manifest": str(ROOT / "artifacts/public-corpus/native/manifest.json")}
+    report = {
+        "ok": False,
+        "daemon_sha256": digest(args.daemon),
+        "exiftool_present": False,
+        "corpus_manifest": str(ROOT / "artifacts/public-corpus/native/manifest.json"),
+    }
     try:
         with Daemon(args.daemon, models, args.output / "run", workers=1) as daemon:
             verify_analysis(daemon, photos, report)
@@ -44,7 +53,6 @@ def main():
     print(json.dumps(report))
 
 
-
 def verify_analysis(daemon, photos, report):
     project = daemon.request("POST", "/projects", {"root": str(photos.resolve())})["id"]
     report["scan"] = daemon.job(project, "scan")
@@ -52,12 +60,20 @@ def verify_analysis(daemon, photos, report):
     listing = daemon.request("GET", f"/projects/{project}/photos")
     dng = next(p for p in listing if p["filename"].endswith("dng"))
     arw = next(p for p in listing if p["filename"].endswith("arw"))
-    assert dng["analysis_status"] == "current" and dng["analysis"]["preview_source"] == "raw_developed"
+    assert (
+        dng["analysis_status"] == "current" and dng["analysis"]["preview_source"] == "raw_developed"
+    )
     assert arw["analysis"] is None
-    assert report["analysis"]["result"]["analyzed"] == 1 and report["analysis"]["result"]["failed"] == 1
-    assert any("24" in error or "develop" in error.lower() for error in report["analysis"]["errors"])
+    assert (
+        report["analysis"]["result"]["analyzed"] == 1
+        and report["analysis"]["result"]["failed"] == 1
+    )
+    assert any(
+        "24" in error or "develop" in error.lower() for error in report["analysis"]["errors"]
+    )
     report["memory"] = daemon.memory
     report["ok"] = True
+
 
 if __name__ == "__main__":
     main()

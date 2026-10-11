@@ -1,0 +1,24 @@
+# Generated outputs retain their generator's canonical representation.
+**/package-lock.json
+apps/shell/src/generated/**
+docs/openapi.json
+Cargo.lock
+**/Cargo.lock
+uv.lock
+
+# Local data, downloaded dependencies and build outputs.
+node_modules/
+target/
+dist/
+out/
+artifacts/
+test-photos/
+.tools/
+.agents/
+.codegraph/
+.playwright-cli/
+.venv/
+models/
+models/directml/
+models/media/
+models/raw/

@@ -6,14 +6,19 @@ import type { Locale } from '../src/i18n.js';
 test('native and document titles follow Chinese variants and the English fallback', async () => {
   const document = { title: '' };
   const calls: unknown[] = [];
-  const bridge: NativeTitleBridge = { async invoke<T>(command: string, args: unknown) {
-    calls.push({ command, args });
-    return undefined as T;
-  } };
+  const bridge: NativeTitleBridge = {
+    async invoke<T>(command: string, args: unknown) {
+      calls.push({ command, args });
+      return undefined as T;
+    },
+  };
   const synchronize = createAppTitleSynchronizer(bridge, document);
   for (const [language, expected, locale] of [
-    ['zh-CN', '伊人', 'zh-CN'], ['zh-TW', '伊人', 'zh-CN'], ['ZH-Hant', '伊人', 'zh-CN'],
-    ['en-US', 'Iris', 'en'], ['fr-FR', 'Iris', 'en'],
+    ['zh-CN', '伊人', 'zh-CN'],
+    ['zh-TW', '伊人', 'zh-CN'],
+    ['ZH-Hant', '伊人', 'zh-CN'],
+    ['en-US', 'Iris', 'en'],
+    ['fr-FR', 'Iris', 'en'],
   ]) {
     await synchronize(language!);
     assert.equal(document.title, expected);
@@ -25,20 +30,31 @@ test('overlapping language changes cannot leave native and document titles on an
   const document = { title: 'Iris' };
   const locales: string[] = [];
   let release!: () => void;
-  const held = new Promise<void>(resolve => { release = resolve; });
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
   let started!: () => void;
-  const firstStarted = new Promise<void>(resolve => { started = resolve; });
-  const bridge: NativeTitleBridge = { async invoke<T>(_command: string, args: { locale: Locale }) {
-    locales.push(args.locale);
-    if (locales.length === 1) { started(); await held; }
-    return undefined as T;
-  } };
+  const firstStarted = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  const bridge: NativeTitleBridge = {
+    async invoke<T>(_command: string, args: { locale: Locale }) {
+      locales.push(args.locale);
+      if (locales.length === 1) {
+        started();
+        await held;
+      }
+      return undefined as T;
+    },
+  };
   const synchronize = createAppTitleSynchronizer(bridge, document);
-  const first = synchronize('zh-CN'); await firstStarted;
+  const first = synchronize('zh-CN');
+  await firstStarted;
   const second = synchronize('en-US');
-  await new Promise(resolve => setImmediate(resolve));
+  await new Promise((resolve) => setImmediate(resolve));
   assert.deepEqual(locales, ['zh-CN']);
-  release(); await Promise.all([first, second]);
+  release();
+  await Promise.all([first, second]);
   assert.deepEqual(locales, ['zh-CN', 'en']);
   assert.equal(document.title, 'Iris');
 });
@@ -46,10 +62,12 @@ test('overlapping language changes cannot leave native and document titles on an
 test('native title errors propagate and do not block the next language change', async () => {
   const document = { title: 'Iris' };
   let fail = true;
-  const bridge: NativeTitleBridge = { async invoke<T>() {
-    if (fail) throw new Error('native title unavailable');
-    return undefined as T;
-  } };
+  const bridge: NativeTitleBridge = {
+    async invoke<T>() {
+      if (fail) throw new Error('native title unavailable');
+      return undefined as T;
+    },
+  };
   const synchronize = createAppTitleSynchronizer(bridge, document);
   await assert.rejects(synchronize('zh-CN'), /native title unavailable/);
   assert.equal(document.title, 'Iris');

@@ -3,20 +3,20 @@
 Uses only an already acquired, pinned local research model; never downloads or
 bundles weights. The explicit test threshold is not an accuracy calibration.
 """
+
 from __future__ import annotations
 
 import argparse
-from contextlib import closing
 import json
-from pathlib import Path
 import shutil
 import sqlite3
 import subprocess
 import sys
 import tempfile
+from contextlib import closing
+from pathlib import Path
 
 from verify_sample import digest
-
 
 ONNX_SHA256 = "e61151ef3be24948a2d45ba870a434fa3ce6b4c1b2d2dab90eb80a4fd635ea86"
 REVISION = "03f229dc75fa14ae480cca9810f983912c2730ad"
@@ -26,7 +26,9 @@ def predictions(snapshot: Path) -> dict:
     with closing(sqlite3.connect(snapshot.resolve().as_uri() + "?mode=ro", uri=True)) as db:
         result = {
             path: {key: value for key, value in json.loads(data).items() if key != "elapsed_ms"}
-            for path, data in db.execute("SELECT p.path,a.data FROM photos p JOIN analyses a ON a.photo_id=p.id")
+            for path, data in db.execute(
+                "SELECT p.path,a.data FROM photos p JOIN analyses a ON a.photo_id=p.id"
+            )
         }
     # Older serialized settings predate the additive, disabled provider fields.
     # Normalize only their documented defaults; retain every prediction field.
@@ -43,9 +45,20 @@ def main() -> None:
     parser.add_argument("--fixtures", type=Path, default=Path("test-photos"))
     parser.add_argument("--daemon", type=Path, default=Path("target/release/iris-daemon.exe"))
     parser.add_argument("--models", type=Path, default=Path("models"))
-    parser.add_argument("--onnx", type=Path, default=Path("artifacts/faceocc-research/faceocc-research.onnx"))
-    parser.add_argument("--baseline", type=Path, help="Optional same-analysis-version snapshot for exact default regression")
-    parser.add_argument("--threshold", type=float, required=True, help="Explicit experimental minimum visible fraction, not calibrated")
+    parser.add_argument(
+        "--onnx", type=Path, default=Path("artifacts/faceocc-research/faceocc-research.onnx")
+    )
+    parser.add_argument(
+        "--baseline",
+        type=Path,
+        help="Optional same-analysis-version snapshot for exact default regression",
+    )
+    parser.add_argument(
+        "--threshold",
+        type=float,
+        required=True,
+        help="Explicit experimental minimum visible fraction, not calibrated",
+    )
     parser.add_argument("--output-dir", type=Path, default=Path("artifacts/faceocc-integration"))
     args = parser.parse_args()
     if not 0 < args.threshold <= 1:
@@ -61,15 +74,28 @@ def main() -> None:
     with tempfile.TemporaryDirectory(prefix="iris-faceocc-models-") as temporary:
         model_dir = Path(temporary)
         metadata = prepare_model_directory(args, model_dir)
-        settings = {"occlusion_provider": "faceocc", "occlusion_model_sha256": ONNX_SHA256,
-                    "occlusion_min_visible_fraction": args.threshold}
+        settings = {
+            "occlusion_provider": "faceocc",
+            "occlusion_model_sha256": ONNX_SHA256,
+            "occlusion_min_visible_fraction": args.threshold,
+        }
         settings_file = out / "settings.json"
         settings_file.write_text(json.dumps(settings, indent=2), "utf-8")
         for variant in ("default", "faceocc"):
-            command = [sys.executable, str(Path(__file__).with_name("verify_sample.py")),
-                       "--fixtures", str(args.fixtures.resolve()), "--daemon", str(args.daemon.resolve()),
-                       "--models", str(model_dir), "--output", str(out / f"{variant}.json"),
-                       "--snapshot", str(out / f"{variant}.sqlite3")]
+            command = [
+                sys.executable,
+                str(Path(__file__).with_name("verify_sample.py")),
+                "--fixtures",
+                str(args.fixtures.resolve()),
+                "--daemon",
+                str(args.daemon.resolve()),
+                "--models",
+                str(model_dir),
+                "--output",
+                str(out / f"{variant}.json"),
+                "--snapshot",
+                str(out / f"{variant}.sqlite3"),
+            ]
             if variant == "faceocc":
                 command += ["--settings-file", str(settings_file)]
             with (out / f"{variant}.log").open("w", encoding="utf-8") as log:
@@ -80,21 +106,29 @@ def main() -> None:
             assert default == historical, "default deterministic predictions changed"
         assert default.keys() == masked.keys()
         transitions, measurements, newly_hidden = compare_mask_predictions(default, masked)
-        reports = {name: json.loads((out / f"{name}.json").read_text("utf-8")) for name in ("default", "faceocc")}
+        reports = {
+            name: json.loads((out / f"{name}.json").read_text("utf-8"))
+            for name in ("default", "faceocc")
+        }
         report = {
-            "passed": True, "default_predictions_unchanged": True if historical is not None else None, "photos": len(default),
+            "passed": True,
+            "default_predictions_unchanged": True if historical is not None else None,
+            "photos": len(default),
             "historical_regression_checked": historical is not None,
             "comparison_normalization": "Exclude elapsed_ms; expand only absent occlusion settings to disabled defaults",
-            "onnx_sha256": ONNX_SHA256, "daemon_sha256": digest(args.daemon),
-            "metadata": metadata, "settings": settings, "visibility_measurements": measurements,
-            "newly_hidden_eyes": newly_hidden, "eye_state_transitions": transitions,
+            "onnx_sha256": ONNX_SHA256,
+            "daemon_sha256": digest(args.daemon),
+            "metadata": metadata,
+            "settings": settings,
+            "visibility_measurements": measurements,
+            "newly_hidden_eyes": newly_hidden,
+            "eye_state_transitions": transitions,
             "analysis_seconds": {name: r["analysis"]["seconds"] for name, r in reports.items()},
             "cached_seconds": {name: r["incremental"]["seconds"] for name, r in reports.items()},
             "accuracy": "Not evaluated. No independent labels; crop geometry and threshold remain experimental.",
         }
         (out / "verification.json").write_text(json.dumps(report, indent=2), "utf-8")
         print(json.dumps(report, indent=2))
-
 
 
 def compare_mask_predictions(default, masked):
@@ -112,7 +146,9 @@ def compare_mask_predictions(default, masked):
                 key = old_state + " -> " + new_state
                 transitions[key] = transitions.get(key, 0) + 1
                 if old is None:
-                    assert new is None, "mask resurrected an eye suppressed by existing quality gates"
+                    assert new is None, (
+                        "mask resurrected an eye suppressed by existing quality gates"
+                    )
                 if new is not None:
                     assert new == old, "mask changed an eye measurement rather than gating it"
                 newly_hidden += old is not None and new is None
@@ -143,6 +179,7 @@ def prepare_model_directory(args, model_dir):
     }
     (optional / "faceocc.metadata.json").write_text(json.dumps(metadata, indent=2), "utf-8")
     return metadata
+
 
 if __name__ == "__main__":
     main()

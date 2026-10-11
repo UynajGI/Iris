@@ -1,16 +1,21 @@
 """Create a separate offline DINOv3 payload; never modify/install/enable an app."""
+
 import argparse
 import hashlib
 import importlib.util
 import json
-from pathlib import Path
 import shutil
 import zipfile
+from pathlib import Path
 
-SPEC = importlib.util.spec_from_file_location("setup_dinov3", Path(__file__).with_name("setup-dinov3.py"))
+SPEC = importlib.util.spec_from_file_location(
+    "setup_dinov3", Path(__file__).with_name("setup-dinov3.py")
+)
 SETUP = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(SETUP)
-GPU_SPEC = importlib.util.spec_from_file_location("setup_dinov3_directml", Path(__file__).with_name("setup-dinov3-directml.py"))
+GPU_SPEC = importlib.util.spec_from_file_location(
+    "setup_dinov3_directml", Path(__file__).with_name("setup-dinov3-directml.py")
+)
 GPU = importlib.util.module_from_spec(GPU_SPEC)
 GPU_SPEC.loader.exec_module(GPU)
 
@@ -99,7 +104,10 @@ def digest(path):
 
 
 def preflight(source, include_directml=False):
-    files = [source / name for name in ("dinov3_vits16.onnx", "LICENSE-DINOv3.md", "dinov3_vits16.metadata.json")]
+    files = [
+        source / name
+        for name in ("dinov3_vits16.onnx", "LICENSE-DINOv3.md", "dinov3_vits16.metadata.json")
+    ]
     if source.is_symlink() or any(not path.is_file() or path.is_symlink() for path in files):
         raise ValueError("DINOv3 payload must contain three regular source files")
     model, license_path, metadata_path = files
@@ -118,7 +126,9 @@ def package(source, output, make_zip=True, include_directml=False):
     source, output = source.resolve(), output.absolute()
     archive = output.with_suffix(".zip")
     if output.exists() or make_zip and archive.exists():
-        raise FileExistsError("Choose a new optional bundle path; existing artifacts are never replaced")
+        raise FileExistsError(
+            "Choose a new optional bundle path; existing artifacts are never replaced"
+        )
     files = preflight(source, include_directml)
     destination = output / "models/optional"
     destination.mkdir(parents=True)
@@ -126,28 +136,55 @@ def package(source, output, make_zip=True, include_directml=False):
         shutil.copyfile(path, destination / path.name)
     # Verify copies again so a changed source cannot silently enter the artifact.
     preflight(destination, include_directml)
-    (output / "README.md").write_text(README.format(sha256=SETUP.SHA256, size=SETUP.SIZE, directml=include_directml), encoding="utf-8")
+    (output / "README.md").write_text(
+        README.format(sha256=SETUP.SHA256, size=SETUP.SIZE, directml=include_directml),
+        encoding="utf-8",
+    )
     (output / "Verify.ps1").write_text(VERIFY, encoding="utf-8")
-    entries = [{"path": path.relative_to(output).as_posix(), "bytes": path.stat().st_size, "sha256": digest(path)} for path in sorted(output.rglob("*")) if path.is_file()]
-    manifest = {"product": "IrisVision-DINOv3-optional", "model_sha256": SETUP.SHA256, "source_revision": SETUP.REVISION, "directml": include_directml, "files": entries}
+    entries = [
+        {
+            "path": path.relative_to(output).as_posix(),
+            "bytes": path.stat().st_size,
+            "sha256": digest(path),
+        }
+        for path in sorted(output.rglob("*"))
+        if path.is_file()
+    ]
+    manifest = {
+        "product": "IrisVision-DINOv3-optional",
+        "model_sha256": SETUP.SHA256,
+        "source_revision": SETUP.REVISION,
+        "directml": include_directml,
+        "files": entries,
+    }
     (output / "checksums.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     if make_zip:
-        with zipfile.ZipFile(archive, "x", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as bundle:
+        with zipfile.ZipFile(
+            archive, "x", compression=zipfile.ZIP_DEFLATED, compresslevel=6
+        ) as bundle:
             for path in sorted(output.rglob("*")):
                 if path.is_file():
                     bundle.write(path, path.relative_to(output).as_posix())
-    return {"ok": True, "directory": str(output), "manifest_sha256": digest(output / "checksums.json"), "files": len(entries), "archive": str(archive) if make_zip else None, "archive_sha256": digest(archive) if make_zip else None}
+    return {
+        "ok": True,
+        "directory": str(output),
+        "manifest_sha256": digest(output / "checksums.json"),
+        "files": len(entries),
+        "archive": str(archive) if make_zip else None,
+        "archive_sha256": digest(archive) if make_zip else None,
+    }
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--source", type=Path, default=Path(__file__).resolve().parents[1] / "models/optional")
+    parser.add_argument(
+        "--source", type=Path, default=Path(__file__).resolve().parents[1] / "models/optional"
+    )
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--no-zip", action="store_true")
     parser.add_argument("--include-directml", action="store_true")
     args = parser.parse_args()
     print(json.dumps(package(args.source, args.output, not args.no_zip, args.include_directml)))
-
 
 
 def directml_payload(source):
@@ -158,19 +195,30 @@ def directml_payload(source):
     if graph.stat().st_size != GPU.SIZE or digest(graph) != GPU.SHA256:
         raise ValueError("DirectML artifact mismatch")
     info = json.loads(provenance.read_text("utf-8"))
-    if info.get("sha256") != GPU.SHA256 or info.get("bytes") != GPU.SIZE or info.get("original_sha256") != SETUP.SHA256:
+    if (
+        info.get("sha256") != GPU.SHA256
+        or info.get("bytes") != GPU.SIZE
+        or info.get("original_sha256") != SETUP.SHA256
+    ):
         raise ValueError("DirectML provenance mismatch")
     return [graph, provenance]
 
 
 def validate_provenance(metadata_path):
     metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-    if metadata.get("sha256") != SETUP.SHA256 or metadata.get("bytes") != SETUP.SIZE or metadata.get("source_revision") != SETUP.REVISION or metadata.get("source_repository") != SETUP.REPOSITORY or metadata.get("base_model") != "facebook/dinov3-vits16-pretrain-lvd1689m":
+    if (
+        metadata.get("sha256") != SETUP.SHA256
+        or metadata.get("bytes") != SETUP.SIZE
+        or metadata.get("source_revision") != SETUP.REVISION
+        or metadata.get("source_repository") != SETUP.REPOSITORY
+        or metadata.get("base_model") != "facebook/dinov3-vits16-pretrain-lvd1689m"
+    ):
         raise ValueError("DINOv3 provenance does not match the pinned model")
     for name, (size, sha256) in SETUP.SOURCES.items():
         entry = metadata.get("sources", {}).get(name, {})
         if entry.get("sha256") != sha256 or entry.get("bytes") != size:
             raise ValueError(f"DINOv3 provenance mismatch: {name}")
+
 
 if __name__ == "__main__":
     main()

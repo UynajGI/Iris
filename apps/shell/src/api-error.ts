@@ -1,5 +1,8 @@
 export class ApiError extends Error {
-  constructor(public readonly status: number, public readonly body: unknown) {
+  constructor(
+    public readonly status: number,
+    public readonly body: unknown
+  ) {
     const detail = errorDetail(body);
     super(`Iris API request failed (${status})${detail ? `: ${detail}` : ''}`);
     this.name = 'ApiError';

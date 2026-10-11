@@ -1,9 +1,10 @@
 """Copy a manifest-verified local runtime without links or unlisted payloads."""
+
 import argparse
 import hashlib
 import json
-from pathlib import Path
 import shutil
+from pathlib import Path
 
 
 def copy_closure(source, destination, kind):
@@ -15,15 +16,24 @@ def copy_closure(source, destination, kind):
     actual = actual_runtime_files(source)
     if actual != set(plan) | {"manifest.json"}:
         raise ValueError("unlisted runtime payload")
-    required = {"bin/exiftool.exe", "bin/exiftool_files/exiftool.pl"} if kind == "raw" else {"DirectML.dll", "onnxruntime.dll", "onnxruntime_providers_shared.dll"}
-    if not required <= plan.keys() or not any("license" in p.lower() or "copying" in p.lower() for p in plan):
+    required = (
+        {"bin/exiftool.exe", "bin/exiftool_files/exiftool.pl"}
+        if kind == "raw"
+        else {"DirectML.dll", "onnxruntime.dll", "onnxruntime_providers_shared.dll"}
+    )
+    if not required <= plan.keys() or not any(
+        "license" in p.lower() or "copying" in p.lower() for p in plan
+    ):
         raise ValueError("incomplete runtime closure")
     destination.mkdir(parents=True)
     for name, path in {**plan, "manifest.json": source / "manifest.json"}.items():
         target = destination / name
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(path, target)
-        if hashlib.sha256(target.read_bytes()).digest() != hashlib.sha256(path.read_bytes()).digest():
+        if (
+            hashlib.sha256(target.read_bytes()).digest()
+            != hashlib.sha256(path.read_bytes()).digest()
+        ):
             raise ValueError("copied runtime checksum mismatch")
     return len(plan)
 
@@ -43,7 +53,13 @@ def runtime_plan(source, entries):
     for entry in entries:
         name = entry["path"]
         parts = name.split("/")
-        if not name or any(p in {"", ".", ".."} for p in parts) or "\\" in name or ":" in name or name in plan:
+        if (
+            not name
+            or any(p in {"", ".", ".."} for p in parts)
+            or "\\" in name
+            or ":" in name
+            or name in plan
+        ):
             raise ValueError("invalid or duplicate runtime path")
         plan[name] = verified_runtime_entry(source, entry, parts)
     return plan
@@ -55,7 +71,11 @@ def verified_runtime_entry(source, entry, parts):
         path = path / part
         if path.is_symlink() or path.is_junction():
             raise ValueError("linked runtime entry")
-    if not path.is_file() or path.stat().st_size != entry["size"] or hashlib.sha256(path.read_bytes()).hexdigest() != entry["sha256"]:
+    if (
+        not path.is_file()
+        or path.stat().st_size != entry["size"]
+        or hashlib.sha256(path.read_bytes()).hexdigest() != entry["sha256"]
+    ):
         raise ValueError(f"runtime checksum mismatch: {entry['path']}")
     if path.suffix.lower() == ".onnx":
         raise ValueError("model weights are not a runtime payload")
@@ -68,4 +88,6 @@ if __name__ == "__main__":
     parser.add_argument("--destination", type=Path, required=True)
     parser.add_argument("--kind", choices=["raw", "directml"], required=True)
     args = parser.parse_args()
-    print(f"Copied {copy_closure(args.source, args.destination, args.kind)} verified {args.kind} files")
+    print(
+        f"Copied {copy_closure(args.source, args.destination, args.kind)} verified {args.kind} files"
+    )

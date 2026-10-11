@@ -1,7 +1,11 @@
 import type { Session } from './transport.js';
 
 export type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
-export interface DaemonEvent { kind?: string; type?: string; [key: string]: unknown }
+export interface DaemonEvent {
+  kind?: string;
+  type?: string;
+  [key: string]: unknown;
+}
 export interface Socket {
   onopen: ((event: Event) => void) | null;
   onmessage: ((event: MessageEvent) => void) | null;
@@ -27,7 +31,10 @@ export class EventBus {
   private stopped = true;
   private attempts = 0;
   private synchronizing = false;
-  constructor(private readonly session: Session, private readonly options: EventOptions) {}
+  constructor(
+    private readonly session: Session,
+    private readonly options: EventOptions
+  ) {}
   start(): void {
     if (!this.stopped) return;
     this.stopped = false;
@@ -46,15 +53,22 @@ export class EventBus {
   private async synchronize(): Promise<void> {
     if (this.stopped || this.synchronizing) return;
     this.synchronizing = true;
-    try { await this.options.synchronize(); }
-    catch (error) { this.options.onError?.(error); }
-    finally { this.synchronizing = false; }
+    try {
+      await this.options.synchronize();
+    } catch (error) {
+      this.options.onError?.(error);
+    } finally {
+      this.synchronizing = false;
+    }
   }
   private schedule(): void {
     if (this.stopped || this.retry !== undefined) return;
     this.options.onState('reconnecting');
     const delay = Math.min((this.options.retryMs ?? 500) * 2 ** this.attempts++, 15000);
-    this.retry = setTimeout(() => { this.retry = undefined; this.connect(); }, delay);
+    this.retry = setTimeout(() => {
+      this.retry = undefined;
+      this.connect();
+    }, delay);
   }
   private connect(): void {
     if (this.stopped) return;
@@ -62,7 +76,8 @@ export class EventBus {
     const url = new URL('/api/v1/events', this.session.base_url);
     url.protocol = 'ws:';
     try {
-      const createSocket = this.options.createSocket ?? ((address, protocols) => new WebSocket(address, protocols));
+      const createSocket =
+        this.options.createSocket ?? ((address, protocols) => new WebSocket(address, protocols));
       const socket = createSocket(url.toString(), ['iris', `iris-token.${this.session.token}`]);
       this.socket = socket;
       socket.onopen = () => {
@@ -71,20 +86,28 @@ export class EventBus {
         this.options.onState('connected');
         void this.synchronize();
       };
-      socket.onmessage = event => {
+      socket.onmessage = (event) => {
         if (this.socket !== socket || this.stopped) return;
         try {
           const data: unknown = JSON.parse(String(event.data));
-          if (typeof data !== 'object' || data === null || Array.isArray(data)) throw new Error('Invalid daemon event');
+          if (typeof data !== 'object' || data === null || Array.isArray(data))
+            throw new Error('Invalid daemon event');
           this.options.onEvent(data as DaemonEvent);
-        } catch (error) { this.options.onError?.(error); }
+        } catch (error) {
+          this.options.onError?.(error);
+        }
       };
-      socket.onerror = () => { socket.close(); };
+      socket.onerror = () => {
+        socket.close();
+      };
       socket.onclose = () => {
         if (this.socket !== socket || this.stopped) return;
         this.socket = undefined;
         this.schedule();
       };
-    } catch (error) { this.options.onError?.(error); this.schedule(); }
+    } catch (error) {
+      this.options.onError?.(error);
+      this.schedule();
+    }
   }
 }

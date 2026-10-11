@@ -1,11 +1,12 @@
 """Release identity and native runtime integrity regressions."""
+
 import importlib.util
 import io
 import json
-from pathlib import Path
 import sys
 import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 TOOLS = Path(__file__).resolve().parents[1]
@@ -29,7 +30,13 @@ class ReleaseTests(unittest.TestCase):
     def test_untrusted_runtime_archive_never_installs(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
-            with patch.object(onnx_runtime.platform, "system", return_value="Linux"), patch.object(onnx_runtime.platform, "machine", return_value="x86_64"), patch.object(onnx_runtime.urllib.request, "urlopen", return_value=io.BytesIO(b"untrusted")):
+            with (
+                patch.object(onnx_runtime.platform, "system", return_value="Linux"),
+                patch.object(onnx_runtime.platform, "machine", return_value="x86_64"),
+                patch.object(
+                    onnx_runtime.urllib.request, "urlopen", return_value=io.BytesIO(b"untrusted")
+                ),
+            ):
                 with self.assertRaisesRegex(ValueError, "SHA-256"):
                     onnx_runtime.install(root)
             self.assertEqual(list(root.iterdir()), [])

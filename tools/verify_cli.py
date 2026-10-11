@@ -1,10 +1,11 @@
 """Exercise the shipped CLI on disposable JPEG copies with real models."""
+
 import hashlib
 import json
-from pathlib import Path
 import shutil
 import subprocess
 import tempfile
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 binary = ROOT / "target/release/iris-cli.exe"
@@ -21,7 +22,20 @@ with tempfile.TemporaryDirectory(prefix="iris-cli-test-") as temporary:
         files.append((copied, entry["sha256"]))
 
     def cli(*args, expect_success=True):
-        result = subprocess.run([str(binary), "--database", str(work / "db.sqlite3"), "--model-dir", str(ROOT / "models"), *map(str, args)], cwd=work, text=True, capture_output=True, timeout=120)
+        result = subprocess.run(
+            [
+                str(binary),
+                "--database",
+                str(work / "db.sqlite3"),
+                "--model-dir",
+                str(ROOT / "models"),
+                *map(str, args),
+            ],
+            cwd=work,
+            text=True,
+            capture_output=True,
+            timeout=120,
+        )
         if not expect_success:
             assert result.returncode != 0, "invalid command unexpectedly succeeded"
             return result.stderr
@@ -44,7 +58,9 @@ with tempfile.TemporaryDirectory(prefix="iris-cli-test-") as temporary:
     assert settings["face_detector"] == "yunet"
     model_status = cli("models", project)
     assert model_status["selected"] == "yunet"
-    assert any(d["provider"] == "yunet" and d["state"] == "available" for d in model_status["detectors"])
+    assert any(
+        d["provider"] == "yunet" and d["state"] == "available" for d in model_status["detectors"]
+    )
     settings_file = work / "settings.json"
     settings["eyes_weight"] = 26
     settings_file.write_text(json.dumps(settings), encoding="utf-8")
@@ -88,4 +104,16 @@ with tempfile.TemporaryDirectory(prefix="iris-cli-test-") as temporary:
     for copied, expected in files:
         with copied.open("rb") as stream:
             assert hashlib.file_digest(stream, "sha256").hexdigest() == expected
-    print(json.dumps({"cli_workflow": "passed", "real_model_photos": 2, "sources_preserved": True, "outside_repo_cwd": True, "detector_settings_and_status": "passed", "recent_project_history": "passed", "manifest_scoped_cache_cleanup": "passed"}))
+    print(
+        json.dumps(
+            {
+                "cli_workflow": "passed",
+                "real_model_photos": 2,
+                "sources_preserved": True,
+                "outside_repo_cwd": True,
+                "detector_settings_and_status": "passed",
+                "recent_project_history": "passed",
+                "manifest_scoped_cache_cleanup": "passed",
+            }
+        )
+    )

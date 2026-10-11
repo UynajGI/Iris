@@ -15,7 +15,18 @@ export interface PhotoAnalysisReadout {
 export function readPhotoAnalysis(photo: Photo): PhotoAnalysisReadout {
   const analysis = photo.analysis ?? null;
   const declared: unknown = photo.analysis_status;
-  const status = !analysis ? 'missing' : declared === 'current' || declared === 'stale' ? declared : 'unknown';
+  const status = !analysis
+    ? 'missing'
+    : declared === 'current' || declared === 'stale'
+      ? declared
+      : 'unknown';
   const current = status === 'current' ? analysis : null;
-  return { status, analysis, current, score: current?.composite_score ?? null, verdict: current?.verdict ?? null, scoreBreakdown: current?.score_breakdown ?? null };
+  return {
+    status,
+    analysis,
+    current,
+    score: current?.composite_score ?? null,
+    verdict: current?.verdict ?? null,
+    scoreBreakdown: current?.score_breakdown ?? null,
+  };
 }

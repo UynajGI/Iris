@@ -3,16 +3,17 @@
 Uses disposable copies, local loopback only; never edits source fixtures or models.
 No human labels or accuracy claims. Run after the release build.
 """
+
 import argparse
 import hashlib
 import json
 import math
-from pathlib import Path
 import shutil
 import subprocess
 import tempfile
 import time
 import urllib.request
+from pathlib import Path
 
 SHA = "f0729237db38a442aa377f45ba38a223d9e11ea27f5bc9b6d5a71588d9ae3c2c"
 
@@ -26,8 +27,12 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--daemon", type=Path, default=root / "target/release/iris-daemon.exe")
     parser.add_argument("--models", type=Path, default=root / "models")
-    parser.add_argument("--embedding-model", type=Path, default=root / "models/optional/dinov3_vits16.onnx")
-    parser.add_argument("--output", type=Path, default=root / "artifacts/local-expansion-integration.json")
+    parser.add_argument(
+        "--embedding-model", type=Path, default=root / "models/optional/dinov3_vits16.onnx"
+    )
+    parser.add_argument(
+        "--output", type=Path, default=root / "artifacts/local-expansion-integration.json"
+    )
     args = parser.parse_args()
     sources = sorted((root / "test-photos").glob("*.jpg"))[:2]
     assert len(sources) == 2
@@ -37,16 +42,43 @@ def main():
         work = Path(temp)
         models, model, photos, original_hashes = prepare_fixtures(args, root, work, sources)
         with (work / "daemon.log").open("w", encoding="utf-8") as err:
-            process = subprocess.Popen([str(args.daemon.resolve()), "--data-dir", str(work / "data"), "--model-dir", str(models), "--worker-limit", "2"], cwd=work, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=err, text=True)
+            process = subprocess.Popen(
+                [
+                    str(args.daemon.resolve()),
+                    "--data-dir",
+                    str(work / "data"),
+                    "--model-dir",
+                    str(models),
+                    "--worker-limit",
+                    "2",
+                ],
+                cwd=work,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=err,
+                text=True,
+            )
             try:
                 handshake = json.loads(process.stdout.readline())
 
                 def request(method, path, body=None, raw=False):
                     data = None if body is None else json.dumps(body).encode()
-                    req = urllib.request.Request(handshake["base_url"] + "/api/v1" + path, data=data, method=method, headers={"Authorization": "Bearer " + handshake["token"], "Content-Type": "application/json"})
+                    req = urllib.request.Request(
+                        handshake["base_url"] + "/api/v1" + path,
+                        data=data,
+                        method=method,
+                        headers={
+                            "Authorization": "Bearer " + handshake["token"],
+                            "Content-Type": "application/json",
+                        },
+                    )
                     with urllib.request.urlopen(req, timeout=180) as response:
                         payload = response.read()
-                        return (response.headers.get_content_type(), payload) if raw else json.loads(payload)
+                        return (
+                            (response.headers.get_content_type(), payload)
+                            if raw
+                            else json.loads(payload)
+                        )
 
                 project = request("POST", "/projects", {"root": str(photos)})["id"]
 
@@ -56,11 +88,13 @@ def main():
                     while time.monotonic() - started < 300:
                         progress = request("GET", f"/projects/{project}/progress")
                         if progress["state"] in {"completed", "failed", "cancelled"}:
-                            assert progress["state"] == ("completed" if succeeds else "failed"), progress
+                            assert progress["state"] == ("completed" if succeeds else "failed"), (
+                                progress
+                            )
                             if succeeds:
                                 assert not progress["errors"], progress
                             return {**progress, "seconds": time.monotonic() - started}
-                        time.sleep(.1)
+                        time.sleep(0.1)
                     raise TimeoutError(kind)
 
                 report["scan"] = job("scan")
@@ -68,32 +102,51 @@ def main():
                 assert len(listing) == len(original_hashes), listing
                 verify_media_routes(request, listing, original_hashes, report)
                 report["default_analysis"] = job("analyze")
-                baseline = {p["id"]: p["analysis"] for p in request("GET", f"/projects/{project}/photos")}
+                baseline = {
+                    p["id"]: p["analysis"] for p in request("GET", f"/projects/{project}/photos")
+                }
                 settings = request("GET", f"/settings?project_id={project}")
-                settings.update(embedding_provider="dinov3_vits16", embedding_model_sha256=SHA, semantic_similarity_threshold=.9)
+                settings.update(
+                    embedding_provider="dinov3_vits16",
+                    embedding_model_sha256=SHA,
+                    semantic_similarity_threshold=0.9,
+                )
                 request("PUT", f"/settings?project_id={project}", settings)
                 report["analysis"] = job("analyze")
                 assert report["analysis"]["result"]["analyzed"] == 0
                 listing = request("GET", f"/projects/{project}/photos")
                 vectors = {p["id"]: p["analysis"].get("embedding") for p in listing}
                 assert 0 < sum(v is not None for v in vectors.values()) < len(listing), vectors
-                report["candidate_only_embedding_count"] = sum(v is not None for v in vectors.values())
+                report["candidate_only_embedding_count"] = sum(
+                    v is not None for v in vectors.values()
+                )
                 verify_default_quality(listing, baseline)
                 report["default_quality_preserved"] = True
                 verify_embeddings(listing)
                 report["incremental"] = job("analyze")
                 assert report["incremental"]["result"]["reused"] == len(listing)
-                settings["semantic_similarity_threshold"] = .91
-                request("PUT", f"/settings?project_id={project}", settings)
-                after_settings = request("GET", f"/projects/{project}/photos")
-                assert all(p["analysis_status"] == "current" for p in after_settings), [(p["id"], p["analysis_status"]) for p in after_settings]
-                report["threshold_reanalysis"] = job("analyze")
-                assert report["threshold_reanalysis"]["result"]["reused"] == len(listing)
-                assert report["threshold_reanalysis"]["result"]["semantic"]["computed"] == 0
-                assert vectors == {p["id"]: p["analysis"].get("embedding") for p in request("GET", f"/projects/{project}/photos")}
-                report["threshold_vectors_identical"] = True
+
+                def verify_threshold_change():
+                    settings["semantic_similarity_threshold"] = 0.91
+                    request("PUT", f"/settings?project_id={project}", settings)
+                    after_settings = request("GET", f"/projects/{project}/photos")
+                    assert all(p["analysis_status"] == "current" for p in after_settings), [
+                        (p["id"], p["analysis_status"]) for p in after_settings
+                    ]
+                    report["threshold_reanalysis"] = job("analyze")
+                    assert report["threshold_reanalysis"]["result"]["reused"] == len(listing)
+                    assert report["threshold_reanalysis"]["result"]["semantic"]["computed"] == 0
+                    assert vectors == {
+                        p["id"]: p["analysis"].get("embedding")
+                        for p in request("GET", f"/projects/{project}/photos")
+                    }
+                    report["threshold_vectors_identical"] = True
+
+                verify_threshold_change()
                 verify_artifact_gates(request, job, settings, project, model, args, listing, report)
-                assert {p.name: digest(p) for p in photos.iterdir() if p.is_file()} == original_hashes
+                assert {
+                    p.name: digest(p) for p in photos.iterdir() if p.is_file()
+                } == original_hashes
                 report["source_bytes_unchanged"] = True
                 report["photo_count"] = len(listing)
                 report["ok"] = True
@@ -109,8 +162,16 @@ def main():
     assert {str(p): digest(p) for p in sources} == source_hashes
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps({"ok": True, "photos": report["photo_count"], "formats": report["formats"], "report": str(args.output)}))
-
+    print(
+        json.dumps(
+            {
+                "ok": True,
+                "photos": report["photo_count"],
+                "formats": report["formats"],
+                "report": str(args.output),
+            }
+        )
+    )
 
 
 def verify_media_routes(request, listing, original_hashes, report):
@@ -138,7 +199,14 @@ def verify_default_quality(listing, baseline):
         expected.pop("settings", None)
         quality.pop("elapsed_ms", None)
         expected.pop("elapsed_ms", None)
-        assert quality == expected, (photo["filename"], {k: (expected.get(k), quality.get(k)) for k in quality.keys() | expected.keys() if quality.get(k) != expected.get(k)})
+        assert quality == expected, (
+            photo["filename"],
+            {
+                k: (expected.get(k), quality.get(k))
+                for k in quality.keys() | expected.keys()
+                if quality.get(k) != expected.get(k)
+            },
+        )
 
 
 def verify_embeddings(listing):
@@ -148,7 +216,7 @@ def verify_embeddings(listing):
         if embedding is None:
             continue
         assert embedding["model_sha256"] == SHA and len(embedding["vector"]) == 384
-        assert abs(sum(x*x for x in embedding["vector"]) - 1) < .001
+        assert abs(sum(x * x for x in embedding["vector"]) - 1) < 0.001
         assert all(math.isfinite(x) for x in embedding["vector"])
 
 
@@ -166,7 +234,9 @@ def verify_artifact_gates(request, job, settings, project, model, args, listing,
     settings["embedding_model_sha256"] = "a" * 64
     request("PUT", f"/settings?project_id={project}", settings)
     report["wrong_hash"] = job("analyze", False)
-    settings.update(embedding_provider="none", embedding_model_sha256=None, semantic_similarity_threshold=None)
+    settings.update(
+        embedding_provider="none", embedding_model_sha256=None, semantic_similarity_threshold=None
+    )
     request("PUT", f"/settings?project_id={project}", settings)
     report["disabled"] = job("analyze")
     assert report["disabled"]["result"]["semantic"]["mode"] == "phash"
@@ -189,6 +259,7 @@ def prepare_fixtures(args, root, work, sources):
             shutil.copy2(source, photos / source.name)
     original_hashes = {p.name: digest(p) for p in photos.iterdir()}
     return models, model, photos, original_hashes
+
 
 if __name__ == "__main__":
     main()

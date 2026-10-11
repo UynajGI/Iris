@@ -4,11 +4,13 @@ Real JPEG/exposure smoke uses the Rust decoder/preprocessor via
 vision::dinov3::tests::real_dinov3_cpu_embedding (explicit ignored test).
 No network calls, labels, threshold calibration, or semantic quality claims.
 """
+
 import argparse
 import hashlib
 import json
-from pathlib import Path
 import time
+from pathlib import Path
+
 import numpy as np
 import onnxruntime as ort
 
@@ -22,17 +24,35 @@ def verify(path):
     options = ort.SessionOptions()
     options.intra_op_num_threads = options.inter_op_num_threads = 1
     session = ort.InferenceSession(model, sess_options=options, providers=["CPUExecutionProvider"])
-    if [value.name for value in session.get_inputs()] != ["pixel_values"] or [value.name for value in session.get_outputs()] != ["last_hidden_state", "pooler_output"]:
+    if [value.name for value in session.get_inputs()] != ["pixel_values"] or [
+        value.name for value in session.get_outputs()
+    ] != ["last_hidden_state", "pooler_output"]:
         raise ValueError("Unexpected DINOv3 input/output contract")
     tensor = np.zeros((1, 3, 224, 224), dtype=np.float32)
     started = time.perf_counter()
     outputs = [session.run(["pooler_output"], {"pixel_values": tensor})[0] for _ in range(2)]
-    if any(value.shape != (1, 384) or not np.isfinite(value).all() or np.linalg.norm(value) <= 1e-12 for value in outputs):
+    if any(
+        value.shape != (1, 384) or not np.isfinite(value).all() or np.linalg.norm(value) <= 1e-12
+        for value in outputs
+    ):
         raise ValueError("Invalid DINOv3 embedding")
     if not np.array_equal(*outputs):
         raise ValueError("Repeated DINOv3 CPU inference differed")
     unit = outputs[0] / np.linalg.norm(outputs[0])
-    return {"ok": True, "sha256": SHA256, "bytes": len(model), "runtime": ort.__version__, "providers": session.get_providers(), "input_shape": list(tensor.shape), "output_shape": list(unit.shape), "unit_norm": float(np.linalg.norm(unit)), "repeat_identical": True, "two_inferences_seconds": time.perf_counter() - started, "photos_uploaded": False, "quality_validated": False}
+    return {
+        "ok": True,
+        "sha256": SHA256,
+        "bytes": len(model),
+        "runtime": ort.__version__,
+        "providers": session.get_providers(),
+        "input_shape": list(tensor.shape),
+        "output_shape": list(unit.shape),
+        "unit_norm": float(np.linalg.norm(unit)),
+        "repeat_identical": True,
+        "two_inferences_seconds": time.perf_counter() - started,
+        "photos_uploaded": False,
+        "quality_validated": False,
+    }
 
 
 def main():

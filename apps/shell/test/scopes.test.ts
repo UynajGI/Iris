@@ -3,8 +3,16 @@ import assert from 'node:assert/strict';
 import { histogramPeak, sampleScopes } from '../src/ui/scopes.js';
 
 test('scope channels preserve totals, clipping and horizontal waveform position', () => {
-  const data = sampleScopes(new Uint8ClampedArray([0,0,0,255, 255,255,255,255, 255,0,0,255, 0,255,0,255]), 2, 2);
-  for (const bins of Object.values(data.histogram)) assert.equal(bins.reduce((a, b) => a + b, 0), 4);
+  const data = sampleScopes(
+    new Uint8ClampedArray([0, 0, 0, 255, 255, 255, 255, 255, 255, 0, 0, 255, 0, 255, 0, 255]),
+    2,
+    2
+  );
+  for (const bins of Object.values(data.histogram))
+    assert.equal(
+      bins.reduce((a, b) => a + b, 0),
+      4
+    );
   assert.equal(data.clipLow, 0.25);
   assert.equal(data.clipHigh, 0.75, 'any clipped RGB channel counts as a highlight');
   assert.equal(data.histogram.l[54], 1);
@@ -16,7 +24,12 @@ test('scope channels preserve totals, clipping and horizontal waveform position'
 });
 
 test('Y-only histogram scaling includes luminance bins', () => {
-  const bins = { l: new Uint32Array(256).fill(12), r: new Uint32Array(256).fill(3), g: new Uint32Array(256), b: new Uint32Array(256) };
+  const bins = {
+    l: new Uint32Array(256).fill(12),
+    r: new Uint32Array(256).fill(3),
+    g: new Uint32Array(256),
+    b: new Uint32Array(256),
+  };
   assert.equal(histogramPeak(bins, ['l']), 12);
   assert.equal(histogramPeak(bins, ['r']), 3);
 });
@@ -27,10 +40,17 @@ test('scope controls display YRGB with all channels selected by default', async 
   const { Histogram } = await import('../src/ui/Histogram.js');
   const { IrisClient } = await import('../src/client.js');
   const { Transport } = await import('../src/transport.js');
-  const client = new IrisClient(new Transport({ base_url: 'http://127.0.0.1:1', token: 'test', version: 'test' }));
+  const client = new IrisClient(
+    new Transport({ base_url: 'http://127.0.0.1:1', token: 'test', version: 'test' })
+  );
   const markup = renderToStaticMarkup(createElement(Histogram, { client, photo: undefined }));
-  const buttons = [...markup.matchAll(/<button\b[^>]*class="scope-channel[^>]*>([YRGB])<\/button>/g)];
-  assert.deepEqual(buttons.map(match => match[1]), ['Y', 'R', 'G', 'B']);
+  const buttons = [
+    ...markup.matchAll(/<button\b[^>]*class="scope-channel[^>]*>([YRGB])<\/button>/g),
+  ];
+  assert.deepEqual(
+    buttons.map((match) => match[1]),
+    ['Y', 'R', 'G', 'B']
+  );
   for (const [button] of buttons) assert.match(button, /aria-pressed="true"/);
   assert.match(buttons[0]![0], /aria-label="Y 亮度通道"/);
 });

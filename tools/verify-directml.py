@@ -1,11 +1,12 @@
 """Exercise actual Iris GPU sessions, profile operator placement, and CPU fallback."""
+
 import argparse
-from collections import Counter
 import hashlib
 import json
-from pathlib import Path
 import shutil
 import sys
+from collections import Counter
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "artifacts/validation-python"))
@@ -23,9 +24,21 @@ def arguments():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--count", type=int, default=12)
     parser.add_argument("--dinov3", action="store_true")
-    parser.add_argument("--require-dino-gpu", action="store_true", help="require completed DINO GPU inference with no CPU fallback on DXGI indices 0 and 1")
-    parser.add_argument("--require-inventory", action="store_true", help="record the backend DXGI inventory and match tested hardware indices")
-    parser.add_argument("--fallback-only", action="store_true", help="CI without GPU: missing runtime and bad device CPU fallback, corrupt runtime refusal")
+    parser.add_argument(
+        "--require-dino-gpu",
+        action="store_true",
+        help="require completed DINO GPU inference with no CPU fallback on DXGI indices 0 and 1",
+    )
+    parser.add_argument(
+        "--require-inventory",
+        action="store_true",
+        help="record the backend DXGI inventory and match tested hardware indices",
+    )
+    parser.add_argument(
+        "--fallback-only",
+        action="store_true",
+        help="CI without GPU: missing runtime and bad device CPU fallback, corrupt runtime refusal",
+    )
     parser.add_argument("--daemon", type=Path, default=ROOT / "target/release/iris-daemon.exe")
     parser.add_argument("--models", type=Path, default=ROOT / "models")
     args = parser.parse_args()
@@ -37,7 +50,12 @@ def arguments():
 
 
 def execution_runs(args):
-    runs = [("cpu", None), ("directml_0", 0), ("directml_1", 1), ("invalid_device_fallback", 2147483647)]
+    runs = [
+        ("cpu", None),
+        ("directml_0", 0),
+        ("directml_1", 1),
+        ("invalid_device_fallback", 2147483647),
+    ]
     if args.fallback_only:
         runs = [("cpu", None), ("invalid_device_fallback", 2147483647)]
     if not args.dinov3:
@@ -78,7 +96,11 @@ def configure_project(daemon, args, device, photos):
         if device is not None:
             settings.update(execution_provider="directml", directml_device_id=device)
         if args.dinov3:
-            settings.update(embedding_provider="dinov3_vits16", embedding_model_sha256="f0729237db38a442aa377f45ba38a223d9e11ea27f5bc9b6d5a71588d9ae3c2c", semantic_similarity_threshold=.9)
+            settings.update(
+                embedding_provider="dinov3_vits16",
+                embedding_model_sha256="f0729237db38a442aa377f45ba38a223d9e11ea27f5bc9b6d5a71588d9ae3c2c",
+                semantic_similarity_threshold=0.9,
+            )
         daemon.request("PUT", f"/settings?project_id={project}", settings)
     return project
 
@@ -86,12 +108,21 @@ def configure_project(daemon, args, device, photos):
 def analyze_run(args, label, device, photos, count, report):
     run = args.output / label
     models = runtime_models(args, run, label)
-    with Daemon(args.daemon, models, run, workers=2,
-                env={"IRIS_ORT_PROFILE_DIR": str((run / "profiles").resolve())}) as daemon:
+    with Daemon(
+        args.daemon,
+        models,
+        run,
+        workers=2,
+        env={"IRIS_ORT_PROFILE_DIR": str((run / "profiles").resolve())},
+    ) as daemon:
         adapter = selected_adapter(daemon, args, label, device, report)
         project = configure_project(daemon, args, device, photos)
         daemon.job(project, "scan")
-        result = daemon.job(project, "analyze", expected="failed" if label == "corrupt_runtime_rejected" else "completed")
+        result = daemon.job(
+            project,
+            "analyze",
+            expected="failed" if label == "corrupt_runtime_rejected" else "completed",
+        )
         report["runs"][label] = {"job": result, "memory": daemon.memory}
         if label == "corrupt_runtime_rejected":
             assert "SHA-256 mismatch" in json.dumps(result), result
@@ -102,7 +133,10 @@ def analyze_run(args, label, device, photos, count, report):
         (run / "analyses.json").write_text(json.dumps(records, indent=2), "utf-8")
         assert result["result"]["analyzed"] == count
         if args.dinov3:
-            assert result["result"]["semantic"]["mode"] == "dinov3" and result["result"]["semantic"]["computed"] >= 2, result
+            assert (
+                result["result"]["semantic"]["mode"] == "dinov3"
+                and result["result"]["semantic"]["computed"] >= 2
+            ), result
         warnings = sorted({w for a in records.values() for w in a["warnings"] if "DirectML" in w})
         report["runs"][label] = {"job": result, "memory": daemon.memory, "warnings": warnings}
         if adapter is not None:
@@ -121,16 +155,26 @@ def operator_profiles(run, run_report):
                 providers[provider] += 1
                 if provider == "DmlExecutionProvider":
                     gpu_microseconds += event.get("dur", 0)
-    run_report["operator_profiles"] = {"files": len(profiles), "provider_event_counts": dict(providers), "directml_duration_us": gpu_microseconds}
+    run_report["operator_profiles"] = {
+        "files": len(profiles),
+        "provider_event_counts": dict(providers),
+        "directml_duration_us": gpu_microseconds,
+    }
     return profiles, providers, gpu_microseconds
 
 
 def compare_cpu_predictions(records, baseline, run_report):
     counts_equal = all(len(records[k]["faces"]) == len(baseline[k]["faces"]) for k in baseline)
-    score_error = max(abs(records[k]["composite_score"] - baseline[k]["composite_score"]) for k in baseline)
+    score_error = max(
+        abs(records[k]["composite_score"] - baseline[k]["composite_score"]) for k in baseline
+    )
     verdict_changes = sum(records[k]["verdict"] != baseline[k]["verdict"] for k in baseline)
-    run_report["cpu_comparison"] = {"face_counts_equal": counts_equal, "max_score_absolute_error": score_error, "verdict_changes": verdict_changes}
-    assert counts_equal and score_error < .5 and verdict_changes == 0, run_report
+    run_report["cpu_comparison"] = {
+        "face_counts_equal": counts_equal,
+        "max_score_absolute_error": score_error,
+        "verdict_changes": verdict_changes,
+    }
+    assert counts_equal and score_error < 0.5 and verdict_changes == 0, run_report
 
 
 def compare_embedding_predictions(records, baseline, run_report):
@@ -138,14 +182,18 @@ def compare_embedding_predictions(records, baseline, run_report):
     for key, base in baseline.items():
         if base.get("embedding"):
             current = records[key]["embedding"]["vector"]
-            cosines.append(sum(x*y for x, y in zip(base["embedding"]["vector"], current)))
-    assert cosines and min(cosines) > .9999, cosines
+            cosines.append(sum(x * y for x, y in zip(base["embedding"]["vector"], current)))
+    assert cosines and min(cosines) > 0.9999, cosines
     run_report["embedding_min_cosine_to_cpu"] = min(cosines)
 
 
 def verify_dino_execution(args, warnings, profiles, run_report):
     dino_profiles = [p for p in profiles if "dinov3" in p.name]
-    dino_gpu = sum(e.get("args", {}).get("provider") == "DmlExecutionProvider" for p in dino_profiles for e in json.loads(p.read_text("utf-8")))
+    dino_gpu = sum(
+        e.get("args", {}).get("provider") == "DmlExecutionProvider"
+        for p in dino_profiles
+        for e in json.loads(p.read_text("utf-8"))
+    )
     dino_fallback = any("dinov3" in w.lower() and "CPU fallback" in w for w in warnings)
     run_report["dinov3_execution"] = {"gpu_events": dino_gpu, "startup_cpu_fallback": dino_fallback}
     assert dino_profiles and (dino_gpu > 0 or dino_fallback)
@@ -167,7 +215,9 @@ def main():
     args = arguments()
     photos = args.output / "photos"
     photos.mkdir(parents=True)
-    sources = sorted(p for p in args.photos.rglob("*") if p.suffix.lower() in {".jpg", ".jpeg"})[:args.count]
+    sources = sorted(p for p in args.photos.rglob("*") if p.suffix.lower() in {".jpg", ".jpeg"})[
+        : args.count
+    ]
     assert len(sources) == args.count
     source_hashes = {str(p): digest(p) for p in sources}
     for i, source in enumerate(sources):
@@ -175,28 +225,40 @@ def main():
     if args.dinov3:
         shutil.copy2(sources[0], photos / "duplicate.jpg")
     count = len(sources) + int(args.dinov3)
-    report = {"ok": False, "count": count, "dinov3": args.dinov3, "daemon_sha256": digest(args.daemon), "runs": {}}
+    report = {
+        "ok": False,
+        "count": count,
+        "dinov3": args.dinov3,
+        "daemon_sha256": digest(args.daemon),
+        "runs": {},
+    }
     try:
         for label, device in execution_runs(args):
             outcome = analyze_run(args, label, device, photos, count, report)
             if outcome is None:
                 continue
             records, warnings = outcome
-            profiles, providers, gpu_microseconds = operator_profiles(args.output / label, report["runs"][label])
+            profiles, providers, gpu_microseconds = operator_profiles(
+                args.output / label, report["runs"][label]
+            )
             if device is None:
                 baseline = records
             else:
                 compare_cpu_predictions(records, baseline, report["runs"][label])
                 if args.dinov3:
                     compare_embedding_predictions(records, baseline, report["runs"][label])
-                verify_execution_provider(args, label, warnings, profiles, providers, report["runs"][label])
+                verify_execution_provider(
+                    args, label, warnings, profiles, providers, report["runs"][label]
+                )
             print(label, json.dumps(report["runs"][label]), flush=True)
         report["ok"] = True
     except Exception as error:
         report["error"] = repr(error)
         raise
     finally:
-        report["source_hashes_preserved"] = all(digest(Path(p)) == sha for p, sha in source_hashes.items())
+        report["source_hashes_preserved"] = all(
+            digest(Path(p)) == sha for p, sha in source_hashes.items()
+        )
         (args.output / "report.json").write_text(json.dumps(report, indent=2), "utf-8")
 
 

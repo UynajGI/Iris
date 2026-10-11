@@ -12,26 +12,26 @@
 
 ## 📋 Contents
 
-* [Features](#-features)
-* [Quick start](#-quick-start)
-* [CLI and MCP](#-cli-and-mcp)
-* [Development](#-development)
-* [Documentation](#-documentation)
-* [Topics](#-topics)
-* [Contributing](#-contributing)
-* [License](#-license)
+- [Features](#-features)
+- [Quick start](#-quick-start)
+- [CLI and MCP](#-cli-and-mcp)
+- [Development](#-development)
+- [Documentation](#-documentation)
+- [Topics](#-topics)
+- [Contributing](#-contributing)
+- [License](#-license)
 
 Reviewing portrait sessions involves repeated checks for focus, eye state and similar frames. Iris provides local analysis and grouping to help you review those photographs. Models suggest; you make the final selection. Marking a photo as rejected does not delete the original file.
 
 ## ✨ Features
 
-| Workflow | Capabilities |
-| :--- | :--- |
-| Browse and review | Overview, single-photo review and group comparison; JPEG, PNG, WebP and platform-dependent HEIC/RAW support |
-| Assisted culling | Face and eye observations, sharpness and exposure scores, similar-photo groups and expandable analysis details |
-| Mark and organize | Keep, undecided and reject decisions, star ratings, color labels, batch changes and undo |
-| Export and recover | Copy, CSV and XMP export; quarantine preview, confirmation and restore |
-| Agent access | Standalone stdio MCP binary with allowed-directory boundaries and write auditing; no desktop window required |
+| Workflow           | Capabilities                                                                                                   |
+| :----------------- | :------------------------------------------------------------------------------------------------------------- |
+| Browse and review  | Overview, single-photo review and group comparison; JPEG, PNG, WebP and platform-dependent HEIC/RAW support    |
+| Assisted culling   | Face and eye observations, sharpness and exposure scores, similar-photo groups and expandable analysis details |
+| Mark and organize  | Keep, undecided and reject decisions, star ratings, color labels, batch changes and undo                       |
+| Export and recover | Copy, CSV and XMP export; quarantine preview, confirmation and restore                                         |
+| Agent access       | Standalone stdio MCP binary with allowed-directory boundaries and write auditing; no desktop window required   |
 
 Inference runs locally. Release packages include the default models. Optional models require separate installation and license review, and are not enabled automatically. Scores are decision aids; no independently labeled evaluation supports an accuracy claim yet.
 
@@ -39,11 +39,11 @@ Inference runs locally. Release packages include the default models. Optional mo
 
 **1. Download for your OS and processor.** See the [releases](https://github.com/UynajGI/Iris/releases). The current release workflow builds Windows EXE, macOS PKG (Apple Silicon / Intel) and Linux DEB installers alongside portable archives. Older releases may contain portable archives only; use the actual attachments, not an assumed filename. See the [release process](docs/releasing.md) for build and validation status. No development toolchain is needed; verify downloads with `SHA256SUMS.txt`.
 
-| Package | Requirements and beta scope |
-| :--- | :--- |
-| Windows x64 | WebView2 Runtime and Microsoft Visual C++ 2015–2022 x64 Runtime; includes HEIC runtime, ExifTool and the independent RAW converter |
-| macOS arm64 / x64 | Apple Silicon or Intel respectively; unsigned and not notarized; HEIC and ExifTool are not bundled |
-| Linux x64 | Ubuntu 22.04 baseline, GTK 3 and WebKitGTK 4.1; HEIC and ExifTool are not bundled |
+| Package           | Requirements and beta scope                                                                                                        |
+| :---------------- | :--------------------------------------------------------------------------------------------------------------------------------- |
+| Windows x64       | WebView2 Runtime and Microsoft Visual C++ 2015–2022 x64 Runtime; includes HEIC runtime, ExifTool and the independent RAW converter |
+| macOS arm64 / x64 | Apple Silicon or Intel respectively; unsigned and not notarized; HEIC and ExifTool are not bundled                                 |
+| Linux x64         | Ubuntu 22.04 baseline, GTK 3 and WebKitGTK 4.1; HEIC and ExifTool are not bundled                                                  |
 
 **2. Install or use the portable archive.** Windows: run the setup EXE. macOS: open the matching PKG and follow the system Installer. Linux: use the software installer or `sudo apt install ./Iris-<version>-linux-x64.deb`, then launch Iris from the application menu (or `iris`). Installer signing/notarization is not configured for this beta.
 
@@ -107,14 +107,14 @@ The toolchain file selects native Rust stable. Windows GNU builds can select `RU
 
 ## 📚 Documentation
 
-| Guide | Contents |
-| :--- | :--- |
-| [Documentation index](docs/README.md) | All topics and module maps |
-| [Architecture](docs/architecture.md) | Core, daemon, CLI, MCP and Tauri boundaries |
-| [Design](DESIGN.md) / [Product](PRODUCT.md) | Approved interaction, visual system and scope |
-| [Validation](docs/validation.md) / [CI](docs/ci-verification.md) | Evidence and remaining coverage |
-| [Release process](docs/releasing.md) | Versions, tags, native builds and publishing |
-| [Status](docs/development-status.md) / [Handoff](docs/HANDOFF.md) | Implementation and remaining acceptance work |
+| Guide                                                             | Contents                                      |
+| :---------------------------------------------------------------- | :-------------------------------------------- |
+| [Documentation index](docs/README.md)                             | All topics and module maps                    |
+| [Architecture](docs/architecture.md)                              | Core, daemon, CLI, MCP and Tauri boundaries   |
+| [Design](DESIGN.md) / [Product](PRODUCT.md)                       | Approved interaction, visual system and scope |
+| [Validation](docs/validation.md) / [CI](docs/ci-verification.md)  | Evidence and remaining coverage               |
+| [Release process](docs/releasing.md)                              | Versions, tags, native builds and publishing  |
+| [Status](docs/development-status.md) / [Handoff](docs/HANDOFF.md) | Implementation and remaining acceptance work  |
 
 ## 📌 Topics
 

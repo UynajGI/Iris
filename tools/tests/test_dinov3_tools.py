@@ -1,6 +1,6 @@
 import importlib.util
-from pathlib import Path
 import unittest
+from pathlib import Path
 
 PATH = Path(__file__).resolve().parents[1] / "setup-dinov3.py"
 spec = importlib.util.spec_from_file_location("setup_dinov3", PATH)
@@ -20,6 +20,7 @@ class DinoV3ArtifactChecks(unittest.TestCase):
 
     def test_truncation_and_same_size_corruption_are_rejected(self):
         import hashlib
+
         data = b"verified model bytes"
         digest = hashlib.sha256(data).hexdigest()
         self.assertEqual(setup.checked(data, len(data), digest, "fixture"), data)

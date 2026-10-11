@@ -3,15 +3,16 @@
 Never enables the detector, modifies default model manifests, or installs the
 recognition model carried by the upstream archive. No commercial grant is implied.
 """
+
 from __future__ import annotations
 
 import argparse
 import hashlib
 import io
 import json
-from pathlib import Path
 import urllib.request
 import zipfile
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 REVISION = "3e6486942a1be2da0e5b475fac375ea73264bd21"
@@ -20,7 +21,9 @@ ARCHIVE_BYTES = 14_969_382
 ARCHIVE_SHA256 = "57d31b56b6ffa911c8a73cfc1707c73cab76efe7f13b675a05223bf42de47c72"
 MODEL_BYTES = 2_524_817
 MODEL_SHA256 = "5e4447f50245bbd7966bd6c0fa52938c61474a04ec7def48753668a9d8b4ea3a"
-LICENSE_URL = f"https://github.com/deepinsight/insightface/blob/{REVISION}/python-package/README.md#license"
+LICENSE_URL = (
+    f"https://github.com/deepinsight/insightface/blob/{REVISION}/python-package/README.md#license"
+)
 OUTPUT_NAMES = ["443", "468", "493", "446", "471", "496", "449", "474", "499"]
 LICENSE_NOTE = (
     "noncommercial-research only: InsightFace pretrained weights are available for "
@@ -74,9 +77,15 @@ def detector_from_archive(data: bytes) -> bytes:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--research-only", action="store_true", required=True,
-                        help="Explicitly select the non-commercial research workflow; not a commercial license")
-    parser.add_argument("--archive", type=Path, help="Use an already downloaded archive, with identical hash checks")
+    parser.add_argument(
+        "--research-only",
+        action="store_true",
+        required=True,
+        help="Explicitly select the non-commercial research workflow; not a commercial license",
+    )
+    parser.add_argument(
+        "--archive", type=Path, help="Use an already downloaded archive, with identical hash checks"
+    )
     parser.add_argument("--output", type=Path, default=ROOT / "models/optional")
     parser.add_argument("--evidence", type=Path, default=ROOT / "artifacts/scrfd-research")
     args = parser.parse_args()
@@ -91,20 +100,35 @@ def main() -> None:
     ]:
         url = f"https://raw.githubusercontent.com/deepinsight/insightface/{REVISION}/{upstream}"
         data = download(url, 512 * 1024)
-        if name == "InsightFace-MODEL-TERMS.md" and b"non-commercial research purposes only" not in data:
+        if (
+            name == "InsightFace-MODEL-TERMS.md"
+            and b"non-commercial research purposes only" not in data
+        ):
             raise ValueError("Pinned upstream model-use restriction was not found")
         save_exact(args.evidence / name, data)
         evidence.append({"file": name, "url": url, "sha256": sha256(data), "bytes": len(data)})
-    metadata = {"model_id": "scrfd_500m_kps", "source_url": ARCHIVE_URL,
-                "license_url": LICENSE_URL, "license_note": LICENSE_NOTE}
+    metadata = {
+        "model_id": "scrfd_500m_kps",
+        "source_url": ARCHIVE_URL,
+        "license_url": LICENSE_URL,
+        "license_note": LICENSE_NOTE,
+    }
     provenance = {
-        "revision": REVISION, "source_url": ARCHIVE_URL,
-        "archive_bytes": ARCHIVE_BYTES, "archive_sha256": ARCHIVE_SHA256,
-        "archive_member": "det_500m.onnx", "model_bytes": MODEL_BYTES, "model_sha256": MODEL_SHA256,
-        "model_bytes_modified": False, "output_names": OUTPUT_NAMES,
-        "license_scope": "noncommercial-research", "commercial_authorization": False,
-        "default_detector_changed": False, "general_distribution": False,
-        "other_archive_models_installed": False, "license_evidence": evidence,
+        "revision": REVISION,
+        "source_url": ARCHIVE_URL,
+        "archive_bytes": ARCHIVE_BYTES,
+        "archive_sha256": ARCHIVE_SHA256,
+        "archive_member": "det_500m.onnx",
+        "model_bytes": MODEL_BYTES,
+        "model_sha256": MODEL_SHA256,
+        "model_bytes_modified": False,
+        "output_names": OUTPUT_NAMES,
+        "license_scope": "noncommercial-research",
+        "commercial_authorization": False,
+        "default_detector_changed": False,
+        "general_distribution": False,
+        "other_archive_models_installed": False,
+        "license_evidence": evidence,
         "hash_provenance": "Locally measured pins of bytes obtained from the official HTTPS release; not a publisher signature",
     }
     args.output.mkdir(parents=True, exist_ok=True)
@@ -118,8 +142,17 @@ def main() -> None:
     settings = {"face_detector": "scrfd_500m", "scrfd_model_sha256": MODEL_SHA256}
     # Enum serialization is checked against the application before use.
     save_exact(args.evidence / "settings.json", (json.dumps(settings, indent=2) + "\n").encode())
-    print(json.dumps({"installed_optional": str(args.output.resolve()), "sha256": MODEL_SHA256,
-                      "license_scope": "noncommercial-research", "accuracy": "not established"}, indent=2))
+    print(
+        json.dumps(
+            {
+                "installed_optional": str(args.output.resolve()),
+                "sha256": MODEL_SHA256,
+                "license_scope": "noncommercial-research",
+                "accuracy": "not established",
+            },
+            indent=2,
+        )
+    )
 
 
 if __name__ == "__main__":

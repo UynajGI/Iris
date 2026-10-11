@@ -16,7 +16,9 @@ export type ScoreBreakdown = Schemas['ScoreBreakdown'];
 export type ScoreComponent = Schemas['ScoreComponent'];
 export type ScoreTerm = Schemas['ScoreTerm'];
 export type ScoreInput = Schemas['ScoreInput'];
-export type PhotoFilter = { [Key in keyof Schemas['PhotoFilter']]?: NonNullable<Schemas['PhotoFilter'][Key]> };
+export type PhotoFilter = {
+  [Key in keyof Schemas['PhotoFilter']]?: NonNullable<Schemas['PhotoFilter'][Key]>;
+};
 export type DecisionBatch = Schemas['DecisionBatch'];
 export type MarkRequest = Schemas['MarkRequest'];
 export type ColorLabel = Schemas['ColorLabel'];

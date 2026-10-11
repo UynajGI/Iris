@@ -7,8 +7,11 @@ import { usePersisted } from './usePersisted.js';
 import type { ZoomApi } from './ZoomViewer.js';
 
 interface GalleryOptions {
-  store: IrisStore; state: ApplicationState; page: string;
-  workspace: RefObject<HTMLElement | null>; current: Photo | undefined;
+  store: IrisStore;
+  state: ApplicationState;
+  page: string;
+  workspace: RefObject<HTMLElement | null>;
+  current: Photo | undefined;
 }
 
 /** Grid/loupe continuity, scale and wheel input share one controller. */
@@ -17,9 +20,16 @@ export function useGalleryView({ store, state, page, workspace, current }: Galle
   const stageRef = useRef<HTMLDivElement>(null);
   const zoomApi = useRef<ZoomApi | null>(null);
   const [zoomReadout, setZoomReadout] = useState({ percent: 100, fitted: true });
-  const onZoomChange = useCallback((percent: number, fitted: boolean) => setZoomReadout({ percent, fitted }), []);
+  const onZoomChange = useCallback(
+    (percent: number, fitted: boolean) => setZoomReadout({ percent, fitted }),
+    []
+  );
   const fullscreen = useFullscreen(stageRef);
-  const [tileSize, setTileSize] = usePersisted<number>('iris:tile-size:v2', 210, value => value >= GALLERY_MIN && value < GALLERY_LOUPE);
+  const [tileSize, setTileSize] = usePersisted<number>(
+    'iris:tile-size:v2',
+    210,
+    (value) => value >= GALLERY_MIN && value < GALLERY_LOUPE
+  );
   const view = group ? 'compare' : state.reviewOpen ? 'loupe' : 'grid';
   const galleryMotion = useGalleryMotion(workspace, view, tileSize, `${page}:${state.project?.id}`);
   const setView = (target: 'grid' | 'loupe') => {
@@ -30,8 +40,12 @@ export function useGalleryView({ store, state, page, workspace, current }: Galle
   };
   const resizeGallery = (value: number) => {
     if (!current || group) return;
-    if (value >= GALLERY_LOUPE) { setView('loupe'); return; }
-    if (view === 'grid') galleryMotion.captureTiles(); else setView('grid');
+    if (value >= GALLERY_LOUPE) {
+      setView('loupe');
+      return;
+    }
+    if (view === 'grid') galleryMotion.captureTiles();
+    else setView('grid');
     setTileSize(Math.max(GALLERY_MIN, Math.min(GALLERY_LOUPE - 1, value)));
   };
   const stepZoom = (factor: number) => {
@@ -39,8 +53,8 @@ export function useGalleryView({ store, state, page, workspace, current }: Galle
     else if (factor < 1 && zoomReadout.fitted) setView('grid');
     else zoomApi.current?.zoomBy(factor);
   };
-  const galleryWheel = useRef<(event: WheelEvent) => void>(() => { });
-  galleryWheel.current = event => {
+  const galleryWheel = useRef<(event: WheelEvent) => void>(() => {});
+  galleryWheel.current = (event) => {
     if (view !== 'grid' || !(event.ctrlKey || event.metaKey) || !current) return;
     event.preventDefault();
     const delta = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? 400 : 1);
@@ -55,8 +69,21 @@ export function useGalleryView({ store, state, page, workspace, current }: Galle
   }, [page, state.project?.id]);
   const openLoupe = (photo: Photo) => {
     if (!state.reviewOpen && !group) galleryMotion.capturePhoto(photo.id);
-    store.select([]); store.focus(photo.id);
+    store.select([]);
+    store.focus(photo.id);
     if (!state.reviewOpen) store.toggleReview();
   };
-  return { stageRef, zoomApi, zoomReadout, onZoomChange, fullscreen, tileSize, view, setView, resizeGallery, stepZoom, openLoupe };
+  return {
+    stageRef,
+    zoomApi,
+    zoomReadout,
+    onZoomChange,
+    fullscreen,
+    tileSize,
+    view,
+    setView,
+    resizeGallery,
+    stepZoom,
+    openLoupe,
+  };
 }

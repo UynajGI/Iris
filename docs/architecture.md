@@ -1,12 +1,12 @@
 # 架构
 
-| 层 | 实现 | 职责 |
-| :--- | :--- | :--- |
-| 数据与计算 | `iris-core` | SQLite、扫描、解码、ONNX、评分、分组、文件操作 |
-| 本地服务 | `iris-daemon` | HTTP/OpenAPI/WS、后台任务、独立分析 worker、模型安装 |
-| 无界面入口 | `iris-cli` / `iris-mcp` | 命令行与 SDK stdio MCP，复用业务服务 |
-| 应用与界面 | `apps/shell` | TypeScript 状态/生成 API、React、Tauri 托管 |
-| RAW 后备 | `components/raw-decoder` | MIT 包装器调用 LGPL rawler，JSON/PPM 文件协议 |
+| 层         | 实现                     | 职责                                                 |
+| :--------- | :----------------------- | :--------------------------------------------------- |
+| 数据与计算 | `iris-core`              | SQLite、扫描、解码、ONNX、评分、分组、文件操作       |
+| 本地服务   | `iris-daemon`            | HTTP/OpenAPI/WS、后台任务、独立分析 worker、模型安装 |
+| 无界面入口 | `iris-cli` / `iris-mcp`  | 命令行与 SDK stdio MCP，复用业务服务                 |
+| 应用与界面 | `apps/shell`             | TypeScript 状态/生成 API、React、Tauri 托管          |
+| RAW 后备   | `components/raw-decoder` | MIT 包装器调用 LGPL rawler，JSON/PPM 文件协议        |
 
 MCP 属于服务层另一种入口，在进程内调用现有路由，不启动 HTTP 监听。GUI、CLI、MCP 使用相同数据库时，由进程所有权锁排除并发写入。
 

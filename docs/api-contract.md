@@ -33,45 +33,45 @@ WebSocket `/api/v1/events` uses subprotocols `iris` and `iris-token.<token>`;
 server selects `iris`. Events are `{event, project_id, data}`. Event families:
 `scan:progress`, `analysis:stage`, `verdict:updated`, `session:changed`.
 
-| Method | Path | Input |
-| :--- | :--- | :--- |
-| GET | /bootstrap | capabilities and version |
-| GET | /devices/gpu | DXGI device indices/names/capacities; no project or models required |
-| GET | /projects | recent projects |
-| POST | /projects | `{root}` |
-| GET | /projects/{id} | project details |
-| POST | /projects/{id}/scan | start scan |
-| POST | /projects/{id}/analyze | start/resume incremental analysis |
-| GET | /projects/{id}/progress | current job |
-| POST | /projects/{id}/cancel | cancel current job |
-| POST | /projects/{id}/pause | pause analysis |
-| POST | /projects/{id}/resume | resume analysis |
-| GET | /projects/{id}/photos | query filters defined by PhotoFilter |
-| GET | /photos/{id} | photo details |
-| GET | /photos/{id}/thumb | JPEG thumbnail |
-| GET | /photos/{id}/preview | lazy JPEG preview |
-| GET | /photos/{id}/original | authenticated original bytes for explicit full-resolution review |
-| GET | /projects/{id}/groups | similar groups |
-| POST | /projects/{id}/decisions | `{photo_ids,action,link_variants}` |
-| POST | /projects/{id}/undo | undo last batch |
-| POST | /projects/{id}/accept | adopt model suggestions (marks only) |
-| POST | /projects/{id}/export/xmp | `{scope,overwrite}`; duplicate selected sidecar destinations return 400 before writes, in either overwrite mode |
-| POST | /projects/{id}/export/copy | `{destination,scope}` |
-| POST | /projects/{id}/export/csv | `{destination}` |
-| POST | /projects/{id}/import/csv | `{source}` |
-| POST | /projects/{id}/quarantine/preview | create confirmation manifest |
-| GET | /projects/{id}/quarantine | persisted manifests and interrupted moves for recovery |
-| POST | /projects/{id}/quarantine/commit | `{manifest_id}` |
-| POST | /projects/{id}/quarantine/restore | `{manifest_id}` |
-| GET, PUT | /settings?project_id={id} | persisted per-project analysis settings |
-| GET, POST | /profiles | list/save profile |
-| DELETE | /profiles/{name} | delete profile |
-| POST | /profiles/{name}/apply | `{project_id}` |
-| POST | /projects/{id}/profiles/{name}/estimate | estimate verdict changes |
-| GET | /projects/{id}/cache | cache statistics |
-| POST | /projects/{id}/cache/cleanup | clear rebuildable caches |
-| POST | /projects/{id}/cache/migrate | `{destination}` |
-| GET | /openapi.json | generated schema |
+| Method    | Path                                    | Input                                                                                                           |
+| :-------- | :-------------------------------------- | :-------------------------------------------------------------------------------------------------------------- |
+| GET       | /bootstrap                              | capabilities and version                                                                                        |
+| GET       | /devices/gpu                            | DXGI device indices/names/capacities; no project or models required                                             |
+| GET       | /projects                               | recent projects                                                                                                 |
+| POST      | /projects                               | `{root}`                                                                                                        |
+| GET       | /projects/{id}                          | project details                                                                                                 |
+| POST      | /projects/{id}/scan                     | start scan                                                                                                      |
+| POST      | /projects/{id}/analyze                  | start/resume incremental analysis                                                                               |
+| GET       | /projects/{id}/progress                 | current job                                                                                                     |
+| POST      | /projects/{id}/cancel                   | cancel current job                                                                                              |
+| POST      | /projects/{id}/pause                    | pause analysis                                                                                                  |
+| POST      | /projects/{id}/resume                   | resume analysis                                                                                                 |
+| GET       | /projects/{id}/photos                   | query filters defined by PhotoFilter                                                                            |
+| GET       | /photos/{id}                            | photo details                                                                                                   |
+| GET       | /photos/{id}/thumb                      | JPEG thumbnail                                                                                                  |
+| GET       | /photos/{id}/preview                    | lazy JPEG preview                                                                                               |
+| GET       | /photos/{id}/original                   | authenticated original bytes for explicit full-resolution review                                                |
+| GET       | /projects/{id}/groups                   | similar groups                                                                                                  |
+| POST      | /projects/{id}/decisions                | `{photo_ids,action,link_variants}`                                                                              |
+| POST      | /projects/{id}/undo                     | undo last batch                                                                                                 |
+| POST      | /projects/{id}/accept                   | adopt model suggestions (marks only)                                                                            |
+| POST      | /projects/{id}/export/xmp               | `{scope,overwrite}`; duplicate selected sidecar destinations return 400 before writes, in either overwrite mode |
+| POST      | /projects/{id}/export/copy              | `{destination,scope}`                                                                                           |
+| POST      | /projects/{id}/export/csv               | `{destination}`                                                                                                 |
+| POST      | /projects/{id}/import/csv               | `{source}`                                                                                                      |
+| POST      | /projects/{id}/quarantine/preview       | create confirmation manifest                                                                                    |
+| GET       | /projects/{id}/quarantine               | persisted manifests and interrupted moves for recovery                                                          |
+| POST      | /projects/{id}/quarantine/commit        | `{manifest_id}`                                                                                                 |
+| POST      | /projects/{id}/quarantine/restore       | `{manifest_id}`                                                                                                 |
+| GET, PUT  | /settings?project_id={id}               | persisted per-project analysis settings                                                                         |
+| GET, POST | /profiles                               | list/save profile                                                                                               |
+| DELETE    | /profiles/{name}                        | delete profile                                                                                                  |
+| POST      | /profiles/{name}/apply                  | `{project_id}`                                                                                                  |
+| POST      | /projects/{id}/profiles/{name}/estimate | estimate verdict changes                                                                                        |
+| GET       | /projects/{id}/cache                    | cache statistics                                                                                                |
+| POST      | /projects/{id}/cache/cleanup            | clear rebuildable caches                                                                                        |
+| POST      | /projects/{id}/cache/migrate            | `{destination}`                                                                                                 |
+| GET       | /openapi.json                           | generated schema                                                                                                |
 
 UI/UX is intentionally deferred to the user. L4 exports functions, state and
 React hooks that a later presentation layer can consume.

@@ -15,9 +15,7 @@ Each human face uses a bounding box normalized to the EXIF-orientation-corrected
 {
   "annotation_complete": true,
   "ground_truth": {
-    "faces": [
-      {"bbox": [0.10, 0.15, 0.20, 0.25], "left_eye": "open", "right_eye": "closed"}
-    ]
+    "faces": [{ "bbox": [0.1, 0.15, 0.2, 0.25], "left_eye": "open", "right_eye": "closed" }]
   }
 }
 ```
@@ -74,10 +72,10 @@ this structure. The following is an **incomplete template**, not a label:
 {
   "id": "sharpness-pair-1",
   "dimension": "sharpness",
-  "a": {"photo_id": 1},
-  "b": {"photo_id": 2},
+  "a": { "photo_id": 1 },
+  "b": { "photo_id": 2 },
   "annotation_complete": false,
-  "ground_truth": {"preference": null}
+  "ground_truth": { "preference": null }
 }
 ```
 
@@ -101,9 +99,9 @@ model rankings must not be copied into human preference truth.
 The quality report evaluates supported stored v5 measurements without new
 inference or changing settings:
 
-| Dimension | Full score | Leave-one-term-out variants |
-| :--- | :--- | :--- |
-| Sharpness | Stored sharpness component | Without Laplacian, FFT, or NIQE |
+| Dimension              | Full score                          | Leave-one-term-out variants                      |
+| :--------------------- | :---------------------------------- | :----------------------------------------------- |
+| Sharpness              | Stored sharpness component          | Without Laplacian, FFT, or NIQE                  |
 | Face technical quality | Matched face's stored local quality | Without local sharpness, exposure, or resolution |
 
 For each variant, the remaining **stored internal weights** are renormalized to

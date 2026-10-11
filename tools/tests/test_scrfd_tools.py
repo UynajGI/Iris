@@ -1,10 +1,10 @@
-from pathlib import Path
 import sys
 import tempfile
 import unittest
+from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from setup_scrfd import checked, detector_from_archive, save_exact, MODEL_SHA256, OUTPUT_NAMES
+from setup_scrfd import MODEL_SHA256, OUTPUT_NAMES, checked, detector_from_archive, save_exact
 from verify_scrfd import verify_geometry
 
 
@@ -15,6 +15,7 @@ class ScrfdToolTests(unittest.TestCase):
 
     def test_size_and_hash_are_both_required(self):
         import hashlib
+
         data = b"fixture"
         checksum = hashlib.sha256(data).hexdigest()
         self.assertEqual(checked(data, len(data), checksum, "fixture"), data)
@@ -37,20 +38,49 @@ class ScrfdToolTests(unittest.TestCase):
         for channels in (1, 4, 10):
             for stride in (8, 16, 32):
                 count = 2 * (640 // stride) ** 2
-                tensors.append({"shape": [count, channels], "values": [0.] * (count * channels)})
+                tensors.append({"shape": [count, channels], "values": [0.0] * (count * channels)})
         index = (12 * 80 + 10) * 2
-        tensors[0]["values"][index] = .9
-        tensors[3]["values"][index * 4:index * 4 + 4] = [1., 2., 3., 4.]
-        tensors[6]["values"][index * 10:index * 10 + 10] = [-.5, -1., .5, -1., 0., 0., -.5, 1., .5, 1.]
-        return {"model_sha256": MODEL_SHA256, "output_names": OUTPUT_NAMES,
-                "width": 320, "height": 320, "scale": 2., "threshold": .55, "tensors": tensors,
-                "detections": [{"confidence": .9, "bbox": [36., 40., 16., 24.],
-                                "keypoints": [[38., 44.], [42., 44.], [40., 48.], [38., 52.], [42., 52.]]}]}
+        tensors[0]["values"][index] = 0.9
+        tensors[3]["values"][index * 4 : index * 4 + 4] = [1.0, 2.0, 3.0, 4.0]
+        tensors[6]["values"][index * 10 : index * 10 + 10] = [
+            -0.5,
+            -1.0,
+            0.5,
+            -1.0,
+            0.0,
+            0.0,
+            -0.5,
+            1.0,
+            0.5,
+            1.0,
+        ]
+        return {
+            "model_sha256": MODEL_SHA256,
+            "output_names": OUTPUT_NAMES,
+            "width": 320,
+            "height": 320,
+            "scale": 2.0,
+            "threshold": 0.55,
+            "tensors": tensors,
+            "detections": [
+                {
+                    "confidence": 0.9,
+                    "bbox": [36.0, 40.0, 16.0, 24.0],
+                    "keypoints": [
+                        [38.0, 44.0],
+                        [42.0, 44.0],
+                        [40.0, 48.0],
+                        [38.0, 52.0],
+                        [42.0, 52.0],
+                    ],
+                }
+            ],
+        }
 
     def test_geometry_reconstructs_stride_scale_and_landmark_order(self):
         result = verify_geometry(self.capture())
         self.assertEqual(result["matched_detections"], 1)
-        self.assertEqual(result["maximum_coordinate_or_score_error"], 0.)
+        self.assertEqual(result["maximum_coordinate_or_score_error"], 0.0)
 
     def test_geometry_rejects_displaced_box_and_wrong_stride_head(self):
         report = self.capture()

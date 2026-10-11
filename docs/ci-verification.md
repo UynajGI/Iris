@@ -11,11 +11,11 @@
 按已获授权公开 [v0.1.0-beta2](https://github.com/UynajGI/Iris/releases/tag/v0.1.0-beta2)；
 旧版 `v0.1.0-beta` 的 Tag 和附件保持不变，未修改仓库保护规则。
 
-| 平台 | 本次实际通过的范围 |
-| :--- | :--- |
-| Windows x64 GNU | 便携包闭包检查、带界面的 EXE 编译、独立 QA 身份安装/版本替换/卸载；应用数据保留、注册和快捷方式清理、真实产品状态不变 |
-| macOS arm64 / x64 | 两个原生 runner 独立编译和测试；PKG 资源检查、最终安装器解包、文件哈希、宿主/daemon 心跳与合成 PNG CPU 推理 |
-| Linux x64 | Ubuntu 22.04 原生编译和测试；DEB 与 desktop entry 检查、最终安装器解包、文件哈希、宿主/daemon 心跳与合成 PNG CPU 推理 |
+| 平台              | 本次实际通过的范围                                                                                                    |
+| :---------------- | :-------------------------------------------------------------------------------------------------------------------- |
+| Windows x64 GNU   | 便携包闭包检查、带界面的 EXE 编译、独立 QA 身份安装/版本替换/卸载；应用数据保留、注册和快捷方式清理、真实产品状态不变 |
+| macOS arm64 / x64 | 两个原生 runner 独立编译和测试；PKG 资源检查、最终安装器解包、文件哈希、宿主/daemon 心跳与合成 PNG CPU 推理           |
+| Linux x64         | Ubuntu 22.04 原生编译和测试；DEB 与 desktop entry 检查、最终安装器解包、文件哈希、宿主/daemon 心跳与合成 PNG CPU 推理 |
 
 4 个安装包、4 个便携包和源码 ZIP 共 9 件载荷，加上 `SHA256SUMS.txt` 为 10 个附件。
 公开前核对全部 9 件载荷和清单本身的 SHA256 与 GitHub 附件 digest 一致，Tag 精确指向
@@ -36,12 +36,12 @@ Unix 报告的 `installer_executed` 为 false（执行的是解包后载荷）�
 
 [运行 37941637598](https://github.com/UynajGI/Iris/actions/runs/37941637598) 对提交 `c997197` 完成四个平台的原生构建、CPU 推理与发行包自检：
 
-| 平台 | 已验证范围 |
-| :--- | :--- |
-| Windows x64 GNU | 桌面、daemon、CLI、MCP、RAW 转换器打包，文件校验、仓库外宿主启动和合成图分析 |
-| macOS 14 arm64 | 原生编译、工作区测试、三个默认 ONNX 模型、正常退出、包内启动和合成 PNG 分析 |
-| macOS 15 Intel x64 | 同上，独立 runner 验证 |
-| Ubuntu 22.04 x64 | 同上，原生 Linux runner 验证 |
+| 平台               | 已验证范围                                                                   |
+| :----------------- | :--------------------------------------------------------------------------- |
+| Windows x64 GNU    | 桌面、daemon、CLI、MCP、RAW 转换器打包，文件校验、仓库外宿主启动和合成图分析 |
+| macOS 14 arm64     | 原生编译、工作区测试、三个默认 ONNX 模型、正常退出、包内启动和合成 PNG 分析  |
+| macOS 15 Intel x64 | 同上，独立 runner 验证                                                       |
+| Ubuntu 22.04 x64   | 同上，原生 Linux runner 验证                                                 |
 
 同次运行的应用检查、Windows MSVC Rust/宿主检查及媒体专项通过。Python runner 运行 72 项，11 项 Git hooks 测试因缺少根目录 npm 工具跳过；本机 72 项全部通过。原生桌面人工走查仍需测试者反馈。
 

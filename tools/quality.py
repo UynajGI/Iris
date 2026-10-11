@@ -6,7 +6,6 @@ import importlib.util
 import io
 import json
 import os
-from pathlib import Path
 import platform
 import subprocess
 import sys
@@ -14,6 +13,7 @@ import tarfile
 import tempfile
 import urllib.request
 import zipfile
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CACHE = Path(os.environ.get("IRIS_QUALITY_CACHE", ROOT / ".tools/quality"))
@@ -75,12 +75,16 @@ def tool(name, install=False):
         destination.write_bytes(payload)
         destination.chmod(0o755)
     if not destination.is_file() or destination.read_bytes() != payload:
-        raise ValueError(f"{name}: executable differs from verified archive; run make quality-setup")
+        raise ValueError(
+            f"{name}: executable differs from verified archive; run make quality-setup"
+        )
     return destination
 
 
 def load_complexity():
-    spec = importlib.util.spec_from_file_location("iris_complexity", ROOT / "tools/check-complexity.py")
+    spec = importlib.util.spec_from_file_location(
+        "iris_complexity", ROOT / "tools/check-complexity.py"
+    )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     if module.version("lizard") != module.LIZARD_VERSION:
@@ -102,11 +106,15 @@ def complexity(source_files=None, limits=None):
     module = load_complexity()
     if limits is None:
         limits = json.loads((ROOT / "tools/complexity-limits.json").read_text("utf-8"))["legacy"]
-    report = module.analyze(module.sources() if source_files is None else source_files, 15, 120, "repo")
+    report = module.analyze(
+        module.sources() if source_files is None else source_files, 15, 120, "repo"
+    )
     errors = complexity_errors(report, limits)
     if errors:
         raise ValueError("\n".join(errors))
-    print(f"Complexity: {report['functions']} functions checked; {report['warning_count']} legacy violations within explicit limits")
+    print(
+        f"Complexity: {report['functions']} functions checked; {report['warning_count']} legacy violations within explicit limits"
+    )
 
 
 def workflows(directory=ROOT):
@@ -129,11 +137,17 @@ def index_blob(name):
 
 def staged():
     secrets(staged=True)
-    names = git("diff", "--cached", "--name-only", "--diff-filter=ACMR", "-z").decode("utf-8").split("\0")
+    names = (
+        git("diff", "--cached", "--name-only", "--diff-filter=ACMR", "-z")
+        .decode("utf-8")
+        .split("\0")
+    )
     names = [name for name in names if name]
     module = load_complexity()
     limits = json.loads(index_blob("tools/complexity-limits.json"))["legacy"]
-    source_files = [(name, index_blob(name).decode("utf-8-sig")) for name in names if module.source_path(name)]
+    source_files = [
+        (name, index_blob(name).decode("utf-8-sig")) for name in names if module.source_path(name)
+    ]
     complexity(source_files, limits)
     with tempfile.TemporaryDirectory(prefix="iris-staged-quality-") as temporary:
         snapshot = Path(temporary)
@@ -141,8 +155,21 @@ def staged():
         config.write_bytes(index_blob("pyproject.toml"))
         for name in names:
             if name.endswith(".py"):
-                run([sys.executable, "-m", "ruff", "check", "--no-cache", "--config", config,
-                     "--stdin-filename", name, "-"], input=index_blob(name))
+                run(
+                    [
+                        sys.executable,
+                        "-m",
+                        "ruff",
+                        "check",
+                        "--no-cache",
+                        "--config",
+                        config,
+                        "--stdin-filename",
+                        name,
+                        "-",
+                    ],
+                    input=index_blob(name),
+                )
         if any(name.startswith(".github/") and name.endswith((".yml", ".yaml")) for name in names):
             tracked = git("ls-files", "-z", ".github").decode("utf-8").split("\0")
             for name in filter(None, tracked):
@@ -155,30 +182,76 @@ def staged():
 def audit_python():
     with tempfile.TemporaryDirectory(prefix="iris-audit-") as temporary:
         requirements = Path(temporary) / "requirements.txt"
-        run([os.environ.get("UV", "uv"), "export", "--locked", "--format", "requirements-txt",
-             "--default-index", "https://pypi.org/simple", "--no-emit-project", "--output-file", requirements], stdout=subprocess.DEVNULL)
-        run([sys.executable, "-m", "pip_audit", "--require-hashes", "--disable-pip", "-r", requirements])
+        run(
+            [
+                os.environ.get("UV", "uv"),
+                "export",
+                "--locked",
+                "--format",
+                "requirements-txt",
+                "--default-index",
+                "https://pypi.org/simple",
+                "--no-emit-project",
+                "--output-file",
+                requirements,
+            ],
+            stdout=subprocess.DEVNULL,
+        )
+        run(
+            [
+                sys.executable,
+                "-m",
+                "pip_audit",
+                "--require-hashes",
+                "--disable-pip",
+                "-r",
+                requirements,
+            ]
+        )
 
 
 def audit_rust():
-    scanner = ROOT / ".tools/cargo-audit/bin" / ("cargo-audit.exe" if os.name == "nt" else "cargo-audit")
+    scanner = (
+        ROOT / ".tools/cargo-audit/bin" / ("cargo-audit.exe" if os.name == "nt" else "cargo-audit")
+    )
     result = run([scanner, "--version"], capture_output=True, text=True)
     if result.stdout.strip() != "cargo-audit 0.22.2":
         raise ValueError("Install the reviewed scanner with make audit-setup")
-    for lock in ["Cargo.lock", "apps/shell/src-tauri/Cargo.lock", "components/raw-decoder/Cargo.lock"]:
+    for lock in [
+        "Cargo.lock",
+        "apps/shell/src-tauri/Cargo.lock",
+        "components/raw-decoder/Cargo.lock",
+    ]:
         run([scanner, "audit", "--file", lock])
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=["setup", "complexity", "workflows", "secrets", "staged", "audit-python", "audit-rust"])
+    parser.add_argument(
+        "command",
+        choices=[
+            "setup",
+            "complexity",
+            "workflows",
+            "secrets",
+            "staged",
+            "audit-python",
+            "audit-rust",
+        ],
+    )
     args = parser.parse_args()
     if args.command == "setup":
         for name in ["actionlint", "gitleaks"]:
             print(f"Verified {name}: {tool(name, install=True)}")
     else:
-        {"complexity": complexity, "workflows": workflows, "secrets": secrets,
-         "staged": staged, "audit-python": audit_python, "audit-rust": audit_rust}[args.command]()
+        {
+            "complexity": complexity,
+            "workflows": workflows,
+            "secrets": secrets,
+            "staged": staged,
+            "audit-python": audit_python,
+            "audit-rust": audit_rust,
+        }[args.command]()
 
 
 if __name__ == "__main__":

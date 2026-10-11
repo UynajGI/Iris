@@ -1,12 +1,13 @@
 """Public source export must not accidentally include local/private material."""
+
 import importlib.util
-from pathlib import Path
 import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
 import zipfile
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 spec = importlib.util.spec_from_file_location("source_package", ROOT / "tools/package-source.py")
@@ -95,8 +96,13 @@ class PublicSourceTests(unittest.TestCase):
         tools.mkdir()
         for name in ("check-public-tree.py", "check-staged.py"):
             shutil.copy2(ROOT / "tools" / name, tools / name)
-        result = subprocess.run([sys.executable, str(tools / "check-public-tree.py")],
-                                cwd=self.root, capture_output=True, text=True, timeout=30)
+        result = subprocess.run(
+            [sys.executable, str(tools / "check-public-tree.py")],
+            cwd=self.root,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
         self.assertEqual(result.returncode, 1)
         self.assertIn("fixture.txt: possible credential material (value omitted)", result.stderr)
         self.assertNotIn(fixture_value, result.stdout + result.stderr)

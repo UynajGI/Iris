@@ -1,34 +1,51 @@
 """Real Git commits in disposable repositories exercise the installed Lefthook gates."""
+
 import os
-from pathlib import Path
 import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 LEFTHOOK = ROOT / "node_modules/.bin" / ("lefthook.cmd" if os.name == "nt" else "lefthook")
 
 
-@unittest.skipUnless(LEFTHOOK.exists() and shutil.which("node"), "install root Git tooling with make setup")
+@unittest.skipUnless(
+    LEFTHOOK.exists() and shutil.which("node"), "install root Git tooling with make setup"
+)
 class GitHookIntegrationTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory(prefix="iris-git-hooks-")
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
         self.env = {k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "LEFTHOOK"))}
-        self.env.update(GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull, NO_COLOR="1", IRIS_BACKEND=sys.executable)
+        self.env.update(
+            GIT_CONFIG_NOSYSTEM="1",
+            GIT_CONFIG_GLOBAL=os.devnull,
+            NO_COLOR="1",
+            IRIS_BACKEND=sys.executable,
+        )
         self.git("init", "--initial-branch=main")
         self.git("config", "user.name", "Hook fixture")
         self.git("config", "user.email", "hook-fixture@example.invalid")
         (self.root / "tools").mkdir()
         shutil.copy2(ROOT / "tools/check-staged.py", self.root / "tools/check-staged.py")
         shutil.copy2(ROOT / "tools/backend.mjs", self.root / "tools/backend.mjs")
-        for name in ["quality.py", "quality-tools.json", "check-complexity.py", "complexity-limits.json"]:
+        shutil.copy2(ROOT / "tools/commit-format.mjs", self.root / "tools/commit-format.mjs")
+        for name in [
+            "quality.py",
+            "quality-tools.json",
+            "check-complexity.py",
+            "complexity-limits.json",
+        ]:
             shutil.copy2(ROOT / "tools" / name, self.root / "tools" / name)
         for name in ["Makefile", "pyproject.toml", "uv.lock"]:
             shutil.copy2(ROOT / name, self.root / name)
+        for name in [".prettierrc.json", ".prettierignore", ".editorconfig"]:
+            shutil.copy2(ROOT / name, self.root / name)
+        self.env["FORMATTER"] = str(ROOT / "tools/format.mjs")
         self.env["IRIS_QUALITY_CACHE"] = str(ROOT / ".tools/quality")
         self.env["UV_PROJECT_ENVIRONMENT"] = str(ROOT / ".venv")
         self.git("add", "pyproject.toml", "tools/complexity-limits.json")
@@ -38,20 +55,37 @@ class GitHookIntegrationTests(unittest.TestCase):
         config = config.replace("node node_modules/lefthook/bin/index.js", f'node "{entry}"')
         cli = (ROOT / "node_modules/@commitlint/cli/cli.js").as_posix()
         rules = (ROOT / "commitlint.config.cjs").as_posix()
-        config = config.replace("node node_modules/@commitlint/cli/cli.js", f'node "{cli}" --config "{rules}"')
+        config = config.replace(
+            "node node_modules/@commitlint/cli/cli.js", f'node "{cli}" --config "{rules}"'
+        )
         (self.root / "lefthook.yml").write_text(config, encoding="utf-8")
-        subprocess.run([str(LEFTHOOK), "install"], cwd=self.root, env=self.env,
-                       capture_output=True, check=True, timeout=30)
+        subprocess.run(
+            [str(LEFTHOOK), "install"],
+            cwd=self.root,
+            env=self.env,
+            capture_output=True,
+            check=True,
+            timeout=30,
+        )
 
     def git(self, *args, check=True):
-        return subprocess.run(["git", *args], cwd=self.root, env=self.env, check=check,
-                              text=True, encoding="utf-8", errors="replace", capture_output=True, timeout=60)
+        return subprocess.run(
+            ["git", *args],
+            cwd=self.root,
+            env=self.env,
+            check=check,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            capture_output=True,
+            timeout=60,
+        )
 
     def stage(self, name, content, force=False):
         path = self.root / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(content)
-        self.git("add", *( ["-f"] if force else []), "--", name)
+        self.git("add", *(["-f"] if force else []), "--", name)
         return path
 
     def commit(self, message="test(hooks): verify staged input"):
@@ -68,7 +102,7 @@ class GitHookIntegrationTests(unittest.TestCase):
 
     def seed_commit(self):
         # Lefthook needs HEAD to temporarily hide partially staged changes.
-        self.stage("seed.json", b'{}\n')
+        self.stage("seed.json", b"{}\n")
         result = self.commit("test(hooks): initialize partial staging fixture")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         return self.git("rev-parse", "HEAD").stdout.strip()
@@ -93,7 +127,7 @@ class GitHookIntegrationTests(unittest.TestCase):
         self.assert_rejected(self.commit(), "generated/runtime/private directory")
 
     def test_local_tool_cannot_be_force_added(self):
-        self.stage(".tools/codegraph/package.json", b'{}\n', force=True)
+        self.stage(".tools/codegraph/package.json", b"{}\n", force=True)
         self.assert_rejected(self.commit(), "generated/runtime/private directory")
 
     def test_pem_signing_material_cannot_be_force_added(self):
@@ -107,7 +141,11 @@ class GitHookIntegrationTests(unittest.TestCase):
         self.assert_rejected(self.commit(), "binary/runtime/database/signing artifact")
 
     def test_encrypted_private_key_marker_is_rejected_in_text_file(self):
-        self.stage("credentials.txt", b"-----BEGIN ENCRYPTED PRIVATE KEY-----\nnot-a-real-key\n", force=True)
+        self.stage(
+            "credentials.txt",
+            b"-----BEGIN ENCRYPTED PRIVATE KEY-----\nnot-a-real-key\n",
+            force=True,
+        )
         result = self.commit()
         self.assert_rejected(result, "possible private key")
         self.assertNotIn("not-a-real-key", result.stdout + result.stderr)
@@ -122,11 +160,11 @@ class GitHookIntegrationTests(unittest.TestCase):
 
     def test_unstaged_syntax_does_not_change_a_valid_snapshot(self):
         self.seed_commit()
-        path = self.stage("good.py", b"print('staged')\n")
+        path = self.stage("good.py", b'print("staged")\n')
         path.write_text("def broken(:\n", encoding="utf-8")
         result = self.commit()
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertEqual(self.git("show", "HEAD:good.py").stdout, "print('staged')\n")
+        self.assertEqual(self.git("show", "HEAD:good.py").stdout, 'print("staged")\n')
         self.assertIn("good.py", self.git("status", "--short").stdout)
         self.assertEqual(path.read_text("utf-8"), "def broken(:\n")
 
@@ -145,9 +183,74 @@ class GitHookIntegrationTests(unittest.TestCase):
         self.stage("invalid.yaml", b"items: [\n")
         self.assert_rejected(self.commit(), "invalid staged syntax")
 
-    def test_missing_final_newline_is_rejected(self):
+    def test_missing_final_newline_is_fixed_and_staged(self):
         self.stage("good.json", b"{}")
-        self.assert_rejected(self.commit(), "missing final newline")
+        result = self.commit()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(self.git("show", "HEAD:good.json").stdout, "{}\n")
+
+    def test_python_imports_and_format_are_fixed_before_checks(self):
+        self.stage(
+            "tools/imports.py",
+            b"import sys\nimport os\n\nvalue={ 'name':os.name,'version':sys.version }\n",
+        )
+        result = self.commit()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        code = self.git("show", "HEAD:tools/imports.py").stdout
+        self.assertTrue(code.startswith("import os\nimport sys\n"), code)
+        self.assertIn('value = {"name": os.name, "version": sys.version}', code)
+
+    def test_rust_and_typescript_are_formatted(self):
+        self.stage("crates/fixture.rs", b'fn main(){println!("ok");}\n')
+        self.stage("apps/shell/src/fixture.ts", b"export const x={value:1}\n")
+        result = self.commit()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn(
+            'fn main() {\n    println!("ok");\n}', self.git("show", "HEAD:crates/fixture.rs").stdout
+        )
+        self.assertEqual(
+            self.git("show", "HEAD:apps/shell/src/fixture.ts").stdout,
+            "export const x = { value: 1 };\n",
+        )
+
+    def test_formatting_preserves_unstaged_changes_and_untracked_files(self):
+        self.seed_commit()
+        initial = '{"one":1,"two":2}\n'
+        self.stage("folder with spaces/数据.json", initial.encode())
+        result = self.commit()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        previous_head = self.git("rev-parse", "HEAD").stdout.strip()
+        path = self.stage("folder with spaces/数据.json", b'{"one":3,"two":2}\n')
+        path.write_text('{"one":3,"two":4}\n', encoding="utf-8")
+        untouched = self.root / "untracked.ts"
+        untouched.write_text("export const x={value:9}\n", encoding="utf-8")
+        result = self.commit()
+        # Conflicts must abort and restore the original index and worktree.
+        self.assertIn('"two":4', path.read_text("utf-8").replace(" ", ""))
+        self.assertEqual(untouched.read_text("utf-8"), "export const x={value:9}\n")
+        self.assert_rejected(result, "conflict", previous_head)
+        self.assertEqual(
+            self.git("show", ":folder with spaces/数据.json").stdout, '{"one":3,"two":2}\n'
+        )
+
+    def test_partial_staging_survives_formatting_other_files(self):
+        self.seed_commit()
+        separator = "// spacing keeps independent edits apart\n" * 20
+        original = "export const first = 1;\n" + separator + "export const last = 2;\n"
+        self.stage("partial.ts", original.encode())
+        result = self.commit()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        staged = original.replace("export const first = 1;", "export const first = { value: 3 };")
+        path = self.stage("partial.ts", staged.encode())
+        path.write_text(staged.replace("last = 2", "last = 4"), encoding="utf-8")
+        self.stage("needs-format.json", b'{"value":3}')
+        result = self.commit()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        committed = self.git("show", "HEAD:partial.ts").stdout
+        self.assertIn("first = { value: 3 };", committed)
+        self.assertIn("last = 2", committed)
+        self.assertIn("last = 4", path.read_text("utf-8"))
+        self.assertEqual(self.git("show", "HEAD:needs-format.json").stdout, '{ "value": 3 }\n')
 
     def test_staged_ruff_error_cannot_be_hidden_by_worktree_fix(self):
         self.seed_commit()
@@ -167,7 +270,9 @@ class GitHookIntegrationTests(unittest.TestCase):
         self.assertEqual(self.git("show", ":.github/workflows/bad.yml").stdout.encode(), bad)
 
     def test_new_complex_function_is_rejected(self):
-        body = "def complicated(value):\n" + "".join(f"    if value == {i}:\n        print(value)\n" for i in range(16))
+        body = "def complicated(value):\n" + "".join(
+            f"    if value == {i}:\n        print(value)\n" for i in range(16)
+        )
         self.stage("tools/complicated.py", body.encode())
         self.assert_rejected(self.commit(), "CCN=17")
 

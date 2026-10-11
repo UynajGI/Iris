@@ -1,21 +1,23 @@
 """Public native formats, generated portrait variants, orientation/size/error isolation."""
+
 import argparse
-from collections import Counter
 import hashlib
 import io
 import json
-from pathlib import Path
 import shutil
 import struct
 import sys
 import zlib
+from collections import Counter
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "artifacts/validation-python"))
 import numpy as np
-from PIL import Image, ImageOps, ImageDraw
 import pillow_heif
+from PIL import Image, ImageDraw, ImageOps
 from validation_support import Daemon
+
 pillow_heif.register_heif_opener()
 
 
@@ -38,9 +40,19 @@ def main():
     entries, source_hashes, native_entries, available = prepare_public_media(args, photos)
     expected = prepare_synthetic_media(photos, entries)
     original = {p.name: digest(p) for p in photos.iterdir()}
-    (args.output / "fixture-manifest.json").write_text(json.dumps({"files": entries, "hashes": original, "intentional_failures": 6}, indent=2), "utf-8")
-    report = {"ok": False, "daemon_sha256": digest(args.daemon), "native_files": len(native_entries), "unique_public_portrait_sources": len(available),
-              "derived_formats_are_not_independent_scenes": True, "accuracy_evaluated": False, "orientation_checks": {}}
+    (args.output / "fixture-manifest.json").write_text(
+        json.dumps({"files": entries, "hashes": original, "intentional_failures": 6}, indent=2),
+        "utf-8",
+    )
+    report = {
+        "ok": False,
+        "daemon_sha256": digest(args.daemon),
+        "native_files": len(native_entries),
+        "unique_public_portrait_sources": len(available),
+        "derived_formats_are_not_independent_scenes": True,
+        "accuracy_evaluated": False,
+        "orientation_checks": {},
+    }
     try:
         with Daemon(args.daemon, args.models, args.output / "run", workers=2) as daemon:
             project = daemon.request("POST", "/projects", {"root": str(photos.resolve())})["id"]
@@ -52,7 +64,9 @@ def main():
             report["analysis"] = daemon.job(project, "analyze")
             assert report["analysis"]["result"]["analyzed"] == len(entries)
             listing = daemon.request("GET", f"/projects/{project}/photos")
-            report["preview_sources"] = Counter(p["analysis"].get("preview_source", "primary") for p in listing)
+            report["preview_sources"] = Counter(
+                p["analysis"].get("preview_source", "primary") for p in listing
+            )
             thumb = next(p for p in listing if p["filename"] == "embedded-thumbnail.heic")
             assert thumb["analysis"]["preview_source"] == "heic_thumbnail", thumb
             report["incremental"] = daemon.job(project, "analyze")
@@ -65,11 +79,14 @@ def main():
         report["error"] = repr(error)
         raise
     finally:
-        report["source_hashes_preserved"] = all(digest(Path(p)) == h for p, h in source_hashes.items())
-        report["fixture_hashes_preserved"] = all(digest(photos / p) == h for p, h in original.items())
+        report["source_hashes_preserved"] = all(
+            digest(Path(p)) == h for p, h in source_hashes.items()
+        )
+        report["fixture_hashes_preserved"] = all(
+            digest(photos / p) == h for p, h in original.items()
+        )
         (args.output / "report.json").write_text(json.dumps(report, indent=2), "utf-8")
     print(json.dumps(report))
-
 
 
 def prepare_public_media(args, photos):
@@ -83,7 +100,14 @@ def prepare_public_media(args, photos):
         source_hashes[str(source)] = digest(source)
         assert source_hashes[str(source)] == native_entries[source.name]["sha256"]
         shutil.copy2(source, photos / source.name)
-        entries.append({"path": source.name, "kind": "native", "source": str(source), "manifest": str(args.corpus / "native/manifest.json")})
+        entries.append(
+            {
+                "path": source.name,
+                "kind": "native",
+                "source": str(source),
+                "manifest": str(args.corpus / "native/manifest.json"),
+            }
+        )
     portrait_root = args.corpus / "portraits-960"
     portrait_manifest = json.loads((portrait_root / "manifest.json").read_text("utf-8"))
     portrait_entries = {e["path"]: e for e in portrait_manifest["files"]}
@@ -97,7 +121,15 @@ def prepare_public_media(args, photos):
         for extension in ["jpg", "png", "webp", "heic"]:
             name = f"portrait-{index:02}.{extension}"
             im.save(photos / name, quality=90)
-            entries.append({"path": name, "kind": "public_portrait_conversion", "source": str(source), "provenance": portrait_entries[source.name], "modifications": "EXIF transpose, RGB conversion and format encoding"})
+            entries.append(
+                {
+                    "path": name,
+                    "kind": "public_portrait_conversion",
+                    "source": str(source),
+                    "provenance": portrait_entries[source.name],
+                    "modifications": "EXIF transpose, RGB conversion and format encoding",
+                }
+            )
     return entries, source_hashes, native_entries, available
 
 
@@ -110,18 +142,30 @@ def prepare_synthetic_media(photos, entries):
     expected = {}
     for extension in ["png", "webp"]:
         for orientation in range(1, 9):
-            exif = Image.Exif(); exif[274] = orientation
+            exif = Image.Exif()
+            exif[274] = orientation
             name = f"orientation-{orientation}.{extension}"
             base.save(photos / name, exif=exif, lossless=True)
             with Image.open(photos / name) as opened:
                 expected[name] = ImageOps.exif_transpose(opened).convert("RGB")
-            entries.append({"path": name, "kind": "synthetic_orientation", "orientation": orientation})
+            entries.append(
+                {"path": name, "kind": "synthetic_orientation", "orientation": orientation}
+            )
     for extension in ["png", "webp"]:
         name = f"large-24mp.{extension}"
         base.resize((6000, 4000)).save(photos / name, lossless=True)
         entries.append({"path": name, "kind": "synthetic_24mp"})
-    base.resize((4000, 2500)).save(photos / "embedded-thumbnail.heic", thumbnails=[1280], quality=80)
-    entries.append({"path": "embedded-thumbnail.heic", "kind": "synthetic_heic_thumbnail", "primary_dimensions": [4000, 2500], "thumbnail_edge": 1280})
+    base.resize((4000, 2500)).save(
+        photos / "embedded-thumbnail.heic", thumbnails=[1280], quality=80
+    )
+    entries.append(
+        {
+            "path": "embedded-thumbnail.heic",
+            "kind": "synthetic_heic_thumbnail",
+            "primary_dimensions": [4000, 2500],
+            "thumbnail_edge": 1280,
+        }
+    )
     for extension in ["jpg", "png", "webp", "heic", "nef"]:
         (photos / f"broken.{extension}").write_bytes(b"deliberately corrupt test input")
     oversized = bytearray((photos / "orientation-1.png").read_bytes())
@@ -132,21 +176,39 @@ def prepare_synthetic_media(photos, entries):
 
 
 def verify_media_routes(daemon, listing, original, expected, report):
-    mime = {"jpeg": "image/jpeg", "png": "image/png", "webp": "image/webp", "heic": "image/heic", "raw": "application/octet-stream"}
+    mime = {
+        "jpeg": "image/jpeg",
+        "png": "image/png",
+        "webp": "image/webp",
+        "heic": "image/heic",
+        "raw": "application/octet-stream",
+    }
     for photo in listing:
         name = photo["filename"]
         content_type, data = daemon.request("GET", f"/photos/{photo['id']}/original", raw=True)
-        assert content_type == mime[photo["format"]] and hashlib.sha256(data).hexdigest() == original[name]
+        assert (
+            content_type == mime[photo["format"]]
+            and hashlib.sha256(data).hexdigest() == original[name]
+        )
         for route in ["thumb", "preview"]:
             content_type, data = daemon.request("GET", f"/photos/{photo['id']}/{route}", raw=True)
             decoded = Image.open(io.BytesIO(data)).convert("RGB")
-            assert content_type == "image/jpeg" and max(decoded.size) <= (320 if route == "thumb" else 2560)
+            assert content_type == "image/jpeg" and max(decoded.size) <= (
+                320 if route == "thumb" else 2560
+            )
             if name in expected:
                 reference = expected[name].resize(decoded.size, Image.Resampling.BILINEAR)
-                error = float(np.abs(np.asarray(decoded).astype(float) - np.asarray(reference).astype(float)).mean())
+                error = float(
+                    np.abs(
+                        np.asarray(decoded).astype(float) - np.asarray(reference).astype(float)
+                    ).mean()
+                )
                 assert error < 6, (name, route, error)
-                assert (decoded.width > decoded.height) == (expected[name].width > expected[name].height)
+                assert (decoded.width > decoded.height) == (
+                    expected[name].width > expected[name].height
+                )
                 report["orientation_checks"][name + "/" + route] = error
+
 
 if __name__ == "__main__":
     main()

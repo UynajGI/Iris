@@ -1,11 +1,15 @@
 lefthook: node node_modules/lefthook/bin/index.js
 
 pre-commit:
+  piped: true
   commands:
-    staged-source:
-      run: make staged-check
-    staged-quality:
-      run: make quality-staged
+    staged-safety:
+      priority: 1
+      run: make staged-safety
+    format:
+      priority: 2
+      run: make commit-check
+      stage_fixed: true
 
 pre-push:
   commands:

@@ -1,19 +1,35 @@
 """Install pinned Microsoft ONNX Runtime DirectML and native dependency, offline-capable."""
+
 import argparse
 import hashlib
 import json
-from pathlib import Path
 import urllib.request
 import zipfile
+from pathlib import Path
 
 PACKAGES = [
-    ("microsoft.ml.onnxruntime.directml", "1.22.0", "29f9872d786236b79aa83f94482f3a17c14297e4833768d6d0ed4883ee732e60", {
-        "runtimes/win-x64/native/onnxruntime.dll": "onnxruntime.dll",
-        "runtimes/win-x64/native/onnxruntime_providers_shared.dll": "onnxruntime_providers_shared.dll",
-        "LICENSE": "licenses/ONNX-Runtime-LICENSE.txt", "ThirdPartyNotices.txt": "licenses/ONNX-Runtime-ThirdPartyNotices.txt"}),
-    ("microsoft.ai.directml", "1.15.4", "4e7cb7ddce8cf837a7a75dc029209b520ca0101470fcdf275c1f49736a3615b9", {
-        "bin/x64-win/DirectML.dll": "DirectML.dll", "LICENSE.txt": "licenses/DirectML-LICENSE.txt",
-        "LICENSE-CODE.txt": "licenses/DirectML-LICENSE-CODE.txt", "ThirdPartyNotices.txt": "licenses/DirectML-ThirdPartyNotices.txt"}),
+    (
+        "microsoft.ml.onnxruntime.directml",
+        "1.22.0",
+        "29f9872d786236b79aa83f94482f3a17c14297e4833768d6d0ed4883ee732e60",
+        {
+            "runtimes/win-x64/native/onnxruntime.dll": "onnxruntime.dll",
+            "runtimes/win-x64/native/onnxruntime_providers_shared.dll": "onnxruntime_providers_shared.dll",
+            "LICENSE": "licenses/ONNX-Runtime-LICENSE.txt",
+            "ThirdPartyNotices.txt": "licenses/ONNX-Runtime-ThirdPartyNotices.txt",
+        },
+    ),
+    (
+        "microsoft.ai.directml",
+        "1.15.4",
+        "4e7cb7ddce8cf837a7a75dc029209b520ca0101470fcdf275c1f49736a3615b9",
+        {
+            "bin/x64-win/DirectML.dll": "DirectML.dll",
+            "LICENSE.txt": "licenses/DirectML-LICENSE.txt",
+            "LICENSE-CODE.txt": "licenses/DirectML-LICENSE-CODE.txt",
+            "ThirdPartyNotices.txt": "licenses/DirectML-ThirdPartyNotices.txt",
+        },
+    ),
 ]
 
 
@@ -32,7 +48,10 @@ def main():
         url = f"https://api.nuget.org/v3-flatcontainer/{name}/{version}/{filename}"
         if not path.exists():
             temporary = path.with_suffix(".partial")
-            with urllib.request.urlopen(url, timeout=180) as response, temporary.open("wb") as output:
+            with (
+                urllib.request.urlopen(url, timeout=180) as response,
+                temporary.open("wb") as output,
+            ):
                 total = 0
                 while chunk := response.read(1024 * 1024):
                     total += len(chunk)
@@ -54,9 +73,20 @@ def main():
         target = args.output / name
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(data)
-    files = [{"path": name, "size": len(data), "sha256": hashlib.sha256(data).hexdigest()} for name, data in sorted(payload.items())]
-    (args.output / "manifest.json").write_text(json.dumps({"platform": "windows-x64", "sources": sources, "files": files}, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps({"runtime": str(args.output), "verified_packages": len(sources), "files": len(files)}))
+    files = [
+        {"path": name, "size": len(data), "sha256": hashlib.sha256(data).hexdigest()}
+        for name, data in sorted(payload.items())
+    ]
+    (args.output / "manifest.json").write_text(
+        json.dumps({"platform": "windows-x64", "sources": sources, "files": files}, indent=2)
+        + "\n",
+        encoding="utf-8",
+    )
+    print(
+        json.dumps(
+            {"runtime": str(args.output), "verified_packages": len(sources), "files": len(files)}
+        )
+    )
 
 
 if __name__ == "__main__":

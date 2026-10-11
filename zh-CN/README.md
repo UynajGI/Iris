@@ -12,26 +12,26 @@
 
 ## 📋 目录
 
-* [功能特性](#-功能特性)
-* [快速开始](#-快速开始)
-* [CLI 与 MCP](#-cli-与-mcp)
-* [开发](#-开发)
-* [文档](#-文档)
-* [Topics](#-topics)
-* [贡献](#-贡献)
-* [许可证](#-许可证)
+- [功能特性](#-功能特性)
+- [快速开始](#-快速开始)
+- [CLI 与 MCP](#-cli-与-mcp)
+- [开发](#-开发)
+- [文档](#-文档)
+- [Topics](#-topics)
+- [贡献](#-贡献)
+- [许可证](#-许可证)
 
 复核一组人像照片，需要反复检查清晰度、眼态和相似画面。Iris 通过本地分析与分组辅助复核。模型给出建议，你做最终决定；标记淘汰不会自动删除原文件。
 
 ## ✨ 功能特性
 
-| 工作流 | 功能 |
-| :--- | :--- |
+| 工作流     | 功能                                                                          |
+| :--------- | :---------------------------------------------------------------------------- |
 | 导入与浏览 | 照片总览、单张复核、连拍对照；JPEG、PNG、WebP，以及按平台提供的 HEIC/RAW 支持 |
-| 辅助选片 | 人脸与眼态观测、清晰度与曝光评分；相似分组和可展开的分析依据 |
-| 标记与整理 | 保留、待定、淘汰，星级和颜色标签；批量操作与撤销 |
-| 导出与恢复 | 复制、CSV、XMP 导出；隔离预览、确认与恢复 |
-| Agent 接入 | 独立 stdio MCP 二进制，带目录范围限制与写入审计，无需启动桌面窗口 |
+| 辅助选片   | 人脸与眼态观测、清晰度与曝光评分；相似分组和可展开的分析依据                  |
+| 标记与整理 | 保留、待定、淘汰，星级和颜色标签；批量操作与撤销                              |
+| 导出与恢复 | 复制、CSV、XMP 导出；隔离预览、确认与恢复                                     |
+| Agent 接入 | 独立 stdio MCP 二进制，带目录范围限制与写入审计，无需启动桌面窗口             |
 
 所有推理在本地运行。发行包包含默认模型；可选模型需单独安装并核对许可，安装后不会自动启用。评分是辅助判断，尚无独立人工标注支持准确率承诺。
 
@@ -39,11 +39,11 @@
 
 **1. 按系统与处理器下载。** 查看 [发行页](https://github.com/UynajGI/Iris/releases)。当前发版流程自动构建 Windows EXE、macOS PKG（Apple Silicon / Intel）、Linux DEB，并保留便携压缩包。旧版可能只有便携包，以实际附件为准，不猜测下载名称；构建/验收状态见[发布流程](../docs/releasing.md)。无需开发工具链，通过 `SHA256SUMS.txt` 核对下载文件。
 
-| 平台 | 环境要求与 Beta 范围 |
-| :--- | :--- |
-| Windows x64 | 需要 WebView2 Runtime 和 Microsoft Visual C++ 2015–2022 x64 Runtime；包含 HEIC 运行库、ExifTool 和独立 RAW 转换器 |
-| macOS arm64 / x64 | 分别对应 Apple Silicon / Intel；未签名公证，暂未打包 HEIC 和 ExifTool |
-| Linux x64 | 基于 Ubuntu 22.04，需要 GTK 3 / WebKitGTK 4.1；暂未打包 HEIC 和 ExifTool |
+| 平台              | 环境要求与 Beta 范围                                                                                              |
+| :---------------- | :---------------------------------------------------------------------------------------------------------------- |
+| Windows x64       | 需要 WebView2 Runtime 和 Microsoft Visual C++ 2015–2022 x64 Runtime；包含 HEIC 运行库、ExifTool 和独立 RAW 转换器 |
+| macOS arm64 / x64 | 分别对应 Apple Silicon / Intel；未签名公证，暂未打包 HEIC 和 ExifTool                                             |
+| Linux x64         | 基于 Ubuntu 22.04，需要 GTK 3 / WebKitGTK 4.1；暂未打包 HEIC 和 ExifTool                                          |
 
 **2. 安装或使用便携包。** Windows 运行 setup EXE；macOS 打开对应 PKG，跟随系统安装器；Linux 使用软件安装器或 `sudo apt install ./Iris-<版本>-linux-x64.deb`，从应用菜单或 `iris` 启动。Beta 暂未配置正式签名/公证。
 
@@ -107,14 +107,14 @@ Windows PowerShell 使用相同命令。`make setup` 准备隔离的后端工具
 
 ## 📚 文档
 
-| 入口 | 内容 |
-| :--- | :--- |
-| [文档索引](../docs/README.md) | 全部专题与模块地图 |
-| [架构](../docs/architecture.md) | Rust 核心、daemon、CLI、MCP 与 Tauri 边界 |
-| [设计](../DESIGN.md) / [产品](../PRODUCT.md) | 已批准的视觉、交互与产品范围 |
-| [验证](../docs/validation.md) / [CI](../docs/ci-verification.md) | 测试证据与尚未覆盖的范围 |
-| [发布流程](../docs/releasing.md) | 版本、Tag、跨平台构建与发布 |
-| [当前状态](../docs/development-status.md) / [交接](../docs/HANDOFF.md) | 已实现功能与剩余验收 |
+| 入口                                                                   | 内容                                      |
+| :--------------------------------------------------------------------- | :---------------------------------------- |
+| [文档索引](../docs/README.md)                                          | 全部专题与模块地图                        |
+| [架构](../docs/architecture.md)                                        | Rust 核心、daemon、CLI、MCP 与 Tauri 边界 |
+| [设计](../DESIGN.md) / [产品](../PRODUCT.md)                           | 已批准的视觉、交互与产品范围              |
+| [验证](../docs/validation.md) / [CI](../docs/ci-verification.md)       | 测试证据与尚未覆盖的范围                  |
+| [发布流程](../docs/releasing.md)                                       | 版本、Tag、跨平台构建与发布               |
+| [当前状态](../docs/development-status.md) / [交接](../docs/HANDOFF.md) | 已实现功能与剩余验收                      |
 
 ## 📌 Topics
 

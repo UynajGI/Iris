@@ -91,9 +91,9 @@ pwsh -NoProfile -File tools/verify-nsis-lifecycle.ps1 -SourceBuildReport dist/in
 
 更新器签名与 Windows Authenticode 是两套不同机制：
 
-* 更新工件必须有 `.sig`，其受签 comment 必须包含对应 `version:<版本>`。
+- 更新工件必须有 `.sig`，其受签 comment 必须包含对应 `version:<版本>`。
   构建工具再次验证字节、公钥和版本，成功后才写入交付目录。
-* Authenticode 可额外使用 `-CertificateThumbprint <证书指纹>` 和
+- Authenticode 可额外使用 `-CertificateThumbprint <证书指纹>` 和
   `-TimestampUrl <时间戳服务地址>`；需要已配置 `signtool.exe` 和证书。
   脚本签名暂存的 daemon/CLI，Tauri 签名壳与安装器，再检查状态及证书指纹。
 

@@ -1,0 +1,10 @@
+{
+  "printWidth": 100,
+  "tabWidth": 2,
+  "singleQuote": true,
+  "trailingComma": "es5",
+  "endOfLine": "lf",
+  "proseWrap": "preserve",
+  "xmlWhitespaceSensitivity": "strict",
+  "overrides": [{ "files": "*.toml", "options": { "singleQuote": false } }]
+}

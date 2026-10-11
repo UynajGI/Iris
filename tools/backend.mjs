@@ -5,10 +5,12 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
 export const root = fileURLToPath(new URL('../', import.meta.url));
-export const backend = process.env.IRIS_BACKEND || resolve(root, '.venv', process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python');
+export const backend =
+  process.env.IRIS_BACKEND ||
+  resolve(root, '.venv', process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python');
 export function backendEnv() {
   const env = { ...process.env };
-  const key = Object.keys(env).find(k => k.toLowerCase() === 'path') ?? 'PATH';
+  const key = Object.keys(env).find((k) => k.toLowerCase() === 'path') ?? 'PATH';
   env[key] = `${resolve(backend, '..')}${delimiter}${env[key] ?? ''}`;
   env.VIRTUAL_ENV = resolve(root, '.venv');
   return env;

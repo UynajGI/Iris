@@ -6,13 +6,15 @@
 
 ## 当前实现
 
-* 核心、媒体、RAW、DirectML、桌面界面和 stdio MCP 均已有实现。先读[当前状态](development-status.md)、[架构](architecture.md)、[MCP 接入](mcp.md)。
-* 前端已按用户授权重构为 v2 选片工作台：保留主题紫、状态色和中性照片底，新增双侧面板、胶片栏、预览直方图、缩放/拖动/全屏和当前分析人脸标注。现行规则见 [DESIGN.md](../DESIGN.md)，不是对 beta2 已发布安装包的验收声明。浏览器回归入口与临时照片要求见[工具说明](../tools/README.md)。
-* 2026-10-11 补齐即时标记、画册/单图动效、默认 YRGB 叠加及单面板波形切换，精简起始页和完成任务提示。界面检查点为 `bcdebaa`；随后按 Lizard 保行为拆分前端与服务模块，警告 102 → 85，前端源码 9 → 0。当前完整本地推送门禁通过：Rust/原生宿主 202 项通过、24 项忽略，前端 88 项通过、1 项 live API 跳过，Python 93 项通过。完整浏览器检查 19 组通过；边界见[桌面实现](frontend-implementation.md)与[复杂度检查](complexity.md)。本轮仅本地验证和提交，不推送、不触发远端 CI。
-* MCP 使用官方 Rust SDK，复用 daemon/core；不打开桌面、不监听 TCP，包含 44 个工具、目录范围限制、写入审计、请求去重和数据库互斥。
-* 分析版本为 `iris-vision-v6-local-pipeline-2026-10-07`。数据库迁移以源码为准，旧笔记中的 schema 数字不是当前契约。
-* 独立 RAW 转换器继续保留；开源不要求重新合并已验证的进程边界。
-* beta2 已通过四平台完整安装器 CI 并公开发布 Windows EXE、macOS arm64/x64 PKG、Linux x64 DEB、四份便携包、对应源码和 SHA256；所有附件 digest 已核对。安装界面源码在 `apps/shell/installer/`，实际运行和边界见[CI 验证](ci-verification.md)。git-cliff 自动生成变更日志，手动入口可在验证后创建新 Tag 和草稿，详见[发布流程](releasing.md)。
+- 提交钩子已按用户要求启用自动格式化与重新暂存：rustfmt、Ruff 格式及导入排序、Prettier 覆盖前端/文档/支持的配置。暂存安全检查先运行，随后格式化再运行质量门禁；部分暂存由 Lefthook 隔离与恢复。统一入口为 `make fmt` / `make fmt-check`，细节见[维护检查](maintenance.md)。复杂度阈值不变，未恢复历史豁免。
+
+- 核心、媒体、RAW、DirectML、桌面界面和 stdio MCP 均已有实现。先读[当前状态](development-status.md)、[架构](architecture.md)、[MCP 接入](mcp.md)。
+- 前端已按用户授权重构为 v2 选片工作台：保留主题紫、状态色和中性照片底，新增双侧面板、胶片栏、预览直方图、缩放/拖动/全屏和当前分析人脸标注。现行规则见 [DESIGN.md](../DESIGN.md)，不是对 beta2 已发布安装包的验收声明。浏览器回归入口与临时照片要求见[工具说明](../tools/README.md)。
+- 2026-10-11 补齐即时标记、画册/单图动效、默认 YRGB 叠加及单面板波形切换，精简起始页和完成任务提示。界面检查点为 `bcdebaa`；随后按 Lizard 保行为拆分前端与服务模块，警告 102 → 85，前端源码 9 → 0。当前完整本地推送门禁通过：Rust/原生宿主 202 项通过、24 项忽略，前端 88 项通过、1 项 live API 跳过，Python 93 项通过。完整浏览器检查 19 组通过；边界见[桌面实现](frontend-implementation.md)与[复杂度检查](complexity.md)。本轮仅本地验证和提交，不推送、不触发远端 CI。
+- MCP 使用官方 Rust SDK，复用 daemon/core；不打开桌面、不监听 TCP，包含 44 个工具、目录范围限制、写入审计、请求去重和数据库互斥。
+- 分析版本为 `iris-vision-v6-local-pipeline-2026-10-07`。数据库迁移以源码为准，旧笔记中的 schema 数字不是当前契约。
+- 独立 RAW 转换器继续保留；开源不要求重新合并已验证的进程边界。
+- beta2 已通过四平台完整安装器 CI 并公开发布 Windows EXE、macOS arm64/x64 PKG、Linux x64 DEB、四份便携包、对应源码和 SHA256；所有附件 digest 已核对。安装界面源码在 `apps/shell/installer/`，实际运行和边界见[CI 验证](ci-verification.md)。git-cliff 自动生成变更日志，手动入口可在验证后创建新 Tag 和草稿，详见[发布流程](releasing.md)。
 
 ## 下一步
 

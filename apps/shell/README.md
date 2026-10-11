@@ -204,16 +204,16 @@ automate directory-dialog clicks or verify a Windows installation/upgrade.
 The application is split into transport, state, presentation, and native hosting
 layers:
 
-| Area | Files | Responsibility |
-| :--- | :--- | :--- |
-| Client and transport | `client.ts`, `transport.ts`, `types.ts`, `generated/api.d.ts` | Authenticated HTTP/WS calls and generated contract types |
-| State and workflows | `store.ts`, `group-session.ts`, `commands.ts`, `events.ts` | Project state, queued decisions, groups, keyboard commands and resync |
-| Analysis and preferences | `analysis-readout.ts`, `view-preferences.ts`, `preferences.ts`, `i18n.ts` | Score display, durable view settings and localized labels |
-| React entry | `main.tsx`, `react.ts`, `index.ts` | React mounting, hooks, and public application exports |
-| UI screens | `ui/App.tsx`, `ui/LibraryNav.tsx`, `ui/TaskBar.tsx`, `ui/PhotoFilters.tsx`, `ui/MarkTools.tsx`, `ui/ExecutionDetails.tsx` | Library, review, filters, decisions and task status |
-| Settings and files | `ui/AnalysisSettings.tsx`, `ui/CacheSettings.tsx`, `ui/FileWorkflows.tsx`, `ui/OptionalModels.tsx`, `ui/ModelTaskBar.tsx` | Analysis, cache, export/recovery and model workflows |
-| Shared UI | `ui/components.tsx`, `ui/Icon.tsx`, `ui/app.css`, `ui/tokens.css`, `ui/icons/` | Reusable controls, styling tokens and licensed icons |
-| Tauri host | `desktop.ts`, `native-dialog.ts`, `native-title.ts`, `updater.ts` | Daemon lifecycle, native dialogs/title and update bridge |
+| Area                     | Files                                                                                                                     | Responsibility                                                        |
+| :----------------------- | :------------------------------------------------------------------------------------------------------------------------ | :-------------------------------------------------------------------- |
+| Client and transport     | `client.ts`, `transport.ts`, `types.ts`, `generated/api.d.ts`                                                             | Authenticated HTTP/WS calls and generated contract types              |
+| State and workflows      | `store.ts`, `group-session.ts`, `commands.ts`, `events.ts`                                                                | Project state, queued decisions, groups, keyboard commands and resync |
+| Analysis and preferences | `analysis-readout.ts`, `view-preferences.ts`, `preferences.ts`, `i18n.ts`                                                 | Score display, durable view settings and localized labels             |
+| React entry              | `main.tsx`, `react.ts`, `index.ts`                                                                                        | React mounting, hooks, and public application exports                 |
+| UI screens               | `ui/App.tsx`, `ui/LibraryNav.tsx`, `ui/TaskBar.tsx`, `ui/PhotoFilters.tsx`, `ui/MarkTools.tsx`, `ui/ExecutionDetails.tsx` | Library, review, filters, decisions and task status                   |
+| Settings and files       | `ui/AnalysisSettings.tsx`, `ui/CacheSettings.tsx`, `ui/FileWorkflows.tsx`, `ui/OptionalModels.tsx`, `ui/ModelTaskBar.tsx` | Analysis, cache, export/recovery and model workflows                  |
+| Shared UI                | `ui/components.tsx`, `ui/Icon.tsx`, `ui/app.css`, `ui/tokens.css`, `ui/icons/`                                            | Reusable controls, styling tokens and licensed icons                  |
+| Tauri host               | `desktop.ts`, `native-dialog.ts`, `native-title.ts`, `updater.ts`                                                         | Daemon lifecycle, native dialogs/title and update bridge              |
 
 The map is an orientation aid; behavior and API contracts remain defined by the
 daemon and shared state layer. Individual source files do not each need a README.

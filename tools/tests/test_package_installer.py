@@ -1,13 +1,13 @@
 """Installer preflight and payload tests; no compiler or installer is run."""
+
 import hashlib
 import json
 import os
-from pathlib import Path
 import shutil
 import subprocess
 import tempfile
 import unittest
-
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 PWSH = shutil.which("pwsh")
@@ -22,10 +22,21 @@ class InstallerPreflightTests(unittest.TestCase):
         self.portable.mkdir()
         self.output = self.root / "output"
         self.files = []
-        for name in ("iris-shell.exe", "iris-daemon.exe", "iris-cli.exe",
-                     "iris-mcp.exe", "iris-raw-decoder.exe", "sources/raw-decoder-source.zip",
-                     "sources/iris-application-source.zip", "sources/dependency-sources.zip", "LICENSE", "THIRD_PARTY_NOTICES.md",
-                     "WebView2Loader.dll", "models/manifest.json", "models/onnxruntime.dll"):
+        for name in (
+            "iris-shell.exe",
+            "iris-daemon.exe",
+            "iris-cli.exe",
+            "iris-mcp.exe",
+            "iris-raw-decoder.exe",
+            "sources/raw-decoder-source.zip",
+            "sources/iris-application-source.zip",
+            "sources/dependency-sources.zip",
+            "LICENSE",
+            "THIRD_PARTY_NOTICES.md",
+            "WebView2Loader.dll",
+            "models/manifest.json",
+            "models/onnxruntime.dll",
+        ):
             self.add_file(name, b"non-executable test fixture")
         self.write_manifest()
 
@@ -36,20 +47,35 @@ class InstallerPreflightTests(unittest.TestCase):
         path = self.portable / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
-        self.files.append({"path": name, "bytes": len(data),
-                           "sha256": hashlib.sha256(data).hexdigest()})
+        self.files.append(
+            {"path": name, "bytes": len(data), "sha256": hashlib.sha256(data).hexdigest()}
+        )
 
     def write_manifest(self):
         version = json.loads((ROOT / "apps/shell/package.json").read_text())["version"]
-        (self.portable / "checksums.json").write_text(json.dumps({
-            "configuration": "Release", "version": version, "files": self.files}))
+        (self.portable / "checksums.json").write_text(
+            json.dumps({"configuration": "Release", "version": version, "files": self.files})
+        )
 
     def run_preflight(self, *extra):
-        result = subprocess.run([PWSH, "-NoProfile", "-File",
-                                 str(ROOT / "tools/package-installer.ps1"),
-                                 "-PortableDirectory", str(self.portable),
-                                 "-OutputDirectory", str(self.output), "-PrepareOnly", *extra],
-                                text=True, encoding="utf-8", capture_output=True, timeout=30)
+        result = subprocess.run(
+            [
+                PWSH,
+                "-NoProfile",
+                "-File",
+                str(ROOT / "tools/package-installer.ps1"),
+                "-PortableDirectory",
+                str(self.portable),
+                "-OutputDirectory",
+                str(self.output),
+                "-PrepareOnly",
+                *extra,
+            ],
+            text=True,
+            encoding="utf-8",
+            capture_output=True,
+            timeout=30,
+        )
         self.assertNotEqual(result.returncode, 0, result.stdout)
         self.assertFalse(self.output.exists(), "Rejected input must not publish output")
         return result.stdout + result.stderr
@@ -60,8 +86,15 @@ class InstallerPreflightTests(unittest.TestCase):
 
     def test_raw_component_and_source_must_both_be_manifested(self):
         original = self.files.copy()
-        for name in ("iris-mcp.exe", "iris-raw-decoder.exe", "sources/raw-decoder-source.zip",
-                     "sources/iris-application-source.zip", "sources/dependency-sources.zip", "LICENSE", "THIRD_PARTY_NOTICES.md"):
+        for name in (
+            "iris-mcp.exe",
+            "iris-raw-decoder.exe",
+            "sources/raw-decoder-source.zip",
+            "sources/iris-application-source.zip",
+            "sources/dependency-sources.zip",
+            "LICENSE",
+            "THIRD_PARTY_NOTICES.md",
+        ):
             with self.subTest(name=name):
                 # The file still exists, but unmanifested files cannot be shipped.
                 self.files = [entry for entry in original if entry["path"] != name]
@@ -84,11 +117,23 @@ class InstallerPreflightTests(unittest.TestCase):
         self.add_file("sources/main-application-source.zip", b"private source fixture")
         self.add_file("apps/shell/src/private.ts", b"private TypeScript fixture")
         self.write_manifest()
-        result = subprocess.run([PWSH, "-NoProfile", "-File",
-                                 str(ROOT / "tools/package-installer.ps1"),
-                                 "-PortableDirectory", str(self.portable),
-                                 "-OutputDirectory", str(self.output), "-PrepareOnly"],
-                                text=True, encoding="utf-8", capture_output=True, timeout=30)
+        result = subprocess.run(
+            [
+                PWSH,
+                "-NoProfile",
+                "-File",
+                str(ROOT / "tools/package-installer.ps1"),
+                "-PortableDirectory",
+                str(self.portable),
+                "-OutputDirectory",
+                str(self.output),
+                "-PrepareOnly",
+            ],
+            text=True,
+            encoding="utf-8",
+            capture_output=True,
+            timeout=30,
+        )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         preparation = json.loads((self.output / "preparation.json").read_text("utf-8-sig"))
         stage = Path(preparation["stage"]).resolve()
@@ -114,8 +159,11 @@ class InstallerPreflightTests(unittest.TestCase):
                 continue
             self.assertEqual(Path(staged).read_bytes(), (self.portable / relative).read_bytes())
         for entry in self.files:
-            self.assertEqual(hashlib.sha256((self.portable / entry["path"]).read_bytes()).hexdigest(),
-                             entry["sha256"], "Staging must preserve the source portable")
+            self.assertEqual(
+                hashlib.sha256((self.portable / entry["path"]).read_bytes()).hexdigest(),
+                entry["sha256"],
+                "Staging must preserve the source portable",
+            )
 
     def test_parent_traversal_and_absolute_manifest_paths_are_rejected(self):
         for path in ("../outside.exe", str(self.root / "outside.exe")):
@@ -125,17 +173,26 @@ class InstallerPreflightTests(unittest.TestCase):
                 self.assertIn("Invalid manifest path", self.run_preflight())
 
     def test_runtime_update_endpoint_cannot_be_added_to_offline_package(self):
-        self.assertIn("require -EnableUpdater", self.run_preflight(
-            "-UpdateEndpoint", "https://updates.invalid/release.json"))
+        self.assertIn(
+            "require -EnableUpdater",
+            self.run_preflight("-UpdateEndpoint", "https://updates.invalid/release.json"),
+        )
 
     def test_unsigned_update_build_is_rejected_before_any_output(self):
         public_key = self.root / "public.key"
         public_key.write_text("test-public-key")
         previous = os.environ.pop("TAURI_SIGNING_PRIVATE_KEY", None)
         try:
-            self.assertIn("TAURI_SIGNING_PRIVATE_KEY", self.run_preflight(
-                "-EnableUpdater", "-UpdateEndpoint", "https://updates.invalid/release.json",
-                "-UpdatePublicKeyFile", str(public_key)))
+            self.assertIn(
+                "TAURI_SIGNING_PRIVATE_KEY",
+                self.run_preflight(
+                    "-EnableUpdater",
+                    "-UpdateEndpoint",
+                    "https://updates.invalid/release.json",
+                    "-UpdatePublicKeyFile",
+                    str(public_key),
+                ),
+            )
         finally:
             if previous is not None:
                 os.environ["TAURI_SIGNING_PRIVATE_KEY"] = previous

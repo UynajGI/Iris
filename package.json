@@ -13,7 +13,10 @@
   "devDependencies": {
     "@commitlint/cli": "21.2.3",
     "@commitlint/config-conventional": "21.2.3",
+    "@prettier/plugin-xml": "3.4.2",
     "git-cliff": "2.14.2",
-    "lefthook": "2.1.17"
+    "lefthook": "2.1.17",
+    "prettier": "3.9.10",
+    "prettier-plugin-toml": "3.0.2"
   }
 }

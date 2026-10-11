@@ -2,12 +2,13 @@
 
 Third-party runtime/dependency source obligations are reviewed separately.
 """
+
 from __future__ import annotations
 
 import argparse
 import importlib.util
-from pathlib import Path
 import subprocess
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -29,9 +30,15 @@ def package(root: Path, output: Path) -> str:
             raise RuntimeError("Git source comparison failed")
         dirty |= result.returncode == 1
     if dirty or git("ls-files", "--others", "--exclude-standard").strip():
-        status = git("status", "--porcelain", "--untracked-files=normal").decode("utf-8", errors="replace").strip()
+        status = (
+            git("status", "--porcelain", "--untracked-files=normal")
+            .decode("utf-8", errors="replace")
+            .strip()
+        )
         raise ValueError("Source export requires a clean working tree and index:\n" + status)
-    spec = importlib.util.spec_from_file_location("public_tree", ROOT / "tools/check-public-tree.py")
+    spec = importlib.util.spec_from_file_location(
+        "public_tree", ROOT / "tools/check-public-tree.py"
+    )
     guard = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(guard)
     issues = guard.inspect(root)
@@ -41,9 +48,22 @@ def package(root: Path, output: Path) -> str:
     output.parent.mkdir(parents=True, exist_ok=True)
     # Exclusive creation; export only committed blobs, never recurse over local files.
     with output.open("xb") as archive:
-        subprocess.run(["git", "-c", "core.autocrlf=false", "-c", "core.eol=lf",
-                        "archive", "--format=zip", "--prefix=Iris/", revision],
-                       cwd=root, stdout=archive, check=True)
+        subprocess.run(
+            [
+                "git",
+                "-c",
+                "core.autocrlf=false",
+                "-c",
+                "core.eol=lf",
+                "archive",
+                "--format=zip",
+                "--prefix=Iris/",
+                revision,
+            ],
+            cwd=root,
+            stdout=archive,
+            check=True,
+        )
     return revision
 
 

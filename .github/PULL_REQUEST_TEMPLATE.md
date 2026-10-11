@@ -14,8 +14,8 @@ For visual changes, include before/after screenshots using synthetic or shareabl
 
 ## Review checks
 
-* [ ] The change follows the approved design and shared core/daemon boundaries where applicable.
-* [ ] Documentation and generated API contracts are updated where required.
-* [ ] Relevant checks passed, or failures and unrun checks are explained above.
-* [ ] No private photographs, downloaded weights, credentials, local databases or generated packages are included.
-* [ ] Third-party licenses and notices are preserved.
+- [ ] The change follows the approved design and shared core/daemon boundaries where applicable.
+- [ ] Documentation and generated API contracts are updated where required.
+- [ ] Relevant checks passed, or failures and unrun checks are explained above.
+- [ ] No private photographs, downloaded weights, credentials, local databases or generated packages are included.
+- [ ] Third-party licenses and notices are preserved.

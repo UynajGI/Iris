@@ -1,14 +1,15 @@
 """Native installer preflight and complete-release-set contracts (no installation)."""
+
 import hashlib
 import importlib.util
 import json
 import plistlib
-from pathlib import Path
 import shutil
 import sys
 import tempfile
 import unittest
 import xml.etree.ElementTree as ET
+from pathlib import Path
 from unittest.mock import patch
 
 TOOLS = Path(__file__).resolve().parents[1]
@@ -37,9 +38,18 @@ class NativeInstallerTests(unittest.TestCase):
             file = root / name
             file.parent.mkdir(parents=True, exist_ok=True)
             if name == "release.json":
-                version = json.loads((native.ROOT / "apps/shell/package.json").read_text())["version"]
-                file.write_text(json.dumps({"product": "Iris", "version": version,
-                                           "platform": "macos-arm64" if mac else "linux-x64"}))
+                version = json.loads((native.ROOT / "apps/shell/package.json").read_text())[
+                    "version"
+                ]
+                file.write_text(
+                    json.dumps(
+                        {
+                            "product": "Iris",
+                            "version": version,
+                            "platform": "macos-arm64" if mac else "linux-x64",
+                        }
+                    )
+                )
             else:
                 file.write_bytes(name.encode())
             entries.append({"path": name, "sha256": native.digest(file)})
@@ -62,7 +72,13 @@ class NativeInstallerTests(unittest.TestCase):
                 native.validate(root, False)
 
     def test_manifested_private_and_optional_files_are_rejected(self):
-        for name in ("private.jpg", "sources/private.zip", "models/optional/dinov3.onnx", "models/unapproved.onnx", "photos.sqlite3"):
+        for name in (
+            "private.jpg",
+            "sources/private.zip",
+            "models/optional/dinov3.onnx",
+            "models/unapproved.onnx",
+            "photos.sqlite3",
+        ):
             with self.subTest(name=name), tempfile.TemporaryDirectory() as temp:
                 root = Path(temp)
                 entries = self.fixture(root)
@@ -134,7 +150,9 @@ class NativeInstallerTests(unittest.TestCase):
             self.assertEqual(release.collect(root, "0.1.0-beta"), expected)
             lines = (root / "SHA256SUMS.txt").read_text().splitlines()
             self.assertEqual(len(lines), 9)
-            self.assertTrue(all(line.startswith(hashlib.sha256(b"test artifact").hexdigest()) for line in lines))
+            self.assertTrue(
+                all(line.startswith(hashlib.sha256(b"test artifact").hexdigest()) for line in lines)
+            )
             with self.assertRaises(ValueError):
                 release.collect(root, "0.1.0-beta")
 
@@ -167,20 +185,30 @@ class NativeInstallerTests(unittest.TestCase):
                             self.assertEqual(native.digest(bundle / entry["path"]), entry["sha256"])
                     elif args[0] == "pkgbuild":
                         if "--analyze" in args:
-                            Path(args[-1]).write_bytes(plistlib.dumps([{"RootRelativeBundlePath": "Applications/Iris.app"}]))
+                            Path(args[-1]).write_bytes(
+                                plistlib.dumps(
+                                    [{"RootRelativeBundlePath": "Applications/Iris.app"}]
+                                )
+                            )
                         else:
                             package_root = Path(args[args.index("--root") + 1])
-                            props = plistlib.loads(Path(args[args.index("--component-plist") + 1]).read_bytes())
+                            props = plistlib.loads(
+                                Path(args[args.index("--component-plist") + 1]).read_bytes()
+                            )
                             self.assertFalse(props[0]["BundleIsRelocatable"])
                             Path(args[-1]).write_bytes(b"component pkg fixture")
                     elif args[0] == "productbuild":
-                        dist = ET.fromstring(Path(args[args.index("--distribution") + 1]).read_text(encoding="utf-8"))
+                        dist = ET.fromstring(
+                            Path(args[args.index("--distribution") + 1]).read_text(encoding="utf-8")
+                        )
                         self.assertEqual(dist.find("options").get("hostArchitectures"), "arm64")
                         Path(args[-1]).write_bytes(b"product pkg fixture")
                     elif args[0] == "pkgutil":
                         destination = Path(args[-1])
                         shutil.copytree(package_root, destination / "iris-component.pkg/Payload")
-                        shutil.copytree(Path(args[-2]).parent / "resources", destination / "Resources")
+                        shutil.copytree(
+                            Path(args[-2]).parent / "resources", destination / "Resources"
+                        )
                     elif args[0] == "dpkg-deb":
                         if "--build" in args:
                             package_root = Path(args[-2])
@@ -192,15 +220,23 @@ class NativeInstallerTests(unittest.TestCase):
                     else:
                         self.fail(f"Unexpected native tool: {args[0]}")
 
-                with patch.object(native.platform, "system", return_value="Darwin" if mac else "Linux"), \
-                     patch.object(native.platform, "machine", return_value="arm64" if mac else "x86_64"), \
-                     patch.object(native, "run", side_effect=fake_run):
+                with (
+                    patch.object(
+                        native.platform, "system", return_value="Darwin" if mac else "Linux"
+                    ),
+                    patch.object(
+                        native.platform, "machine", return_value="arm64" if mac else "x86_64"
+                    ),
+                    patch.object(native, "run", side_effect=fake_run),
+                ):
                     native.build(portable, root / "output")
                 report = json.loads(next((root / "output").glob("*-build-report.json")).read_text())
                 self.assertTrue(report["extracted_payload_verified"])
                 self.assertFalse(report["installer_executed"])
                 self.assertFalse(report["signed"])
-                self.assertEqual(report["sha256"], native.digest(root / "output" / report["artifact"]))
+                self.assertEqual(
+                    report["sha256"], native.digest(root / "output" / report["artifact"])
+                )
                 self.assertEqual(sum("--bundle" in call for call in calls), 2)
                 for entry in entries:
                     self.assertEqual(native.digest(portable / entry["path"]), entry["sha256"])

@@ -6,20 +6,22 @@ export interface NativeDialogBridge {
 export async function selectProjectFolder(bridge: NativeDialogBridge): Promise<string | null> {
   const selected = await bridge.invoke<unknown>('select_project_folder');
   if (selected === null) return null;
-  if (typeof selected !== 'string' || selected.length === 0) throw new Error('Invalid native folder selection');
+  if (typeof selected !== 'string' || selected.length === 0)
+    throw new Error('Invalid native folder selection');
   return selected;
 }
 
 export async function selectExportCsv(bridge: NativeDialogBridge): Promise<string | null> {
   const selected = await bridge.invoke<unknown>('select_export_csv');
   if (selected === null) return null;
-  if (typeof selected !== 'string' || selected.length === 0) throw new Error('Invalid native CSV selection');
+  if (typeof selected !== 'string' || selected.length === 0)
+    throw new Error('Invalid native CSV selection');
   return selected;
 }
 
 export async function openProjectFolder(
   bridge: NativeDialogBridge,
-  application: { openProject(root: string): Promise<void> },
+  application: { openProject(root: string): Promise<void> }
 ): Promise<boolean> {
   const selected = await selectProjectFolder(bridge);
   if (selected === null) return false;

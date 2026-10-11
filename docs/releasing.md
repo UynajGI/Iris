@@ -12,12 +12,12 @@
 已有同名 Tag 或 Release 会拒绝，不更新旧版、不降低保护规则。草稿仍需明确发布授权才能公开。
 安装界面、平台资源与打包脚本均从同一提交读取，不复制开发者本机安装包。
 
-| 原生 runner | 安装包 | 同时保留 | 安装方式 |
-| :--- | :--- | :--- | :--- |
-| Windows x64 GNU | `Iris-<版本>-windows-x64-setup.exe` | Windows ZIP | NSIS 当前用户向导 |
-| macOS Apple Silicon | `Iris-<版本>-macos-arm64.pkg` | macOS arm64 tar.gz | 系统 Installer，安装到 `/Applications/Iris.app`，需认证 |
-| macOS Intel | `Iris-<版本>-macos-x64.pkg` | macOS x64 tar.gz | 同上，独立 Intel 原生构建 |
-| Ubuntu 22.04 x64 | `Iris-<版本>-linux-x64.deb` | Linux tar.gz | 系统软件安装器或 `sudo apt install ./Iris-<版本>-linux-x64.deb` |
+| 原生 runner         | 安装包                              | 同时保留           | 安装方式                                                        |
+| :------------------ | :---------------------------------- | :----------------- | :-------------------------------------------------------------- |
+| Windows x64 GNU     | `Iris-<版本>-windows-x64-setup.exe` | Windows ZIP        | NSIS 当前用户向导                                               |
+| macOS Apple Silicon | `Iris-<版本>-macos-arm64.pkg`       | macOS arm64 tar.gz | 系统 Installer，安装到 `/Applications/Iris.app`，需认证         |
+| macOS Intel         | `Iris-<版本>-macos-x64.pkg`         | macOS x64 tar.gz   | 同上，独立 Intel 原生构建                                       |
+| Ubuntu 22.04 x64    | `Iris-<版本>-linux-x64.deb`         | Linux tar.gz       | 系统软件安装器或 `sudo apt install ./Iris-<版本>-linux-x64.deb` |
 
 还必须提供 `Iris-<版本>-source.zip` 与 `SHA256SUMS.txt`。安装器、四个便携包和源码
 合计 **9 个发行附件**；汇总拒绝缺失、空文件、软链接、错误命名和意外附件，成功后才生成

@@ -1,1 +1,6 @@
-{ "identifier": "application", "description": "Thin daemon hosting; no filesystem access from the webview", "windows": ["main"], "permissions": ["core:event:default"] }
+{
+  "identifier": "application",
+  "description": "Thin daemon hosting; no filesystem access from the webview",
+  "windows": ["main"],
+  "permissions": ["core:event:default"]
+}

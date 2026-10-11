@@ -1,4 +1,5 @@
 """Copy a random, auditable sample of JPEGs without modifying the source library."""
+
 from __future__ import annotations
 
 import argparse
@@ -29,7 +30,9 @@ def main() -> None:
         raise SystemExit("Destination must be outside the source library")
     if destination.exists() and any(destination.iterdir()):
         raise SystemExit("Destination must be empty; existing samples are never overwritten")
-    candidates = sorted(p for p in source.rglob("*") if p.is_file() and p.suffix.lower() in {".jpg", ".jpeg"})
+    candidates = sorted(
+        p for p in source.rglob("*") if p.is_file() and p.suffix.lower() in {".jpg", ".jpeg"}
+    )
     if not 0 < args.count <= len(candidates):
         raise SystemExit(f"Requested {args.count} files from {len(candidates)} JPEGs")
     seed = args.seed if args.seed is not None else random.SystemRandom().getrandbits(64)
@@ -45,10 +48,30 @@ def main() -> None:
         after = digest(target)
         if before != after:
             raise RuntimeError(f"Copy verification failed: {relative}")
-        entries.append({"path": relative.as_posix(), "size_bytes": target.stat().st_size, "sha256": after})
-    manifest = {"source": str(source), "seed": seed, "candidate_count": len(candidates), "count": len(entries), "files": entries}
-    (destination / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(json.dumps({"destination": str(destination), "count": len(entries), "total_bytes": sum(e["size_bytes"] for e in entries), "hash_verified": True}, ensure_ascii=False))
+        entries.append(
+            {"path": relative.as_posix(), "size_bytes": target.stat().st_size, "sha256": after}
+        )
+    manifest = {
+        "source": str(source),
+        "seed": seed,
+        "candidate_count": len(candidates),
+        "count": len(entries),
+        "files": entries,
+    }
+    (destination / "manifest.json").write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    print(
+        json.dumps(
+            {
+                "destination": str(destination),
+                "count": len(entries),
+                "total_bytes": sum(e["size_bytes"] for e in entries),
+                "hash_verified": True,
+            },
+            ensure_ascii=False,
+        )
+    )
 
 
 if __name__ == "__main__":

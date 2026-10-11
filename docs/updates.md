@@ -14,11 +14,11 @@ For the Windows installer scripts, signing inputs and release boundaries, see
 These environment values are embedded at **build time**, never read as runtime
 overrides:
 
-| Variable | Value |
-| :--- | :--- |
-| `IRIS_DISTRIBUTION` | `nsis` for an installer build; absent or `portable` disables installer updates |
-| `IRIS_UPDATE_ENDPOINT` | Trusted HTTPS manifest endpoint, without URL credentials or a fragment |
-| `IRIS_UPDATE_PUBLIC_KEY` | Contents of the Tauri public key file (base64), not its path |
+| Variable                 | Value                                                                          |
+| :----------------------- | :----------------------------------------------------------------------------- |
+| `IRIS_DISTRIBUTION`      | `nsis` for an installer build; absent or `portable` disables installer updates |
+| `IRIS_UPDATE_ENDPOINT`   | Trusted HTTPS manifest endpoint, without URL credentials or a fragment         |
+| `IRIS_UPDATE_PUBLIC_KEY` | Contents of the Tauri public key file (base64), not its path                   |
 
 Endpoint and key must be supplied together, only for NSIS. Partial configuration
 fails the build. Invalid distribution, URL or key fails desktop initialization

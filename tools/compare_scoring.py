@@ -1,27 +1,49 @@
 """Audit a scoring-version change without treating unlabelled predictions as truth."""
+
 from __future__ import annotations
 
 import argparse
-from contextlib import closing
 import hashlib
 import json
 import math
-from pathlib import Path
 import sqlite3
 import statistics
+from contextlib import closing
+from pathlib import Path
 
 
 def read(path: Path) -> dict:
     with closing(sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True)) as db:
-        return {name: json.loads(data) for name, data in db.execute(
-            "SELECT p.path,a.data FROM photos p JOIN analyses a ON a.photo_id=p.id")}
+        return {
+            name: json.loads(data)
+            for name, data in db.execute(
+                "SELECT p.path,a.data FROM photos p JOIN analyses a ON a.photo_id=p.id"
+            )
+        }
 
 
 def unchanged_observations(analysis: dict) -> dict:
-    result = {key: value for key, value in analysis.items()
-              if key not in {"elapsed_ms", "version", "composite_score", "verdict", "warnings", "score_breakdown"}}
-    result["faces"] = [{key: value for key, value in face.items()
-                        if key not in {"quality", "quality_unavailable_reason"}} for face in result["faces"]]
+    result = {
+        key: value
+        for key, value in analysis.items()
+        if key
+        not in {
+            "elapsed_ms",
+            "version",
+            "composite_score",
+            "verdict",
+            "warnings",
+            "score_breakdown",
+        }
+    }
+    result["faces"] = [
+        {
+            key: value
+            for key, value in face.items()
+            if key not in {"quality", "quality_unavailable_reason"}
+        }
+        for face in result["faces"]
+    ]
     settings = dict(result.get("settings", {}))
     settings.setdefault("occlusion_provider", "none")
     settings.setdefault("occlusion_model_sha256", None)
@@ -36,7 +58,9 @@ def summary(values: list) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--baseline", type=Path, default=Path("artifacts/faceocc-integration-v2/default.sqlite3"))
+    parser.add_argument(
+        "--baseline", type=Path, default=Path("artifacts/faceocc-integration-v2/default.sqlite3")
+    )
     parser.add_argument("--current", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
@@ -51,7 +75,9 @@ def main() -> None:
     changed_scores = 0
     for path, before in baseline.items():
         after = current[path]
-        assert unchanged_observations(before) == unchanged_observations(after), f"non-scoring observations changed: {path}"
+        assert unchanged_observations(before) == unchanged_observations(after), (
+            f"non-scoring observations changed: {path}"
+        )
         assert after.get("score_breakdown") is not None, f"missing new score breakdown: {path}"
         assert math.isfinite(after["composite_score"]) and 0 <= after["composite_score"] <= 100
         key = before["verdict"] + " -> " + after["verdict"]
@@ -66,16 +92,23 @@ def main() -> None:
                 assert math.isfinite(quality["score"]) and 0 <= quality["score"] <= 100
                 quality_count += 1
             else:
-                assert face.get("quality_unavailable_reason"), "new analysis must explain missing face quality"
+                assert face.get("quality_unavailable_reason"), (
+                    "new analysis must explain missing face quality"
+                )
     observations = {path: unchanged_observations(value) for path, value in current.items()}
     report = {
-        "passed": True, "photos": len(current), "faces": face_count,
+        "passed": True,
+        "photos": len(current),
+        "faces": face_count,
         "face_quality_measurements": quality_count,
         "versions_before": sorted({a["version"] for a in baseline.values()}),
         "versions_after": sorted({a["version"] for a in current.values()}),
         "non_scoring_observations_unchanged": True,
-        "observation_sha256": hashlib.sha256(json.dumps(observations, sort_keys=True, separators=(",", ":")).encode()).hexdigest(),
-        "changed_scores": changed_scores, "score_delta": summary(deltas),
+        "observation_sha256": hashlib.sha256(
+            json.dumps(observations, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest(),
+        "changed_scores": changed_scores,
+        "score_delta": summary(deltas),
         "score_before": summary([a["composite_score"] for a in baseline.values()]),
         "score_after": summary([a["composite_score"] for a in current.values()]),
         "verdict_transitions": transitions,

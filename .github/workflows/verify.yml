@@ -1,7 +1,7 @@
 name: Verify
 on:
   push:
-    branches: ['**']
+    branches: ['main']
   pull_request:
   workflow_call:
   workflow_dispatch:
@@ -48,9 +48,13 @@ jobs:
             choco install make --yes --no-progress
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+        with:
+          toolchain: stable
+          components: rustfmt
       - run: make setup
       - run: make test-tools
-      - run: make lint-python complexity-check workflow-check
+      - run: make fmt-check lint-python complexity-check workflow-check
       - run: make public-check
   security:
     name: Dependency and secret audit

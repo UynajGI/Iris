@@ -1,4 +1,5 @@
 """Require every supported release artifact before checksums or draft creation."""
+
 # SPDX-License-Identifier: GPL-3.0-or-later
 import argparse
 import hashlib
@@ -10,17 +11,26 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def expected_assets(version):
     base = f"Iris-{version}"
-    return {f"{base}-source.zip", f"{base}-windows-x64.zip", f"{base}-windows-x64-setup.exe",
-            f"{base}-linux-x64.tar.gz", f"{base}-linux-x64.deb",
-            f"{base}-macos-arm64.tar.gz", f"{base}-macos-arm64.pkg",
-            f"{base}-macos-x64.tar.gz", f"{base}-macos-x64.pkg"}
+    return {
+        f"{base}-source.zip",
+        f"{base}-windows-x64.zip",
+        f"{base}-windows-x64-setup.exe",
+        f"{base}-linux-x64.tar.gz",
+        f"{base}-linux-x64.deb",
+        f"{base}-macos-arm64.tar.gz",
+        f"{base}-macos-arm64.pkg",
+        f"{base}-macos-x64.tar.gz",
+        f"{base}-macos-x64.pkg",
+    }
 
 
 def collect(directory, version):
     names = expected_assets(version)
     found = {p.name for p in directory.iterdir() if p.name != "SHA256SUMS.txt"}
     if found != names:
-        raise ValueError(f"Incomplete or unexpected release set; missing={sorted(names - found)}, unexpected={sorted(found - names)}")
+        raise ValueError(
+            f"Incomplete or unexpected release set; missing={sorted(names - found)}, unexpected={sorted(found - names)}"
+        )
     lines = []
     for name in sorted(names):
         path = directory / name

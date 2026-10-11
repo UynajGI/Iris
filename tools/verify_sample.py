@@ -1,8 +1,8 @@
 """Exercise the real daemon, models and domain operations using private JPEG fixtures."""
+
 from __future__ import annotations
 
 import argparse
-from contextlib import closing
 import hashlib
 import json
 import math
@@ -13,6 +13,7 @@ import tempfile
 import time
 import urllib.error
 import urllib.request
+from contextlib import closing
 from pathlib import Path
 
 
@@ -24,38 +25,77 @@ def digest(path: Path) -> str:
 def verify_score_breakdown(analysis: dict) -> str | None:
     breakdown = analysis.get("score_breakdown")
     if breakdown is None:
-        assert not analysis["version"].startswith(("iris-vision-v5-", "iris-vision-v6-")), "v5+ must explain its score"
+        assert not analysis["version"].startswith(("iris-vision-v5-", "iris-vision-v6-")), (
+            "v5+ must explain its score"
+        )
         return None
     components = breakdown["components"]
-    assert len(components) == 5 and {c["id"] for c in components} == {"eyes", "sharpness", "face", "exposure", "smile"}
+    assert len(components) == 5 and {c["id"] for c in components} == {
+        "eyes",
+        "sharpness",
+        "face",
+        "exposure",
+        "smile",
+    }
     total = sum(c["configured_weight"] for c in components if c["score"] is not None)
     assert math.isclose(total, breakdown["effective_weight_total"], abs_tol=1e-7)
     for component in components:
         verify_score_component(component, total)
-    assert math.isclose(sum(c["contribution"] for c in components), analysis["composite_score"], abs_tol=1e-7)
+    assert math.isclose(
+        sum(c["contribution"] for c in components), analysis["composite_score"], abs_tol=1e-7
+    )
     return breakdown["method"]
 
 
-def main() -> None:
+def parse_arguments():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--fixtures", type=Path, default=Path("test-photos"))
     parser.add_argument("--daemon", type=Path, default=Path("target/debug/iris-daemon.exe"))
     parser.add_argument("--models", type=Path, default=Path("models"))
     parser.add_argument("--output", type=Path, default=Path("artifacts/sample-verification.json"))
-    parser.add_argument("--snapshot", type=Path, help="Preserve a new SQLite backup for independent annotation/evaluation")
-    parser.add_argument("--settings-file", type=Path, help="Explicit analysis settings overrides (JSON); server validates the merged settings")
-    parser.add_argument("--worker-limit", type=int, choices=range(1, 17), help="Daemon process concurrency policy; omitted preserves its default")
-    args = parser.parse_args()
+    parser.add_argument(
+        "--snapshot",
+        type=Path,
+        help="Preserve a new SQLite backup for independent annotation/evaluation",
+    )
+    parser.add_argument(
+        "--settings-file",
+        type=Path,
+        help="Explicit analysis settings overrides (JSON); server validates the merged settings",
+    )
+    parser.add_argument(
+        "--worker-limit",
+        type=int,
+        choices=range(1, 17),
+        help="Daemon process concurrency policy; omitted preserves its default",
+    )
+    return parser.parse_args()
+
+
+def main() -> None:
+    args = parse_arguments()
     manifest = json.loads((args.fixtures / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["count"] == 100
     for entry in manifest["files"]:
         assert digest(args.fixtures / entry["path"]) == entry["sha256"]
     with tempfile.TemporaryDirectory(prefix="iris-verify-") as temporary:
         work = Path(temporary)
-        command = [str(args.daemon.resolve()), "--data-dir", str(work / "data"), "--model-dir", str(args.models.resolve())]
+        command = [
+            str(args.daemon.resolve()),
+            "--data-dir",
+            str(work / "data"),
+            "--model-dir",
+            str(args.models.resolve()),
+        ]
         if args.worker_limit is not None:
             command += ["--worker-limit", str(args.worker_limit)]
-        process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        process = subprocess.Popen(
+            command,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
         try:
             handshake = json.loads(process.stdout.readline())
             base, token = handshake["base_url"], handshake["token"]
@@ -65,10 +105,16 @@ def main() -> None:
                 if authenticated:
                     headers["Authorization"] = "Bearer " + token
                 data = json.dumps(body).encode() if body is not None else None
-                req = urllib.request.Request(base + "/api/v1" + path, data=data, headers=headers, method=method)
+                req = urllib.request.Request(
+                    base + "/api/v1" + path, data=data, headers=headers, method=method
+                )
                 with urllib.request.urlopen(req, timeout=180) as response:
                     raw = response.read()
-                    return json.loads(raw) if "json" in response.headers.get("content-type", "") else raw
+                    return (
+                        json.loads(raw)
+                        if "json" in response.headers.get("content-type", "")
+                        else raw
+                    )
 
             def job(project: int, kind: str):
                 started = time.monotonic()
@@ -110,32 +156,25 @@ def main() -> None:
             assert all(p["analysis"] for p in photos)
             assert all(p["analysis_status"] == "current" for p in photos)
             assert all(max(p["analysis"]["width"], p["analysis"]["height"]) <= 1280 for p in photos)
-            if args.snapshot is not None:
-                args.snapshot.parent.mkdir(parents=True, exist_ok=True)
-                # Reserve a new output; never replace a previous evaluation snapshot.
-                with args.snapshot.open("xb"):
-                    pass
-                source_uri = (work / "data" / "library.sqlite3").resolve().as_uri() + "?mode=ro"
-                with closing(sqlite3.connect(source_uri, uri=True)) as source, closing(sqlite3.connect(args.snapshot)) as destination:
-                    source.backup(destination)
-            args.output.parent.mkdir(parents=True, exist_ok=True)
-            intermediate = {"fixture_count": 100, "scan": scan, "analysis": analysis, "incremental": repeat, "domain_workflow": "pending"}
-            args.output.write_text(json.dumps(intermediate, ensure_ascii=False, indent=2), encoding="utf-8")
-            thumbnail = request("GET", f"/photos/{photos[0]['id']}/thumb")
-            preview = request("GET", f"/photos/{photos[0]['id']}/preview")
-            assert thumbnail[:2] == preview[:2] == b"\xff\xd8"
-            original = request("GET", f"/photos/{photos[0]['id']}/original")
-            expected = next(e["sha256"] for e in manifest["files"] if e["path"] == photos[0]["path"])
-            assert hashlib.sha256(original).hexdigest() == expected
-            settings = request("GET", f"/settings?project_id={project}")
-            request("POST", "/profiles", {"name": "baseline", "settings": settings})
-            estimate = request("POST", f"/projects/{project}/profiles/baseline/estimate")
+            save_analysis_snapshot(args, work, scan, analysis, repeat)
+            estimate = verify_media_and_profile(request, photos, manifest, project)
 
             verify_domain_workflow(request, job, args, manifest, project, work)
-            report = analysis_report(photos, scan, analysis, repeat, estimate, effective_settings, model_status, project_state)
+            report = analysis_report(
+                photos,
+                scan,
+                analysis,
+                repeat,
+                estimate,
+                effective_settings,
+                model_status,
+                project_state,
+            )
             args.output.parent.mkdir(parents=True, exist_ok=True)
             report["requested_worker_limit"] = args.worker_limit
-            args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+            args.output.write_text(
+                json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
             print(json.dumps(report, ensure_ascii=False))
         finally:
             if process.poll() is None:
@@ -147,6 +186,40 @@ def main() -> None:
                     process.kill()
                     process.wait()
 
+
+def save_analysis_snapshot(args, work, scan, analysis, repeat):
+    if args.snapshot is not None:
+        args.snapshot.parent.mkdir(parents=True, exist_ok=True)
+        # Reserve a new output; never replace a previous evaluation snapshot.
+        with args.snapshot.open("xb"):
+            pass
+        source_uri = (work / "data" / "library.sqlite3").resolve().as_uri() + "?mode=ro"
+        with (
+            closing(sqlite3.connect(source_uri, uri=True)) as source,
+            closing(sqlite3.connect(args.snapshot)) as destination,
+        ):
+            source.backup(destination)
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    intermediate = {
+        "fixture_count": 100,
+        "scan": scan,
+        "analysis": analysis,
+        "incremental": repeat,
+        "domain_workflow": "pending",
+    }
+    args.output.write_text(json.dumps(intermediate, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def verify_media_and_profile(request, photos, manifest, project):
+    thumbnail = request("GET", f"/photos/{photos[0]['id']}/thumb")
+    preview = request("GET", f"/photos/{photos[0]['id']}/preview")
+    assert thumbnail[:2] == preview[:2] == b"\xff\xd8"
+    original = request("GET", f"/photos/{photos[0]['id']}/original")
+    expected = next(e["sha256"] for e in manifest["files"] if e["path"] == photos[0]["path"])
+    assert hashlib.sha256(original).hexdigest() == expected
+    settings = request("GET", f"/settings?project_id={project}")
+    request("POST", "/profiles", {"name": "baseline", "settings": settings})
+    return request("POST", f"/projects/{project}/profiles/baseline/estimate")
 
 
 def verify_score_component(component, total):
@@ -167,7 +240,9 @@ def verify_score_component(component, total):
             assert term["missing_reason"] and term["weight"] == 0
         else:
             assert math.isfinite(term["score"]) and 0 <= term["score"] <= 100
-        assert math.isclose((term["score"] or 0) * term["weight"], term["contribution"], abs_tol=1e-7)
+        assert math.isclose(
+            (term["score"] or 0) * term["weight"], term["contribution"], abs_tol=1e-7
+        )
 
 
 def verify_domain_workflow(request, job, args, manifest, project, work):
@@ -181,7 +256,11 @@ def verify_domain_workflow(request, job, args, manifest, project, work):
     ids = [p["id"] for p in request("GET", f"/projects/{p2}/photos")]
     request("POST", f"/projects/{p2}/decisions", {"photo_ids": [ids[0]], "action": "keep"})
     request("POST", f"/projects/{p2}/decisions", {"photo_ids": [ids[1]], "action": "reject"})
-    copied = request("POST", f"/projects/{p2}/export/copy", {"destination": str(work / "selected"), "scope": "keep"})
+    copied = request(
+        "POST",
+        f"/projects/{p2}/export/copy",
+        {"destination": str(work / "selected"), "scope": "keep"},
+    )
     assert copied["written"] == 1
     xmp = request("POST", f"/projects/{p2}/export/xmp", {"scope": "all", "overwrite": False})
     assert xmp["written"] == 2
@@ -195,13 +274,17 @@ def verify_domain_workflow(request, job, args, manifest, project, work):
     request("POST", f"/projects/{p2}/quarantine/restore", {"manifest_id": plan["id"]})
     assert all(not p["quarantined"] for p in request("GET", f"/projects/{p2}/photos"))
     request("GET", f"/projects/{project}/cache")
-    request("POST", f"/projects/{project}/cache/migrate", {"destination": str(work / "migrated-cache")})
+    request(
+        "POST", f"/projects/{project}/cache/migrate", {"destination": str(work / "migrated-cache")}
+    )
     request("POST", f"/projects/{project}/cache/cleanup")
     for entry in manifest["files"]:
         assert digest(args.fixtures / entry["path"]) == entry["sha256"]
 
 
-def analysis_report(photos, scan, analysis, repeat, estimate, effective_settings, model_status, project_state):
+def analysis_report(
+    photos, scan, analysis, repeat, estimate, effective_settings, model_status, project_state
+):
     states = {}
     face_count = 0
     eye_states = {}
@@ -217,6 +300,7 @@ def analysis_report(photos, scan, analysis, repeat, estimate, effective_settings
     measured_hidden_eyes = 0
     score_methods = {}
     face_quality_scores = []
+
     def observe_face(face):
         nonlocal measured_hidden_eyes
         quality = face.get("quality")
@@ -224,7 +308,13 @@ def analysis_report(photos, scan, analysis, repeat, estimate, effective_settings
             score = quality["score"]
             assert math.isfinite(score) and 0 <= score <= 100
             assert quality["crop_width"] >= 3 and quality["crop_height"] >= 3
-            assert math.isclose(score, quality["sharpness_score"] * .5 + quality["exposure_score"] * .3 + quality["resolution_score"] * .2, abs_tol=1e-7)
+            assert math.isclose(
+                score,
+                quality["sharpness_score"] * 0.5
+                + quality["exposure_score"] * 0.3
+                + quality["resolution_score"] * 0.2,
+                abs_tol=1e-7,
+            )
             face_quality_scores.append(score)
         if face.get("unreliable_reason"):
             reason = face["unreliable_reason"]
@@ -236,7 +326,10 @@ def analysis_report(photos, scan, analysis, repeat, estimate, effective_settings
                 probability = visibility["mean_probability"]
                 assert math.isfinite(fraction) and 0 <= fraction <= 1, visibility
                 assert math.isfinite(probability) and 0 <= probability <= 1, visibility
-                assert isinstance(visibility["sampled_pixels"], int) and visibility["sampled_pixels"] > 0, visibility
+                assert (
+                    isinstance(visibility["sampled_pixels"], int)
+                    and visibility["sampled_pixels"] > 0
+                ), visibility
                 visibility_fractions.append(fraction)
                 visibility_probabilities.append(probability)
                 method = visibility["method"]
@@ -248,7 +341,8 @@ def analysis_report(photos, scan, analysis, repeat, estimate, effective_settings
             state = (face.get(side) or {}).get("state", "hidden_unreliable")
             eye_states[state] = eye_states.get(state, 0) + 1
 
-    for photo in photos:
+    def observe_photo(photo):
+        nonlocal face_count
         a = photo["analysis"]
         score_method = verify_score_breakdown(a)
         if score_method:
@@ -269,14 +363,52 @@ def analysis_report(photos, scan, analysis, repeat, estimate, effective_settings
             niqe_scores.append(a["niqe"])
         for face in a["faces"]:
             observe_face(face)
+
+    for photo in photos:
+        observe_photo(photo)
     latencies.sort()
-    timing = {"p50_ms": latencies[len(latencies) // 2], "p95_ms": latencies[min(len(latencies) - 1, int(len(latencies) * .95))]} if latencies else None
-    report = {"fixture_count": 100, "hashes_verified_before_and_after": True, "scan": scan, "analysis": analysis, "incremental": repeat, "analysis_versions": analysis_versions, "verdict_counts": states, "faces": face_count, "eye_states": eye_states, "unreliable_reasons": unreliable_reasons, "photo_latency": timing, "niqe": {"count": len(niqe_scores), "min": min(niqe_scores, default=None), "max": max(niqe_scores, default=None)}, "profile_estimate": estimate, "domain_workflow": "passed", "accuracy": "not measured: no human ground-truth annotations"}
-    report["composition"] = {"count": len(composition_scores), "min": min(composition_scores, default=None), "max": max(composition_scores, default=None)}
+    timing = (
+        {
+            "p50_ms": latencies[len(latencies) // 2],
+            "p95_ms": latencies[min(len(latencies) - 1, int(len(latencies) * 0.95))],
+        }
+        if latencies
+        else None
+    )
+    report = {
+        "fixture_count": 100,
+        "hashes_verified_before_and_after": True,
+        "scan": scan,
+        "analysis": analysis,
+        "incremental": repeat,
+        "analysis_versions": analysis_versions,
+        "verdict_counts": states,
+        "faces": face_count,
+        "eye_states": eye_states,
+        "unreliable_reasons": unreliable_reasons,
+        "photo_latency": timing,
+        "niqe": {
+            "count": len(niqe_scores),
+            "min": min(niqe_scores, default=None),
+            "max": max(niqe_scores, default=None),
+        },
+        "profile_estimate": estimate,
+        "domain_workflow": "passed",
+        "accuracy": "not measured: no human ground-truth annotations",
+    }
+    report["composition"] = {
+        "count": len(composition_scores),
+        "min": min(composition_scores, default=None),
+        "max": max(composition_scores, default=None),
+    }
     report["eye_quality_reasons"] = eye_quality_reasons
     report["effective_settings"] = effective_settings
     report["score_breakdowns_verified"] = score_methods
-    report["face_quality"] = {"count": len(face_quality_scores), "min": min(face_quality_scores, default=None), "max": max(face_quality_scores, default=None)}
+    report["face_quality"] = {
+        "count": len(face_quality_scores),
+        "min": min(face_quality_scores, default=None),
+        "max": max(face_quality_scores, default=None),
+    }
     report["model_status"] = model_status
     report["eye_visibility"] = {
         "measurements": len(visibility_fractions),
@@ -288,12 +420,22 @@ def analysis_report(photos, scan, analysis, repeat, estimate, effective_settings
         "methods": visibility_methods,
         "interpretation": "Hidden includes prior quality gates; suppression caused by masking requires paired baseline comparison. Threshold is experimental, not calibrated.",
     }
-    report["project_ready"] = {"groups_dirty": project_state["groups_dirty"], "pending_analysis": project_state["pending_analysis"]}
+    report["project_ready"] = {
+        "groups_dirty": project_state["groups_dirty"],
+        "pending_analysis": project_state["pending_analysis"],
+    }
     # Compare complete deterministic predictions across implementations;
     # timing is observational and is deliberately excluded from this digest.
-    predictions = {p["path"]: {k: v for k, v in p["analysis"].items() if k != "elapsed_ms"} for p in photos}
-    report["predictions_sha256"] = hashlib.sha256(json.dumps(predictions, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")).hexdigest()
+    predictions = {
+        p["path"]: {k: v for k, v in p["analysis"].items() if k != "elapsed_ms"} for p in photos
+    }
+    report["predictions_sha256"] = hashlib.sha256(
+        json.dumps(predictions, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode(
+            "utf-8"
+        )
+    ).hexdigest()
     return report
+
 
 if __name__ == "__main__":
     main()

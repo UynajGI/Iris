@@ -12,23 +12,23 @@ OpenSeeFace 关键点置信度和一般脸部分割不能直接当作遮挡检�
 
 ## 1. FaceOcc / FaceExtraction：优先调查，但尚不能作为完成项
 
-* 原作者 [FaceExtraction README](https://github.com/face3d0725/FaceExtraction/blob/e75d4a83a696bd7379128319244ef6e5e7885fc8/README.md#L43)
+- 原作者 [FaceExtraction README](https://github.com/face3d0725/FaceExtraction/blob/e75d4a83a696bd7379128319244ef6e5e7885fc8/README.md#L43)
   明确写明 **dataset as well as the pretrained face extraction model** 采用 MIT，
   并明确允许使用、修改和再分发；这是针对预训练模型的声明，而不只是代码许可证。
   同一 README 第 26–27 行提供官方预训练权重入口。本轮未获取其字节或哈希。
-* [原版推理代码](https://github.com/face3d0725/FaceExtraction/blob/e75d4a83a696bd7379128319244ef6e5e7885fc8/evaluation_cofw.py#L13)
+- [原版推理代码](https://github.com/face3d0725/FaceExtraction/blob/e75d4a83a696bd7379128319244ef6e5e7885fc8/evaluation_cofw.py#L13)
   使用 U-Net、ResNet18、单输出通道、无输出激活，参考设备硬编码为 `cuda:1`。
   所查原版目录没有官方 ONNX 导出或工件，因此不能称为已验证的 ONNX/CPU 接口。
-* 现代化衍生版本 [mertakin/FaceOcc 模型卡](https://huggingface.co/mertakin/FaceOcc)
+- 现代化衍生版本 [mertakin/FaceOcc 模型卡](https://huggingface.co/mertakin/FaceOcc)
   直接声明模型 `license: mit`，提供 safetensors 权重；描述 RGB 256×256 输入、
   `[0,1]` 后按 ImageNet mean/std 归一化，输出单通道 logits。
   掩膜语义为 **1=可见脸表面，0=背景或遮挡**。
   [构建代码](https://github.com/mertakinstd/FaceOcc/blob/8d86c9a2c1a0094dbc1a1e5467413b49f8936b32/faceocc_runtime.py#L101)
   明确为普通 U-Net/ResNet18，不是单独的逐眼 visibility 头。
-* 这是真正与遮挡相关的分割任务，但背景与遮挡合并为同类，且没有左右眼状态。
+- 这是真正与遮挡相关的分割任务，但背景与遮挡合并为同类，且没有左右眼状态。
   需要把独立眼部区域映射到分割图，验证区域是否被遮挡。不得把“没有预测出眼睛”
   等同于遮挡，也不能把正常闭眼当作不可观测。现有预测关键点定位本身也可能受遮挡影响。
-* **许可来源边界**：原作者声明权重 MIT，模型卡也声明 MIT；与此同时，原文明确
+- **许可来源边界**：原作者声明权重 MIT，模型卡也声明 MIT；与此同时，原文明确
   使用 CelebAMask-HQ，而该数据集的
   [协议](https://github.com/switchablenorms/CelebAMask-HQ/blob/master/README.md#L40)
   限非商业研究并限制部分衍生数据商业使用。衍生项目
@@ -44,13 +44,13 @@ OpenSeeFace 关键点置信度和一般脸部分割不能直接当作遮挡检�
 缺少的 SMP/timm/onnx 以及对齐版本的 ONNX Runtime 安装到研究目录的 `python-deps/`，
 没有更新系统 Python 包或产品依赖。
 
-| 工件 | 固定值 |
-| :--- | :--- |
-| HF 仓库 / revision | `mertakin/FaceOcc` / `03f229dc75fa14ae480cca9810f983912c2730ad` |
-| safetensors | 57,377,516 bytes；SHA-256 `5d6d27a9cb221692425840a80eb4efc07e6245670b233e2eb618e83fd9b7caf6` |
-| 本地 ONNX | 57,314,884 bytes；SHA-256 `e61151ef3be24948a2d45ba870a434fa3ce6b4c1b2d2dab90eb80a4fd635ea86` |
-| 导出 | PyTorch 2.11.0 CPU；SMP 0.5.0；legacy exporter，opset 17；单文件，无 external data |
-| ONNX 检查 | `onnx.checker` full check 通过；Python CPUExecutionProvider 1.20.1 和 1.22.0 均执行通过 |
+| 工件               | 固定值                                                                                       |
+| :----------------- | :------------------------------------------------------------------------------------------- |
+| HF 仓库 / revision | `mertakin/FaceOcc` / `03f229dc75fa14ae480cca9810f983912c2730ad`                              |
+| safetensors        | 57,377,516 bytes；SHA-256 `5d6d27a9cb221692425840a80eb4efc07e6245670b233e2eb618e83fd9b7caf6` |
+| 本地 ONNX          | 57,314,884 bytes；SHA-256 `e61151ef3be24948a2d45ba870a434fa3ce6b4c1b2d2dab90eb80a4fd635ea86` |
+| 导出               | PyTorch 2.11.0 CPU；SMP 0.5.0；legacy exporter，opset 17；单文件，无 external data           |
+| ONNX 检查          | `onnx.checker` full check 通过；Python CPUExecutionProvider 1.20.1 和 1.22.0 均执行通过      |
 
 许可依据来自固定 revision 的模型卡 `license: mit` / “Distributed under the MIT
 License”，同时保留 LICENSE、NOTICE、模型配置、训练配置及各文件 SHA-256。
@@ -71,10 +71,10 @@ ImageNet mean/std 归一化已经包含在 ONNX graph 内，未来 Rust 调用�
 
 单线程、3 次预热、15 次计时，包含 graph 内归一化和输出，排除图像读取/人脸检测/裁剪：
 
-| 本地运行 | PyTorch 中位 / P95 最近秩 | ONNX 中位 / P95 最近秩 |
-| :--- | :--- | :--- |
-| 现有 ORT 1.20.1 | 128.07 / 138.36 ms | 81.59 / 84.83 ms |
-| 对齐产品版本 ORT 1.22.0 | 161.42 / 182.67 ms | 90.71 / 96.52 ms |
+| 本地运行                | PyTorch 中位 / P95 最近秩 | ONNX 中位 / P95 最近秩 |
+| :---------------------- | :------------------------ | :--------------------- |
+| 现有 ORT 1.20.1         | 128.07 / 138.36 ms        | 81.59 / 84.83 ms       |
+| 对齐产品版本 ORT 1.22.0 | 161.42 / 182.67 ms        | 90.71 / 96.52 ms       |
 
 **这是每个 256×256 人脸裁剪的耗时，不是每张照片耗时。** 同机其他工作未被隔离；
 两次运行之间 PyTorch 本身也明显波动，因此这不是两个 ORT 版本的受控性能比较。
@@ -127,25 +127,25 @@ v5 评分升级后另行复验：`artifacts/faceocc-integration-v5/verification.
 
 ## 2. OpenSeeFace：权重许可与部署路径明确，但输出不满足目标
 
-* [README 许可](https://github.com/emilianavt/OpenSeeFace/blob/50c09741897010faad721a218b2bbe14ecad6251/README.md#L243)
+- [README 许可](https://github.com/emilianavt/OpenSeeFace/blob/50c09741897010faad721a218b2bbe14ecad6251/README.md#L243)
   明确 **code and models** 均采用 BSD-2-Clause；不是只对源码的推断。
-* 同一 README 描述随仓库提供 ONNX 模型及 ONNX Runtime CPU 推理。
+- 同一 README 描述随仓库提供 ONNX 模型及 ONNX Runtime CPU 推理。
   这是可本地部署的路径，但本轮没有实测工件。
-* [解码代码](https://github.com/emilianavt/OpenSeeFace/blob/50c09741897010faad721a218b2bbe14ecad6251/tracker.py#L734)
+- [解码代码](https://github.com/emilianavt/OpenSeeFace/blob/50c09741897010faad721a218b2bbe14ecad6251/tracker.py#L734)
   从 66 点热图最大值提取 `t_conf`，另读坐标偏移；它是定位置信度，**不是经过遮挡标签
   训练并校准的逐眼可见性概率**。README 所称在部分遮挡下仍能跟踪，也不意味着输出了
   遮挡判断。可作为关键点观测研究的额外信号，不作为本需求的已满足候选。
 
 ## 3. BiSeNet face parsing：现成 ONNX，但没有通用遮挡输出
 
-* [yakhyo/face-parsing](https://github.com/yakhyo/face-parsing/blob/8a4729d95118d0e97c44185f9bdef3d6bfeaaf99/README.md)
+- [yakhyo/face-parsing](https://github.com/yakhyo/face-parsing/blob/8a4729d95118d0e97c44185f9bdef3d6bfeaaf99/README.md)
   提供 ResNet18/34 ONNX 下载和 CPU 推理代码；RGB NCHW 512×512、ImageNet 归一化，
   输出 19 类语义分割，其中有左右眼、眼镜、头发、帽子等。
-* 输出类别没有通用 occlusion/visibility，尤其不能只凭眼睛类别消失推断被手、物件等遮挡。
+- 输出类别没有通用 occlusion/visibility，尤其不能只凭眼睛类别消失推断被手、物件等遮挡。
   该仓库声明项目 MIT、说明训练于 CelebAMask-HQ；本轮没有找到像 FaceOcc 或 OpenSeeFace
   那样明确单列公开权重适用范围的声明。加上数据集的非商业条款，不能据源码 MIT
   单独批准权重分发。
-* 因能力和许可来源均存在边界，本轮不推荐接入为通用逐眼遮挡检测器。
+- 因能力和许可来源均存在边界，本轮不推荐接入为通用逐眼遮挡检测器。
 
 ## 验收路径
 

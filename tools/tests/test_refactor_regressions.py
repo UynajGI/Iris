@@ -1,12 +1,13 @@
 """Synthetic refactor regressions; no model, GPU, network or photo accuracy claims."""
+
 import importlib.util
 import io
-from pathlib import Path
 import sys
 import tarfile
 import tempfile
-from types import SimpleNamespace
 import unittest
+from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 TOOLS = Path(__file__).resolve().parents[1]
@@ -32,20 +33,44 @@ raw = load_tool("setup-raw-runtime")
 class RefactorRegressionTests(unittest.TestCase):
     @staticmethod
     def analysis():
-        components = [{"id": name, "score": None, "configured_weight": 0.2,
-                       "effective_weight": 0, "contribution": 0, "observed_count": 0,
-                       "total_count": 1, "missing_reason": "synthetic unavailable", "terms": []}
-                      for name in ("eyes", "sharpness", "face", "exposure", "smile")]
-        return {"version": "iris-vision-v6-synthetic", "composite_score": 0, "faces": [],
-                "verdict": "review", "elapsed_ms": 12, "niqe": 4,
-                "score_breakdown": {"method": "synthetic", "components": components,
-                                    "effective_weight_total": 0}}
+        components = [
+            {
+                "id": name,
+                "score": None,
+                "configured_weight": 0.2,
+                "effective_weight": 0,
+                "contribution": 0,
+                "observed_count": 0,
+                "total_count": 1,
+                "missing_reason": "synthetic unavailable",
+                "terms": [],
+            }
+            for name in ("eyes", "sharpness", "face", "exposure", "smile")
+        ]
+        return {
+            "version": "iris-vision-v6-synthetic",
+            "composite_score": 0,
+            "faces": [],
+            "verdict": "review",
+            "elapsed_ms": 12,
+            "niqe": 4,
+            "score_breakdown": {
+                "method": "synthetic",
+                "components": components,
+                "effective_weight_total": 0,
+            },
+        }
 
     def test_sample_score_checks_preserve_missing_and_invalid_term_rules(self):
         analysis = self.analysis()
         self.assertEqual(sample.verify_score_breakdown(analysis), "synthetic")
-        term = {"raw": [{"value": float("nan")}], "weight": 0, "score": None,
-                "missing_reason": "unavailable", "contribution": 0}
+        term = {
+            "raw": [{"value": float("nan")}],
+            "weight": 0,
+            "score": None,
+            "missing_reason": "unavailable",
+            "contribution": 0,
+        }
         analysis["score_breakdown"]["components"][0]["terms"] = [term]
         with self.assertRaises(AssertionError):
             sample.verify_score_breakdown(analysis)
@@ -72,10 +97,21 @@ class RefactorRegressionTests(unittest.TestCase):
     def test_mask_comparison_counts_gates_without_resurrecting_or_changing_eyes(self):
         eye = {"state": "open", "ear": 0.3}
         before = {"x": {"faces": [{"left_eye": eye, "right_eye": None}]}}
-        after = {"x": {"faces": [{"left_eye": None, "right_eye": None,
-                                  "left_eye_visibility": {"visible_fraction": 0.1}}]}}
-        self.assertEqual(masked.compare_mask_predictions(before, after),
-                         ({"open -> hidden": 1, "hidden -> hidden": 1}, 1, 1))
+        after = {
+            "x": {
+                "faces": [
+                    {
+                        "left_eye": None,
+                        "right_eye": None,
+                        "left_eye_visibility": {"visible_fraction": 0.1},
+                    }
+                ]
+            }
+        }
+        self.assertEqual(
+            masked.compare_mask_predictions(before, after),
+            ({"open -> hidden": 1, "hidden -> hidden": 1}, 1, 1),
+        )
         after["x"]["faces"][0]["right_eye"] = eye
         with self.assertRaisesRegex(AssertionError, "resurrected"):
             masked.compare_mask_predictions(before, after)
@@ -84,10 +120,20 @@ class RefactorRegressionTests(unittest.TestCase):
             masked.compare_mask_predictions(before, after)
 
     def test_embedding_checks_keep_shape_hash_normalization_and_quality_invariance(self):
-        analysis = {"verdict": "review", "elapsed_ms": 1, "settings": {},
-                    "embedding": {"model_sha256": local.SHA, "vector": [1.] + [0.] * 383}}
-        listing = [{"id": 1, "filename": "synthetic.jpg", "analysis_status": "current",
-                    "analysis": analysis}]
+        analysis = {
+            "verdict": "review",
+            "elapsed_ms": 1,
+            "settings": {},
+            "embedding": {"model_sha256": local.SHA, "vector": [1.0] + [0.0] * 383},
+        }
+        listing = [
+            {
+                "id": 1,
+                "filename": "synthetic.jpg",
+                "analysis_status": "current",
+                "analysis": analysis,
+            }
+        ]
         local.verify_embeddings(listing)
         baseline = {1: {"verdict": "review", "elapsed_ms": 99, "settings": {"old": True}}}
         local.verify_default_quality(listing, baseline)
@@ -99,13 +145,29 @@ class RefactorRegressionTests(unittest.TestCase):
             local.verify_default_quality(listing, baseline)
 
     def test_measurement_targets_include_conditional_phases_and_actual_sampling(self):
-        args = SimpleNamespace(first_budget_seconds=10, cache_budget_seconds=4,
-                               memory_budget_mib=1, dinov3=True, failure_isolation=True)
-        phases = {key: {"seconds": 1} for key in (
-            "first_scan", "first_analysis", "cached_scan", "cached_analysis",
-            "threshold_regroup", "failure_scan", "failure_analysis")}
-        report = {"phases": phases, "memory": {"peak_tree_rss_bytes": 0,
-                   "peak_tree_private_bytes": 0, "samples": 1}}
+        args = SimpleNamespace(
+            first_budget_seconds=10,
+            cache_budget_seconds=4,
+            memory_budget_mib=1,
+            dinov3=True,
+            failure_isolation=True,
+        )
+        phases = {
+            key: {"seconds": 1}
+            for key in (
+                "first_scan",
+                "first_analysis",
+                "cached_scan",
+                "cached_analysis",
+                "threshold_regroup",
+                "failure_scan",
+                "failure_analysis",
+            )
+        }
+        report = {
+            "phases": phases,
+            "memory": {"peak_tree_rss_bytes": 0, "peak_tree_private_bytes": 0, "samples": 1},
+        }
         expanded.record_targets(args, report)
         self.assertTrue(report["all_targets_passed"])
         report["memory"]["samples"] = 0
@@ -130,8 +192,10 @@ class RefactorRegressionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             output = Path(temporary)
             self.assertEqual(raw.runtime_payload(data, output), {"bin/exiftool.exe": b"synthetic"})
-            for entries in [[("package/../escape", b"x")],
-                            [("package/a", b"x"), ("package/a", b"x")]]:
+            for entries in [
+                [("package/../escape", b"x")],
+                [("package/a", b"x"), ("package/a", b"x")],
+            ]:
                 with self.assertRaises(ValueError):
                     raw.runtime_payload(self.archive(entries), output)
             (output / "unlisted.txt").write_text("keep", encoding="utf-8")
@@ -161,8 +225,10 @@ class RefactorRegressionTests(unittest.TestCase):
         denied.name.side_effect = Denied
         root = Mock()
         root.children.return_value = [daemon, private_unknown, skipped, vanished, denied]
-        self.assertEqual(monitor.resource_sample(root, psutil),
-                         ({"rss": 15, "private": None, "threads": 6, "processes": 2}, 1, 1))
+        self.assertEqual(
+            monitor.resource_sample(root, psutil),
+            ({"rss": 15, "private": None, "threads": 6, "processes": 2}, 1, 1),
+        )
         skipped.memory_info.assert_not_called()
 
     def test_monitor_cleanup_terminates_only_observed_descendants_in_reverse_order(self):
