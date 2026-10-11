@@ -128,6 +128,8 @@ test('keyboard consumes actions during initial and refresh group loads without c
     const commands = new CommandSystem(store);
     try {
       assert.equal(store.getSnapshot().groupSession?.loading, true);
+      assert.throws(() => store.mark({ rating: 5 }), /fully loaded/);
+      assert.throws(() => store.setComparisonCandidates([]), /fully loaded/);
       for (const key of ['w', 's', 'p', 'a', 'd', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']) await press(commands, key);
       await press(commands, 'a', { ctrlKey: true });
       assert.equal(requests.filter(request => request.path.endsWith('/decisions')).length, 0);
@@ -308,4 +310,59 @@ test('HTTP fallback refreshes off-page decisions while the event socket is disco
   });
   store.connect({ createSocket: () => socket, pollMs: 10 });
   try { await refreshed; } finally { store.dispose(); }
+});
+
+test('group focus stays visible during keyboard navigation, advancement and candidate removal', async () => {
+  const { store } = fixture(); await store.openProject('C:/photos'); await store.openGroup('a');
+  const visible = () => {
+    const group = store.getSnapshot().groupSession!;
+    assert.ok(group.comparisonIds.includes(group.focusedId!));
+  };
+  store.moveGroupPhoto(1); visible();
+  await store.decideGroup('keep', true); visible();
+  assert.equal(store.getSnapshot().groupSession?.focusedId, 11);
+  assert.deepEqual(store.getSnapshot().groupSession?.comparisonIds, [8, 11]);
+  store.moveGroupPhoto(-1); visible();
+  assert.deepEqual(store.getSnapshot().groupSession?.comparisonIds, [8, 3]);
+  store.setComparisonCandidates([11]); visible();
+  await store.refreshGroup(); visible();
+  assert.equal(store.getSnapshot().groupSession?.focusedId, 11);
+});
+
+test('an empty comparison never writes null IDs or falls back to library selection', async () => {
+  const { store, requests } = fixture(); await store.openProject('C:/photos');
+  store.select([1, 2]); await store.openGroup('a');
+  store.setComparisonCandidates([]);
+  assert.equal(store.getSnapshot().groupSession?.focusedId, null);
+  await store.decideGroup('flag'); await store.mark({ rating: 5 });
+  assert.equal(requests.filter(request => /\/(decisions|marks)$/.test(request.path)).length, 0);
+  store.moveGroupPhoto(1);
+  assert.equal(store.getSnapshot().groupSession?.focusedId, 8);
+  assert.deepEqual(store.getSnapshot().groupSession?.comparisonIds, [8]);
+});
+
+test('analysis events withdraw old group IDs until completed data is refreshed', async () => {
+  const { store, setGroups } = fixture(); await store.openProject('C:/photos');
+  const socket: Socket = { onopen: null, onmessage: null, onerror: null, onclose: null, close() {} };
+  store.connect({ createSocket: () => socket, pollMs: 60000 });
+  try {
+    socket.onmessage?.({ data: JSON.stringify({ event: 'analysis:stage', project_id: 1, data: { kind: 'analysis', state: 'running' } }) } as MessageEvent);
+    assert.deepEqual(store.getSnapshot().groups, []);
+    assert.equal(store.getSnapshot().reanalysisRequired, true);
+    socket.onmessage?.({ data: JSON.stringify({ event: 'analysis:stage', project_id: 1, data: { kind: 'analysis', state: 'completed' } }) } as MessageEvent);
+    assert.deepEqual(store.getSnapshot().groups, [], 'completion alone must not re-enable stale group IDs');
+    await assert.rejects(store.openGroup('a'), /Rebuild|available/);
+    setGroups([{ id: 'fresh', project_id: 1, kind: 'burst', member_photo_ids: [8, 3] }]);
+    await store.refresh();
+    assert.equal(store.getSnapshot().groups[0]?.id, 'fresh');
+    await store.openGroup('fresh');
+    assert.equal(store.getSnapshot().groupSession?.groupId, 'fresh');
+  } finally { store.dispose(); }
+});
+
+test('Space leaves comparison without changing the underlying library view', async () => {
+  const { store } = fixture(); await store.openProject('C:/photos'); store.toggleReview(); await store.openGroup('a');
+  await press(new CommandSystem(store), ' ');
+  assert.equal(store.getSnapshot().groupSession, null);
+  assert.equal(store.getSnapshot().reviewOpen, true);
 });

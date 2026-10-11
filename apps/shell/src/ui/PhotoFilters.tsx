@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import type { PhotoFilter } from '../types.js';
 import { Button } from './components.js';
 import { colorNames, decisionNames } from './MarkTools.js';
@@ -15,6 +15,20 @@ export function filterValue(key: keyof PhotoFilter, value: unknown): string {
 
 export function PhotoFilters({ filter, onChange, onClose }: { filter: PhotoFilter; onChange(filter: PhotoFilter): void; onClose(): void }) {
   const panel = useRef<HTMLElement>(null);
+  useLayoutEffect(() => {
+    const node = panel.current;
+    const anchor = node?.parentElement;
+    if (!node || !anchor) return;
+    const fit = () => {
+      const top = anchor.closest('.workspace')?.getBoundingClientRect().top ?? 0;
+      node.style.maxHeight = `${Math.max(100, anchor.getBoundingClientRect().top - top - 24)}px`;
+    };
+    fit();
+    const observer = new ResizeObserver(fit);
+    observer.observe(anchor.closest('.filmstrip-head') ?? anchor);
+    window.addEventListener('resize', fit);
+    return () => { observer.disconnect(); window.removeEventListener('resize', fit); };
+  }, [filter]);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
     panel.current?.querySelector<HTMLSelectElement>('select')?.focus();

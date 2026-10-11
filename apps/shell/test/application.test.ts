@@ -60,6 +60,63 @@ function fixture(count = 3) {
   return { client, store: new IrisStore(client), requests };
 }
 
+test('marks update synchronously, serialize writes, survive refresh and roll back failures', async () => {
+  const { store, client } = fixture();
+  await store.openProject('C:/photos');
+  const releases: (() => void)[] = [];
+  const writes: number[] = [];
+  client.mark = async (_id, request) => {
+    writes.push(request.rating!);
+    await new Promise<void>(resolve => releases.push(resolve));
+    throw new Error('save failed');
+  };
+  const first = store.mark({ rating: 3 }).catch(() => undefined);
+  const second = store.mark({ rating: 5 }).catch(() => undefined);
+  assert.equal(store.getSnapshot().photos[0]?.rating, 5);
+  assert.equal(store.getSnapshot().pending, 0, 'mark writes do not block the workbench');
+  await store.refresh();
+  assert.equal(store.getSnapshot().photos[0]?.rating, 5, 'stale server read cannot flash the old mark');
+  assert.deepEqual(writes, [3]);
+  releases.shift()!(); await first;
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(store.getSnapshot().photos[0]?.rating, 5);
+  assert.deepEqual(writes, [3, 5]);
+  releases.shift()!(); await second;
+  assert.equal(store.getSnapshot().photos[0]?.rating, 0);
+  assert.match(store.getSnapshot().error!, /保存失败/);
+  store.dispose();
+});
+
+test('decision toggles are synchronous, reversible while saving and retain the decisions API', async () => {
+  const { store, client, requests } = fixture();
+  await store.openProject('C:/photos');
+  let release!: () => void;
+  const saved = client.decide;
+  client.decide = async (...args) => {
+    await new Promise<void>(resolve => { release = resolve; });
+    return saved(...args);
+  };
+  const first = store.toggleDecision('keep');
+  assert.equal(store.getSnapshot().photos[0]?.decision, 'keep');
+  const second = store.toggleDecision('keep');
+  assert.equal(store.getSnapshot().photos[0]?.decision, 'pending');
+  assert.equal(store.getSnapshot().pending, 0);
+  await store.refresh();
+  assert.equal(store.getSnapshot().photos[0]?.decision, 'pending');
+  release(); await first;
+  await new Promise(resolve => setImmediate(resolve));
+  release(); await second;
+  const writes = requests.filter(request => request.path.endsWith('/decisions'));
+  assert.deepEqual(writes.map(request => request.body.action), ['keep', 'pending']);
+  assert.ok(writes.every(request => request.body.link_variants === true));
+  client.decide = async () => { throw new Error('save failed'); };
+  const failure = store.toggleDecision('reject');
+  assert.equal(store.getSnapshot().photos[0]?.decision, 'reject');
+  await assert.rejects(failure, /save failed/);
+  assert.equal(store.getSnapshot().photos[0]?.decision, 'pending');
+  store.dispose();
+});
+
 test('library selection, serialized decisions, undo and groups round-trip through API', async () => {
   const { store, requests } = fixture();
   await store.initialize(); await store.openProject('C:/photos');
@@ -628,4 +685,22 @@ test('late scoped acceptance cannot refresh a reopened project or run queued old
   assert.equal(store.getSnapshot().focusedId, 4);
   assert.equal(store.getSnapshot().pending, 0);
   assert.equal(store.getSnapshot().error, 'new project error');
+});
+
+test('entering loupe clears hidden bulk selection and Ctrl+A cannot recreate it', async () => {
+  const { store, requests } = fixture(); await store.openProject('C:/photos');
+  store.select([1, 2]); store.focus(3); store.toggleReview();
+  assert.deepEqual(store.getSnapshot().selectedIds, []);
+  const commands = new CommandSystem(store);
+  for (const modifiers of [{ ctrlKey: true }, { metaKey: true }]) {
+    assert.equal(commands.handle({ key: 'a', target: null, ...modifiers, preventDefault() {} } as unknown as KeyboardEvent), true);
+    await new Promise(resolve => setImmediate(resolve));
+    assert.deepEqual(store.getSnapshot().selectedIds, []);
+  }
+  await commands.dispatch('flag');
+  assert.deepEqual(requests.filter(request => request.path.endsWith('/decisions')).at(-1)?.body.photo_ids, [3]);
+  store.toggleReview();
+  assert.equal(commands.handle({ key: 'a', target: null, ctrlKey: true, preventDefault() {} } as unknown as KeyboardEvent), true);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(store.getSnapshot().selectedIds, [1, 2, 3]);
 });

@@ -13,6 +13,16 @@
 覆盖颜色选中/禁用、标记行越界及当前页面按钮图标居中，允许 1 像素舍入误差。
 脚本恢复页面属性，不写照片/API，不加入生产依赖或默认 CI；浏览器检查不替代原生 WebView 验收。
 
+`test-workbench.mjs` 是工作台真实浏览器回归，使用 Node.js 22 内置 WebSocket 驱动本机 Chrome，不新增 npm 依赖。
+先在 `apps/shell` 运行 `npm run build`，再从仓库根目录启动 `node tools/preview-frontend.mjs`，另开终端运行
+`node tools/test-workbench.mjs`。预览需要已构建的 Windows debug daemon、默认模型和授权 `test-photos/`；
+脚本校验临时目录后才扫描、分析和标记，不改源照片，不做导出或隔离。Chrome 使用独立临时 profile，
+测试结束只关闭本次启动的浏览器。`IRIS_TEST_CHROME` 可指定 Chromium 可执行文件，
+`IRIS_TEST_OUTPUT` 可指定本地报告目录（默认 `.qwen/tmp/workbench-review`，禁止提交其中的照片截图）；
+`IRIS_TEST_CAPTURE=0` 只运行断言、不刷新截图。覆盖桌面/800×560、大字号/宽松密度、减弱动态效果、
+Tab、面板/对话框隔离、缩放拖动、全屏、组刷新、星级/人脸框、草稿离开保护及损坏图像回退。
+真实目录选择、CSV 保存、原生关闭与托管生命周期不由此脚本验收。
+
 `tools/` 是内部环境、模型准备、媒体、验证、评估和打包的实现层。公开开发入口统一为
 根目录 Makefile；任务组合、顺序和失败传播由 Make 管理：
 
@@ -90,7 +100,8 @@ make verify
 | `package-runtime-closure.py` | 收集运行库闭包与许可证；需要已构建产物 |
 | `package-source.py` | 从干净 HEAD 导出源码 ZIP；需要新输出文件路径 |
 | `prepare-public-corpus.py` | 准备公开源码检查语料；仅处理公开树输入 |
-| `preview-frontend.mjs` | 预览构建前端；需要 Node.js 和前端构建产物 |
+| `preview-frontend.mjs` | 预览构建前端；需要 Node.js、debug daemon、默认模型及授权照片副本 |
+| `test-workbench.mjs` | 工作台浏览器交互/布局回归；需要 Chromium 和 disposable 预览环境 |
 | `sample_photos.py` | 从授权照片生成测试样本；输入和输出都应为临时副本 |
 | `setup_scrfd.py` | 安装/校验研究用途 SCRFD；必须显式 `--research-only` |
 | `setup-dinov3.py` | 下载/校验可选 DINOv3；需用户明确运行并接受其许可条件 |

@@ -45,7 +45,10 @@ export class CommandSystem {
     let command = this.bindings[chord];
     if (!command) return false;
     event.preventDefault();
-    const group = this.store.getSnapshot().groupSession;
+    const state = this.store.getSnapshot();
+    const group = state.groupSession;
+    if (command === 'selectAll' && state.reviewOpen && !group) return true;
+    if (command === 'review' && group) { this.store.closeGroup(); return true; }
     if (group) {
       // Keyboard focus follows the active group; explicit dispatch retains its
       // library semantics. Never fall back to the library while members load.

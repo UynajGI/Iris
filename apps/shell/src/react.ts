@@ -18,17 +18,17 @@ export function useCommands(commands: CommandSystem, onError?: (error: unknown) 
 }
 /** Authenticated media is fetched to short-lived object URLs, never token-bearing URLs. */
 export function usePhotoUrl(client: IrisClient, id: number | null, kind: 'thumb' | 'preview' | 'original') {
-  const [state, setState] = useState<{ url: string | null; error: Error | null }>({ url: null, error: null });
+  const [state, setState] = useState<{ client: IrisClient; id: number | null; kind: typeof kind; url: string | null; error: Error | null }>({ client, id, kind, url: null, error: null });
   useEffect(() => {
     const controller = new AbortController();
     let objectUrl: string | undefined;
-    setState({ url: null, error: null });
+    setState({ client, id, kind, url: null, error: null });
     if (id !== null) void client.media(id, kind, controller.signal).then(blob => {
       if (controller.signal.aborted) return;
       objectUrl = URL.createObjectURL(blob);
-      setState({ url: objectUrl, error: null });
-    }).catch(error => { if (!controller.signal.aborted) setState({ url: null, error: error instanceof Error ? error : new Error(String(error)) }); });
+      setState({ client, id, kind, url: objectUrl, error: null });
+    }).catch(error => { if (!controller.signal.aborted) setState({ client, id, kind, url: null, error: error instanceof Error ? error : new Error(String(error)) }); });
     return () => { controller.abort(); if (objectUrl) URL.revokeObjectURL(objectUrl); };
   }, [client, id, kind]);
-  return state;
+  return state.client === client && state.id === id && state.kind === kind ? state : { url: null, error: null };
 }

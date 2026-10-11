@@ -1,4 +1,5 @@
 import { IrisClient } from './client.js';
+import { OptimisticMarks } from './optimistic-marks.js';
 import type { MarkRequest } from './types.js';
 import { EventBus, type ConnectionState, type DaemonEvent, type EventOptions } from './events.js';
 import { loadGroupMembers, type GroupSessionState } from './group-session.js';
@@ -42,6 +43,8 @@ export class IrisStore {
   private eventRefresh: ReturnType<typeof setTimeout> | undefined;
   private eventRefreshGroup = false;
   private queue: Promise<unknown> = Promise.resolve();
+  private readonly optimisticMarks = new OptimisticMarks();
+  private markRevision = 0;
   constructor(readonly client: IrisClient, private readonly viewPreferences = new ViewPreferencesRepository()) {}
   getSnapshot = (): ApplicationState => this.state;
   clearError = (): void => { this.update({ error: null }); };
@@ -51,6 +54,10 @@ export class IrisStore {
   };
   subscribe = (listener: () => void): (() => void) => { this.listeners.add(listener); return () => this.listeners.delete(listener); };
   private update(patch: Partial<ApplicationState>): void {
+    if (this.optimisticMarks.pending) {
+      if (patch.photos) patch.photos = patch.photos.map(this.optimisticMarks.apply);
+      if (patch.groupSession) patch.groupSession = { ...patch.groupSession, photos: patch.groupSession.photos.map(this.optimisticMarks.apply) };
+    }
     this.state = { ...this.state, ...patch };
     for (const listener of this.listeners) listener();
   }
@@ -67,6 +74,7 @@ export class IrisStore {
   });
   private loadProject = async (operation: () => Promise<Project>, recordRecent: boolean): Promise<void> => this.execute(async () => {
     const generation = ++this.generation;
+    this.optimisticMarks.clear();
     this.closeGroup();
     const project = await operation();
     const [settings, detectorModels] = await Promise.all([this.client.settings(project.id), this.client.models(project.id)]);
@@ -110,8 +118,9 @@ export class IrisStore {
     const [project, photos, groups, progress, quarantinePlans] = await Promise.all([this.client.project(id), this.client.photos(id, this.state.filter), this.client.groups(id), this.client.progress(id), this.client.quarantinePlans(id)]);
     if (generation !== this.generation || sequence !== this.refreshSequence) return;
     const ids = new Set(photos.map(p => p.id));
+    const analyzing = progress.kind === 'analysis' && ['running', 'paused', 'cancelling'].includes(progress.state);
     // Project-wide counters also cover stale/missing analyses outside this page.
-    const reanalysisRequired = project.groups_dirty || project.pending_analysis > 0;
+    const reanalysisRequired = analyzing || project.groups_dirty || project.pending_analysis > 0;
     const session = this.state.groupSession;
     if (session) {
       const group = groups.find(group => group.id === session.groupId);
@@ -121,7 +130,7 @@ export class IrisStore {
         this.update({ groupSession: { ...session, photos: session.photos.map(photo => refreshed.get(photo.id) ?? photo) } });
       }
     }
-    this.update({ project, photos, groups: project.groups_dirty ? [] : groups, progress, quarantinePlans, reanalysisRequired, selectedIds: this.state.selectedIds.filter(id => ids.has(id)), focusedId: this.state.focusedId !== null && ids.has(this.state.focusedId) ? this.state.focusedId : photos[0]?.id ?? null });
+    this.update({ project, photos, groups: project.groups_dirty || analyzing ? [] : groups, progress, quarantinePlans, reanalysisRequired, selectedIds: this.state.selectedIds.filter(id => ids.has(id)), focusedId: this.state.focusedId !== null && ids.has(this.state.focusedId) ? this.state.focusedId : photos[0]?.id ?? null });
   };
   setFilter = async (filter: PhotoFilter): Promise<void> => this.execute(async () => {
     const valid = validatedPhotoFilter(filter, true);
@@ -172,12 +181,13 @@ export class IrisStore {
   private saveViewPreferences(): void {
     if (this.state.project) this.viewPreferences.save(this.state.project.root, { filter: this.state.filter, reviewOpen: this.state.reviewOpen });
   }
-  toggleReview(): void { this.update({ reviewOpen: !this.state.reviewOpen }); this.saveViewPreferences(); }
-  private enqueue(operation: () => Promise<void>, scope?: ProjectScope): Promise<void> {
+  toggleReview(): void { this.update({ reviewOpen: !this.state.reviewOpen, selectedIds: [] }); this.saveViewPreferences(); }
+  private enqueue(operation: () => Promise<void>, scope?: ProjectScope, quiet = false): Promise<void> {
     const next = this.queue.then(async () => {
       // Skip retired commands before execute() can clear the new view's error.
       if (scope && !this.isCurrent(scope)) return;
-      await this.execute(operation, scope);
+      if (quiet) await operation();
+      else await this.execute(operation, scope);
     });
     this.queue = next.catch(() => undefined);
     return next;
@@ -220,16 +230,49 @@ export class IrisStore {
   };
   mark = (fields: Omit<MarkRequest, 'photo_ids'>, ids?: number[]): Promise<void> => {
     const scope = this.scope();
-    const focused = this.state.groupSession?.focusedId ?? this.state.focusedId;
+    if (this.state.groupSession) this.requireGroup();
+    const focused = this.state.groupSession ? this.state.groupSession.focusedId : this.state.focusedId;
     const photo_ids = ids ?? (this.state.groupSession ? (focused === null ? [] : [focused])
       : this.state.selectedIds.length ? [...this.state.selectedIds] : focused === null ? [] : [focused]);
     const request = structuredClone({ ...fields, photo_ids });
-    return this.enqueue(async () => {
-      if (!this.isCurrent(scope) || !request.photo_ids.length) return;
-      await this.client.mark(scope.id, request);
-      if (this.isCurrent(scope)) await this.refreshWithGroup();
-    }, scope);
+    return this.persistMark(scope, request, () => this.client.mark(scope.id, request));
   };
+  toggleDecision = (action: Exclude<Action, 'pending'>): Promise<void> => {
+    const scope = this.scope();
+    const group = this.state.groupSession ? this.requireGroup() : null;
+    const id = group ? group.focusedId : this.state.focusedId;
+    const photo = (group?.photos ?? this.state.photos).find(photo => photo.id === id);
+    if (!photo) return Promise.resolve();
+    const decision = photo.decision === action ? 'pending' : action;
+    // Keep the decisions endpoint's linked-variant/conflict semantics. Only
+    // predict the explicit target; reconcile other variants in the background.
+    return this.persistMark(scope, { photo_ids: [photo.id], decision },
+      () => this.client.decide(scope.id, [photo.id], decision));
+  };
+  private persistMark(scope: ProjectScope, request: MarkRequest, save: () => Promise<unknown>): Promise<void> {
+    if (!request.photo_ids.length) return Promise.resolve();
+    const entry = this.optimisticMarks.add(request, [...this.state.photos, ...(this.state.groupSession?.photos ?? [])]);
+    ++this.markRevision;
+    this.update({ photos: this.state.photos, groupSession: this.state.groupSession, error: null });
+    return this.enqueue(async () => {
+      let failed = false;
+      try { await save(); }
+      catch (error) {
+        failed = true;
+        if (this.isCurrent(scope)) this.update({ error: `标记保存失败：${error instanceof Error ? error.message : String(error)}` });
+        throw error;
+      } finally {
+        if (this.isCurrent(scope)) {
+          ++this.refreshSequence;
+          ++this.markRevision;
+          const settle = this.optimisticMarks.settle(entry, failed);
+          const group = this.state.groupSession;
+          this.update({ photos: this.state.photos.map(settle), groupSession: group ? { ...group, photos: group.photos.map(settle) } : null });
+          if (!this.optimisticMarks.pending) this.scheduleRefresh(true);
+        }
+      }
+    }, scope, true);
+  }
   /** Omitted options retain whole-project acceptance; explicit IDs bound the operation. */
   accept = (options?: AcceptRequest): Promise<void> => {
     const scope = this.scope();
@@ -250,12 +293,13 @@ export class IrisStore {
     if (!session || session.loading || this.state.reanalysisRequired) throw new Error('Open a current, fully loaded group first');
     return session;
   }
-  private async readGroup(scope: ProjectScope, generation: number): Promise<void> {
+  private async readGroup(scope: ProjectScope, generation: number, background = false): Promise<void> {
     const session = this.state.groupSession;
     if (!session || !this.groupCurrent(scope, generation)) return;
     const sequence = ++this.groupLoadSequence;
+    const markRevision = this.markRevision;
     const current = () => this.groupCurrent(scope, generation) && sequence === this.groupLoadSequence;
-    this.update({ groupSession: { ...session, loading: true } });
+    this.update({ groupSession: { ...session, loading: !background || session.photos.length === 0 } });
     try {
       const photos = await loadGroupMembers(this.client, scope.id, session.memberIds, current);
       if (!current()) return;
@@ -263,7 +307,11 @@ export class IrisStore {
       await this.refresh();
       if (!current()) return;
       const page = new Map(this.state.photos.map(photo => [photo.id, photo]));
-      this.update({ groupSession: { ...session, photos: photos.map(photo => page.get(photo.id) ?? photo), loading: false } });
+      if (markRevision !== this.markRevision) {
+        this.update({ groupSession: { ...this.state.groupSession!, loading: false } });
+        return;
+      }
+      this.update({ groupSession: { ...this.state.groupSession!, photos: photos.map(photo => page.get(photo.id) ?? photo), loading: false } });
     } catch (error) {
       if (!current()) return;
       this.closeGroup();
@@ -292,19 +340,22 @@ export class IrisStore {
     if (!project) return;
     const scope = this.scope();
     await this.refresh();
-    if (this.isCurrent(scope) && this.state.groupSession) await this.readGroup(scope, this.groupGeneration);
+    if (this.isCurrent(scope) && this.state.groupSession) await this.readGroup(scope, this.groupGeneration, true);
   };
   focusGroupPhoto = (id: number): void => {
     const session = this.requireGroup();
     if (!session.memberIds.includes(id)) throw new Error('Photo is not a member of the active group');
     ++this.groupFocusRevision;
-    this.update({ groupSession: { ...session, focusedId: id } });
+    const comparisonIds = session.comparisonIds.includes(id) ? session.comparisonIds : [...session.comparisonIds.filter(candidate => candidate !== session.focusedId), id];
+    this.update({ groupSession: { ...session, focusedId: id, comparisonIds } });
   };
   setComparisonCandidates = (ids: number[]): void => {
     const session = this.requireGroup();
     const comparisonIds = [...new Set(ids)];
     if (comparisonIds.some(id => !session.memberIds.includes(id))) throw new Error('Comparison candidates must belong to the active group');
-    this.update({ groupSession: { ...session, comparisonIds } });
+    const focusedId = session.focusedId !== null && comparisonIds.includes(session.focusedId) ? session.focusedId : comparisonIds[0] ?? null;
+    if (focusedId !== session.focusedId) ++this.groupFocusRevision;
+    this.update({ groupSession: { ...session, comparisonIds, focusedId } });
   };
   moveGroup = async (delta: number): Promise<void> => {
     if (!Number.isSafeInteger(delta)) throw new Error('Navigation delta must be an integer');
@@ -339,15 +390,18 @@ export class IrisStore {
     return this.enqueue(async () => {
       if (!this.groupCurrent(scope, generation) || revision !== this.groupFocusRevision) return;
       const session = this.requireGroup();
-      const index = session.memberIds.indexOf(session.focusedId!);
-      await this.client.decide(scope.id, [session.focusedId!], action);
+      if (session.focusedId === null) return;
+      const index = session.memberIds.indexOf(session.focusedId);
+      await this.client.decide(scope.id, [session.focusedId], action);
       if (!this.groupCurrent(scope, generation)) return;
       await this.readGroup(scope, generation);
       if (!advance || !this.groupCurrent(scope, generation) || revision !== this.groupFocusRevision) return;
       const current = this.requireGroup();
       const next = current.memberIds[index + 1];
-      if (next !== undefined) this.update({ groupSession: { ...current, focusedId: next } });
-      else await this.moveGroup(1);
+      if (next !== undefined) {
+        const comparisonIds = current.comparisonIds.includes(next) ? current.comparisonIds : [...current.comparisonIds.filter(id => id !== current.focusedId), next];
+        this.update({ groupSession: { ...current, focusedId: next, comparisonIds } });
+      } else await this.moveGroup(1);
     }, scope);
   };
   run = (operation: 'scan' | 'analyze' | 'cancel' | 'pause' | 'resume'): Promise<void> => {
@@ -497,7 +551,11 @@ export class IrisStore {
     if (event.event === 'scan:progress' || event.event === 'analysis:stage') {
       if (typeof event.data === 'object' && event.data !== null) {
         const progress = event.data as Progress;
-        if (progress.kind === 'analysis' && ['running', 'paused'].includes(progress.state)) this.closeGroup();
+        if (progress.kind === 'analysis' && ['running', 'paused', 'cancelling'].includes(progress.state)) {
+          ++this.refreshSequence;
+          this.closeGroup();
+          this.update({ groups: [], reanalysisRequired: true });
+        }
         this.update({ progress });
         if (['completed', 'cancelled', 'failed'].includes(progress.state)) this.scheduleRefresh();
       }
