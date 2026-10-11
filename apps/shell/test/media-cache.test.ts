@@ -129,3 +129,44 @@ test('prefetch selects only two immediate available neighbors', () => {
   );
   assert.deepEqual(previewNeighbors(photos, 99), []);
 });
+
+test('entry budget independently evicts the least recently used idle blob', async () => {
+  let calls = 0;
+  const cache = new MediaCache({ media: async () => new Blob([String(++calls)]) }, 2, 1_000_000);
+  for (const id of [1, 2, 1, 3, 1, 2]) {
+    const lease = cache.acquire(id, 'preview');
+    await lease.promise;
+    lease.release();
+  }
+  assert.equal(calls, 4, 'recently used 1 survives, idle 2 is fetched again');
+});
+
+test('expired idle blobs revalidate without aborting active consumers', async () => {
+  let time = 0,
+    calls = 0;
+  const signals: AbortSignal[] = [];
+  const cache = new MediaCache(
+    {
+      media: async (_id, _kind, signal) => {
+        signals.push(signal!);
+        return new Blob([String(++calls)]);
+      },
+    },
+    24,
+    1_000_000,
+    30_000,
+    () => time
+  );
+  const first = cache.acquire(1, 'preview');
+  await first.promise;
+  time = 31_000;
+  const shared = cache.acquire(1, 'preview');
+  assert.equal(await (await shared.promise).text(), '1');
+  first.release();
+  shared.release();
+  assert.equal(signals[0]!.aborted, false);
+  const fresh = cache.acquire(1, 'preview');
+  assert.equal(await (await fresh.promise).text(), '2');
+  assert.equal(signals[0]!.aborted, true);
+  fresh.release();
+});

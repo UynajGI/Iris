@@ -48,7 +48,11 @@ def api(repo, path, method="GET", **fields):
     command = ["gh", "api", "--method", method, f"repos/{repo}/{path}"]
     for key, value in fields.items():
         command.extend(["-f", f"{key}={value}"])
-    result = subprocess.run(command, check=True, capture_output=True, text=True)
+    if not re.fullmatch(
+        r"[A-Za-z0-9][A-Za-z0-9-]*/[A-Za-z0-9][A-Za-z0-9._-]*", repo
+    ) or path.startswith(("/", "-")):
+        raise ValueError("Invalid repository API scope")
+    result = subprocess.run(command, check=True, capture_output=True, text=True, shell=False)
     return json.loads(result.stdout)
 
 
@@ -79,9 +83,14 @@ def eligible_pr(pr, repo, head):
 
 
 def dependency_metadata(commit):
-    if commit.get("author", {}).get("login") != BOT:
+    author, committer = commit.get("author") or {}, commit.get("committer") or {}
+    verification = commit["commit"]["verification"]
+    if author.get("login") != BOT or author.get("id") != 49699333:
         return []
-    if not commit["commit"]["verification"]["verified"]:
+    # Author fields can be forged. Only GitHub's verified web-flow signer is trusted.
+    if committer.get("login") != "web-flow" or committer.get("id") != 19864447:
+        return []
+    if not verification["verified"] or verification.get("reason") != "valid":
         return []
     message = commit["commit"]["message"]
     if "\n---\n" not in message:
@@ -117,13 +126,57 @@ def safe_changes(commits, files):
             return False
         if not all(safe_dependency(dependency) for dependency in dependencies):
             return False
-    return all(
-        item["status"] == "modified"
-        and (
-            item["filename"] in MANIFESTS
-            or re.fullmatch(r"\.github/workflows/[\w-]+\.ya?ml", item["filename"])
+    dependencies = [d for c in commits for d in dependency_metadata(c)]
+    return all(safe_file(item, dependencies) for item in files)
+
+
+def safe_file(item, dependencies):
+    if item["status"] != "modified":
+        return False
+    filename = item["filename"]
+    if filename not in MANIFESTS:
+        # Workflow edits, including action upgrades, stay manual: they are executable code.
+        return False
+    if filename.endswith(("Cargo.lock", "package-lock.json", "uv.lock")):
+        # Lockfile resolution is trusted only with the verified GitHub bot provenance above.
+        return True
+    patch = item.get("patch", "")
+    removed = [line[1:] for line in patch.splitlines() if line.startswith("-")]
+    added = [line[1:] for line in patch.splitlines() if line.startswith("+")]
+    return (
+        bool(removed)
+        and len(removed) == len(added)
+        and all(
+            safe_version_line(before, after, dependencies) for before, after in zip(removed, added)
         )
-        for item in files
+    )
+
+
+def safe_version_line(before, after, dependencies):
+    version = r"(?<![\w.])[~^<>=!]*\d+\.\d+\.\d+(?![\w.-])"
+    if re.sub(version, "<version>", before) != re.sub(version, "<version>", after):
+        return False
+    old, new = re.findall(r"\d+\.\d+\.\d+", before), re.findall(r"\d+\.\d+\.\d+", after)
+    if len(old) != 1 or len(new) != 1:
+        return False
+    prior, next_version = tuple(map(int, old[0].split("."))), tuple(map(int, new[0].split(".")))
+    if prior[0] != next_version[0] or prior >= next_version:
+        return False
+    for dependency in dependencies:
+        name = re.escape(dependency["dependency-name"])
+        declaration = rf"^\s*[\"']?{name}[\"']?\s*[:=]|^\s*[\"']{name}[<>=~!]"
+        if not re.search(declaration, after) or new[0] != dependency["dependency-version"]:
+            continue
+        return dependency["update-type"].endswith("minor") or prior[1] == next_version[1]
+    return False
+
+
+def strict_checks_enabled(rules):
+    return any(
+        rule.get("type") == "required_status_checks"
+        and rule.get("parameters", {}).get("strict_required_status_checks_policy") is True
+        and bool(rule["parameters"].get("required_status_checks"))
+        for rule in rules
     )
 
 
@@ -195,6 +248,8 @@ def final_merge(repo, pr):
         return "head or base changed"
     if current["base"]["sha"] != pr["base"]["sha"] or current["mergeable_state"] != "clean":
         return "branch protection, reviews or base update pending"
+    if not strict_checks_enabled(api(repo, "rules/branches/main")):
+        return "strict current-base checks required; no merge performed"
     # Atomic head check; native rulesets still enforce required checks and current base.
     result = api(repo, f"pulls/{number}/merge", "PUT", sha=head, merge_method="squash")
     if not result.get("merged"):

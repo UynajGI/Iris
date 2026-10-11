@@ -28,6 +28,7 @@ impl Store {
         if integrity != "ok" {
             bail!("database integrity check failed: {integrity}");
         }
+        invalidate_old_groups(&conn)?;
         Ok(Self {
             conn,
             path,
@@ -41,6 +42,17 @@ impl Store {
         self.conn.backup("main", destination, None)?;
         Ok(())
     }
+}
+
+fn invalidate_old_groups(conn: &Connection) -> Result<()> {
+    let tx = conn.unchecked_transaction()?;
+    tx.execute(
+        "UPDATE projects SET groups_dirty=1 WHERE id IN (SELECT p.project_id FROM photos p JOIN analyses a ON a.photo_id=p.id WHERE a.version IS NOT ?1)",
+        [crate::vision::ANALYSIS_VERSION],
+    )?;
+    tx.execute("DELETE FROM burst_groups WHERE project_id IN (SELECT id FROM projects WHERE groups_dirty=1)", [])?;
+    tx.commit()?;
+    Ok(())
 }
 
 fn upgrade_database(conn: &Connection, path: &Path, version: i64) -> Result<Option<String>> {

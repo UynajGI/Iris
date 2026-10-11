@@ -188,6 +188,49 @@ fn face_at(x: f32, y: f32) -> Face {
 }
 
 #[test]
+fn selection_group_reviews_recommended_photos_with_different_face_counts() {
+    let mut face = face_at(50., 50.);
+    face.quality = Some(iris_core::vision::FaceQuality {
+        method: "fixture".into(),
+        crop_width: 100,
+        crop_height: 100,
+        sharpness_lap: 500.,
+        exposure: poor_analysis().exposure,
+        sharpness_score: 85.,
+        exposure_score: 85.,
+        resolution_score: 85.,
+        score: 85.,
+    });
+    let eye = Eye {
+        state: EyeState::Open,
+        ear: 0.3,
+        blink_score: Some(0.),
+    };
+    face.left_eye = Some(eye.clone());
+    face.right_eye = Some(eye);
+    let mut a = poor_analysis();
+    a.sharpness_lap = 500.;
+    a.sharpness_fft = 0.9;
+    a.exposure.mean = 128.;
+    a.exposure.shadow_clip = 0.;
+    a.faces = vec![face.clone()];
+    a.verdict = Verdict::Recommend;
+    a.composite_score = 85.;
+    let mut b = a.clone();
+    b.faces.push(face);
+    let equal = iris_core::vision::assess_group(&[(1, Some(&a)), (2, Some(&a))]);
+    assert!(
+        !equal.needs_review,
+        "both individual recommendations are usable"
+    );
+    let different = iris_core::vision::assess_group(&[(1, Some(&a)), (2, Some(&b))]);
+    assert!(different.needs_review);
+    assert!(different.comparisons[1]
+        .reasons
+        .contains(&"different_face_count".into()));
+}
+
+#[test]
 fn composition_accepts_center_and_thirds_and_omits_no_subject() {
     let mut a = poor_analysis();
     a.width = 300;

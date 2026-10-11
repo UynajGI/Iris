@@ -85,3 +85,22 @@ export function originalDetailAvailable(photo: Photo): boolean {
     photo.size_bytes <= 64 * 1024 * 1024
   );
 }
+
+export function originalDetailPhotoId(photo: Photo, active: boolean): number | null {
+  return active && originalDetailAvailable(photo) ? photo.id : null;
+}
+
+/** Map oriented analysis coordinates onto the decoded original, without downscaling it. */
+export function scaleFaceRegion(region: FaceRegion, width: number, height: number): FaceRegion {
+  const sx = width / region.width,
+    sy = height / region.height;
+  return {
+    ...region,
+    x: region.x * sx,
+    y: region.y * sy,
+    w: region.w * sx,
+    h: region.h * sy,
+    width,
+    height,
+  };
+}

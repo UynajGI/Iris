@@ -5,7 +5,7 @@ on:
     types: [completed]
 permissions: {}
 concurrency:
-  group: dependabot-auto-merge
+  group: dependabot-auto-merge-${{ github.event.workflow_run.head_branch }}
   cancel-in-progress: false
 jobs:
   merge:

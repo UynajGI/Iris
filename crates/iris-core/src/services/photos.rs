@@ -1,5 +1,7 @@
 use super::*;
 
+const GROUP_ANALYSES_SQL: &str = "SELECT p.id,a.data FROM (SELECT DISTINCT m.value AS id FROM burst_groups g, json_each(g.members) m WHERE g.project_id=?1) members JOIN photos p ON p.id=members.id JOIN analyses a ON a.photo_id=p.id WHERE p.project_id=?1 AND p.missing=0 AND p.quarantined=0";
+
 fn matches_photo_filter(p: &Photo, filter: &PhotoFilter) -> bool {
     (filter.include_missing.unwrap_or(false) || (!p.missing && !p.quarantined))
         && filter.decision.is_none_or(|d| d == p.decision)
@@ -212,9 +214,7 @@ impl Services {
         project_id: i64,
     ) -> Result<std::collections::HashMap<i64, crate::vision::VisionAnalysis>> {
         let settings = self.settings(project_id)?;
-        let mut query = self.store.conn.prepare(
-            "SELECT p.id,a.data FROM photos p JOIN analyses a ON a.photo_id=p.id WHERE p.project_id=?1 AND p.missing=0 AND p.quarantined=0"
-        )?;
+        let mut query = self.store.conn.prepare(GROUP_ANALYSES_SQL)?;
         let rows = query.query_map([project_id], |r| {
             Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?))
         })?;
@@ -232,5 +232,26 @@ impl Services {
             }
         }
         Ok(analyses)
+    }
+}
+
+#[cfg(test)]
+mod group_query_tests {
+    #[test]
+    fn only_distinct_available_same_project_group_members_reach_deserialization() {
+        let db = rusqlite::Connection::open_in_memory().unwrap();
+        db.execute_batch("CREATE TABLE photos(id INTEGER PRIMARY KEY,project_id INTEGER,missing INTEGER,quarantined INTEGER);
+            CREATE TABLE analyses(photo_id INTEGER PRIMARY KEY,data TEXT);
+            CREATE TABLE burst_groups(project_id INTEGER,members TEXT);
+            INSERT INTO photos VALUES(1,1,0,0),(2,1,0,0),(3,1,1,0),(4,1,0,1),(5,2,0,0);
+            INSERT INTO analyses VALUES(1,'member'),(2,'unrelated invalid JSON'),(3,'missing'),(4,'quarantined'),(5,'foreign');
+            INSERT INTO burst_groups VALUES(1,'[1,3,4,5]'),(1,'[1]'),(2,'[2]');").unwrap();
+        let mut query = db.prepare(super::GROUP_ANALYSES_SQL).unwrap();
+        let selected = query
+            .query_map([1], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?)))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(selected, vec![(1, "member".into())]);
     }
 }

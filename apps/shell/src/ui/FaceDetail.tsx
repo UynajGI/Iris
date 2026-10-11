@@ -3,14 +3,37 @@ import type { IrisClient } from '../client.js';
 import type { Photo } from '../types.js';
 import { usePhotoUrl } from '../react.js';
 import { mediaRevision } from '../media-cache.js';
-import { faceRegions, originalDetailAvailable, type FaceRegion } from '../selection-readout.js';
+import {
+  faceRegions,
+  originalDetailAvailable,
+  originalDetailPhotoId,
+  scaleFaceRegion,
+  type FaceRegion,
+} from '../selection-readout.js';
 
-export function FaceDetail({ client, photo }: { client: IrisClient; photo: Photo }) {
+export function FaceDetail({
+  client,
+  photo,
+  active,
+}: {
+  client: IrisClient;
+  photo: Photo;
+  active: boolean;
+}) {
   const regions = faceRegions(photo);
   const [selected, setSelected] = useState(0);
   const region = regions[Math.min(selected, regions.length - 1)];
-  const { preview, original, showOriginal, originalFailed, source, setFailed, setReady, status } =
-    useDetailMedia(client, photo, region);
+  const {
+    preview,
+    original,
+    showOriginal,
+    originalFailed,
+    source,
+    setFailed,
+    setReady,
+    status,
+    ready,
+  } = useDetailMedia(client, photo, region, active);
   if (!region) return <p className="detail-empty">没有可复核的人脸区域，请切回整图观察</p>;
   return (
     <div className="face-detail">
@@ -30,7 +53,7 @@ export function FaceDetail({ client, photo }: { client: IrisClient; photo: Photo
       </label>
       <FaceCrop
         source={source}
-        region={region}
+        region={showOriginal && ready ? scaleFaceRegion(region, ready.width, ready.height) : region}
         name={`${photo.filename} 的人脸 ${selected + 1} 细节`}
         failed={!source && !!preview.error}
         invalidate={(showOriginal ? original : preview).invalidate}
@@ -44,7 +67,12 @@ export function FaceDetail({ client, photo }: { client: IrisClient; photo: Photo
             const aspect = event.currentTarget.naturalWidth / event.currentTarget.naturalHeight;
             if (Math.abs(aspect / (region.width / region.height) - 1) > 0.02)
               setFailed(original.url);
-            else setReady(original.url);
+            else
+              setReady({
+                url: original.url!,
+                width: event.currentTarget.naturalWidth,
+                height: event.currentTarget.naturalHeight,
+              });
           }}
           onError={() => setFailed(original.url)}
         />
@@ -56,24 +84,45 @@ export function FaceDetail({ client, photo }: { client: IrisClient; photo: Photo
   );
 }
 
-function useDetailMedia(client: IrisClient, photo: Photo, region: FaceRegion | undefined) {
+function useDetailMedia(
+  client: IrisClient,
+  photo: Photo,
+  region: FaceRegion | undefined,
+  active: boolean
+) {
   const revision = mediaRevision(photo);
   const preview = usePhotoUrl(client, region ? photo.id : null, 'preview', revision);
   const supported = originalDetailAvailable(photo);
-  const original = usePhotoUrl(client, region && supported ? photo.id : null, 'original', revision);
-  const [ready, setReady] = useState<string | null>(null);
+  const original = usePhotoUrl(
+    client,
+    originalDetailPhotoId(photo, active && !!region),
+    'original',
+    revision
+  );
+  const [ready, setReady] = useState<{ url: string; width: number; height: number } | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
   const originalFailed = !!original.error || (!!original.url && failed === original.url);
-  const showOriginal = !!original.url && ready === original.url && !originalFailed;
+  const showOriginal = active && !!original.url && ready?.url === original.url && !originalFailed;
   const source = showOriginal ? original.url : preview.url;
-  const status = showOriginal
-    ? '原图局部 · 按脸部大小对齐'
-    : !supported
-      ? '预览局部 · 此格式或尺寸暂不读取原图细节'
-      : originalFailed
-        ? '原图暂不可用 · 当前为预览局部'
-        : '预览局部 · 正在读取原图';
-  return { preview, original, showOriginal, originalFailed, source, setFailed, setReady, status };
+  const status = detailStatus(showOriginal, active, supported, originalFailed);
+  return {
+    preview,
+    original,
+    showOriginal,
+    originalFailed,
+    source,
+    setFailed,
+    setReady,
+    status,
+    ready,
+  };
+}
+
+function detailStatus(showOriginal: boolean, active: boolean, supported: boolean, failed: boolean) {
+  if (showOriginal) return '原图局部 · 按脸部大小对齐';
+  if (!active) return '预览局部 · 选中照片可查看原图';
+  if (!supported) return '预览局部 · 此格式或尺寸暂不读取原图细节';
+  return failed ? '原图暂不可用 · 当前为预览局部' : '预览局部 · 正在读取原图';
 }
 
 function FaceCrop({

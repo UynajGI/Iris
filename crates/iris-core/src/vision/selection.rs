@@ -176,18 +176,23 @@ pub fn assess_group(items: &[(i64, Option<&VisionAnalysis>)]) -> GroupAssessment
             (best.composite_score - a.composite_score <= CLOSE_SCORE_GAP).then_some(*id)
         })
         .collect();
+    let comparisons: Vec<_> = items
+        .iter()
+        .map(|(id, a)| compare(*id, *a, reference))
+        .collect();
+    let needs_review = items
+        .iter()
+        .any(|(_, a)| a.is_none_or(|a| !usable(a) || a.verdict != Verdict::Recommend))
+        || comparisons
+            .iter()
+            .any(|c| c.reasons.iter().any(|r| r == "different_face_count"));
     GroupAssessment {
         method: "group_technical_comparison_v1".into(),
         reference_photo_id: reference.map(|(id, _)| id),
         candidate_photo_ids,
         close_score_gap: CLOSE_SCORE_GAP,
-        needs_review: items
-            .iter()
-            .any(|(_, a)| a.is_none_or(|a| !usable(a) || a.verdict != Verdict::Recommend)),
-        comparisons: items
-            .iter()
-            .map(|(id, a)| compare(*id, *a, reference))
-            .collect(),
+        needs_review,
+        comparisons,
     }
 }
 

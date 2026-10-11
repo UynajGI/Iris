@@ -26,9 +26,10 @@ def pull_request():
 
 def commit(name="lefthook", version="2.2.0", update="minor"):
     return {
-        "author": {"login": automerge.BOT},
+        "author": {"login": automerge.BOT, "id": 49699333},
+        "committer": {"login": "web-flow", "id": 19864447},
         "commit": {
-            "verification": {"verified": True},
+            "verification": {"verified": True, "reason": "valid"},
             "message": f"Bump dependency\n---\nupdated-dependencies:\n"
             f"- dependency-name: {name}\n  dependency-version: {version}\n"
             f"  update-type: version-update:semver-{update}\n...\nSigned-off-by: bot",
@@ -52,6 +53,17 @@ def workflow_runs():
 
 
 class DependabotAutomergeTests(unittest.TestCase):
+    def test_api_scope_and_arguments_never_invoke_a_shell(self):
+        with patch.object(automerge.subprocess, "run") as run:
+            run.return_value.stdout = "{}"
+            automerge.api(REPO, "pulls/20", "GET")
+            self.assertFalse(run.call_args.kwargs["shell"])
+            self.assertEqual(run.call_args.args[0][:4], ["gh", "api", "--method", "GET"])
+            run.reset_mock()
+            with self.assertRaises(ValueError):
+                automerge.api("../escape; command", "pulls/20")
+            run.assert_not_called()
+
     def test_only_current_same_repo_dependabot_main_pr_is_eligible(self):
         self.assertTrue(automerge.eligible_pr(pull_request(), REPO, HEAD))
         cases = [
@@ -167,6 +179,16 @@ class DependabotAutomergeTests(unittest.TestCase):
                 return {"merged": merge}
             if path == "git/ref/heads/main":
                 return {"object": {"sha": BASE}}
+            if path == "rules/branches/main":
+                return [
+                    {
+                        "type": "required_status_checks",
+                        "parameters": {
+                            "strict_required_status_checks_policy": True,
+                            "required_status_checks": [{"context": "rust"}],
+                        },
+                    }
+                ]
             return current
 
         return api
@@ -235,6 +257,69 @@ class DependabotAutomergeTests(unittest.TestCase):
         with patch.object(automerge, "api", side_effect=[[{}] * 100, [{}]]) as request:
             self.assertEqual(len(automerge.pages(REPO, "pulls/20/files")), 101)
             self.assertIn("page=2", request.call_args.args[1])
+
+    def test_forged_bot_author_with_human_signature_is_rejected(self):
+        for committer in [
+            None,
+            {},
+            {"login": "human", "id": 123},
+            {"login": "web-flow", "id": 123},
+        ]:
+            item = commit()
+            item["committer"] = committer
+            self.assertEqual(automerge.dependency_metadata(item), [])
+
+    def test_actual_manifest_diff_must_only_change_named_dependency_versions(self):
+        item = {
+            "filename": "package.json",
+            "status": "modified",
+            "patch": '@@ -1 +1 @@\n-  "lefthook": "^2.1.0",\n+  "lefthook": "^2.2.0",',
+        }
+        self.assertTrue(automerge.safe_changes([commit()], [item]))
+        for patch_text in [
+            None,
+            '-"scripts": {"build": "safe"}\n+"scripts": {"build": "evil"}',
+            '-"other": "2.1.0"\n+"other": "2.2.0"',
+            '-"lefthook": "^1.1.0"\n+"lefthook": "^2.2.0"',
+            '-"scripts": "lefthook 2.1.0"\n+"scripts": "lefthook 2.2.0"',
+            '-"lefthook": "^2.1.0"\n+"lefthook": "file:2.2.0"',
+        ]:
+            self.assertFalse(
+                automerge.safe_changes([commit()], [{**item, "patch": patch_text or ""}])
+            )
+        self.assertFalse(
+            automerge.safe_changes(
+                [commit()], [{**item, "filename": ".github/workflows/verify.yml"}]
+            )
+        )
+
+    def test_missing_or_non_strict_native_rules_fail_closed(self):
+        for rules in [
+            [],
+            [
+                {
+                    "type": "required_status_checks",
+                    "parameters": {
+                        "strict_required_status_checks_policy": False,
+                        "required_status_checks": [{}],
+                    },
+                }
+            ],
+        ]:
+            with (
+                patch.object(automerge, "pages", side_effect=self.final_pages()),
+                patch.object(
+                    automerge,
+                    "api",
+                    side_effect=lambda repo, path, *args, **kwargs: (
+                        rules
+                        if path == "rules/branches/main"
+                        else self.final_api(pull_request())(repo, path, *args, **kwargs)
+                    ),
+                ) as request,
+            ):
+                self.assertIn("strict", automerge.final_merge(REPO, pull_request()))
+                self.assertFalse(any(call.args[2:] == ("PUT",) for call in request.call_args_list))
 
 
 if __name__ == "__main__":

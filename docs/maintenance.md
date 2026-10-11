@@ -45,11 +45,11 @@ Dependabot 按生态把普通 minor/patch 更新分组，每个更新配置最�
 
 [自动合并工作流](../.github/workflows/dependabot-automerge.yml) 在 PR 的 Verify 成功后触发，只运行默认分支的[策略脚本](../tools/dependabot-automerge.py)，不执行 PR 代码、不下载 PR 产物，也不使用 `pull_request_target`。普通开发 PR、外部 fork、草稿及非 `main` 目标不在范围内。
 
-- 全部提交必须由 `dependabot[bot]` 创建且签名验证成功；版本类型来自签名提交中的结构化元数据，不信任标题或标签。
+- 全部提交必须匹配 Dependabot 的固定账号 ID，且由 GitHub `web-flow` 固定账号签署、签名验证为 `valid`；仅伪造作者或使用个人有效签名不符合条件。版本类型来自签名提交中的结构化元数据，不信任标题或标签。
 - 仅接受稳定的 ≥1.0 版本 minor/patch；主版本、0.x、预发布、未知版本，以及 `ort` / `ort-sys`、glib / `glib-sys`、`nalgebra`、`base64`、`tower-http` 保留人工处理。任一分组成员不符合即整组不合并。
-- 文件改动仅允许现有依赖清单、锁文件或 Actions 工作流的修改，新增、删除、重命名和业务源码改动不自动合并。
+- 文件改动仅允许现有依赖清单和锁文件的修改；清单差异须仅改变元数据中已列依赖的版本字符串，无法识别的格式保留人工处理。锁文件解析结果依赖上述可信签名来源。Actions 工作流属于可执行代码，即使只是 Action 更新也保留人工处理；新增、删除、重命名和业务源码改动不自动合并。
 - 当前头提交的最新 Verify 与 CodeQL 运行必须全部成功，并包含预期的 7 个 Verify、4 个 CodeQL 作业；缺失、失败、取消或跳过均不算通过。最多等待 CodeQL 30 分钟，超时不合并。
-- PR 不能有开放 CodeQL 告警；合并前再次核对头提交、已测试的主分支基线与原生合并状态，使用 GitHub 原子 SHA 校验进行 squash 合并。仍受原有 Rulesets 约束，不审批 PR、不使用管理员绕过、不削弱必需检查。
+- PR 不能有开放 CodeQL 告警；合并前再次核对头提交、已测试的主分支基线与原生合并状态，且确认有效 Rulesets 启用了严格最新基线必需检查，否则不合并。使用 GitHub 原子 SHA 校验进行 squash 合并，最终基线竞争仍由原生严格规则阻断。不审批 PR、不使用管理员绕过、不削弱必需检查。并发按 Dependabot 分支隔离，避免不同 PR 的待处理运行互相替换。
 
 此处是在完整 CI 后直接合并，不是提前给 PR 设置持久的 auto-merge 标记，因此无需启用仓库的原生 auto-merge 开关。全仓库串行合并避免并发修改主分支；旧基线需要 Dependabot 更新后重新测试。默认 CodeQL 的工作流路径为 `dynamic/github-code-scanning/codeql`；更换扫描配置或 CI 作业名称时，要同步策略常量与回归测试，否则策略会拒绝合并。运行/API 权限错误可在 Actions 中查看，重新运行对应 Verify 可重试。
 

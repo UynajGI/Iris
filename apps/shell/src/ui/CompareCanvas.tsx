@@ -92,7 +92,11 @@ function ComparePhoto({
   return (
     <section className="compare-cell" data-focused={photo.id === group.focusedId}>
       {details ? (
-        <FaceDetail client={model.store.client} photo={photo} />
+        <FaceDetail
+          client={model.store.client}
+          photo={photo}
+          active={photo.id === group.focusedId && !group.loading}
+        />
       ) : (
         <button
           className="compare-frame compare-image-button"

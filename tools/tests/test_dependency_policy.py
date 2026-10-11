@@ -68,6 +68,7 @@ class DependencyPolicyTests(unittest.TestCase):
             workflow["on"], {"workflow_run": {"workflows": ["Verify"], "types": ["completed"]}}
         )
         self.assertEqual(workflow["permissions"], {})
+        self.assertIn("github.event.workflow_run.head_branch", workflow["concurrency"]["group"])
         job = workflow["jobs"]["merge"]
         self.assertEqual(
             job["permissions"],

@@ -9,6 +9,7 @@ type Entry = {
   bytes: number;
   settled: boolean;
   kind: Kind;
+  refreshedAt: number;
 };
 export interface MediaLease {
   promise: Promise<Blob>;
@@ -22,11 +23,17 @@ export class MediaCache {
   constructor(
     private source: Pick<IrisClient, 'media'>,
     private maxEntries = 24,
-    private maxBytes = 32 * 1024 * 1024
+    private maxBytes = 32 * 1024 * 1024,
+    private maxAgeMs = 30_000,
+    private now = Date.now
   ) {}
   acquire(id: number, kind: Kind, revision = ''): MediaLease {
     const key = JSON.stringify([id, kind, revision]);
     let entry = this.entries.get(key);
+    if (entry && entry.users === 0 && this.now() - entry.refreshedAt >= this.maxAgeMs) {
+      this.remove(key, entry);
+      entry = undefined;
+    }
     if (!entry) {
       entry = this.create(id, kind);
       this.entries.set(key, entry);
@@ -35,6 +42,7 @@ export class MediaCache {
         (blob) => {
           captured.settled = true;
           captured.bytes = blob.size;
+          captured.refreshedAt = this.now();
           if (captured.users === 0 && kind === 'original') this.remove(key, captured);
           this.trim();
         },
@@ -66,6 +74,7 @@ export class MediaCache {
       bytes: 0,
       settled: false,
       kind,
+      refreshedAt: this.now(),
     };
   }
   private remove(key: string, entry: Entry) {
