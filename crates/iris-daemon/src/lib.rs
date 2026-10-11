@@ -445,7 +445,44 @@ pub use operations::*;
 
 #[derive(OpenApi)]
 #[openapi(paths(bootstrap,gpu_devices,projects,create_project,project,open_project,hide_project,photos,photo,groups,decisions,marks,undo,accept,progress,cancel,pause,resume,model_installer::catalog,model_installer::status,model_installer::start,model_installer::cancel,operations::scan,operations::analyze,operations::export_xmp,operations::export_copy,operations::export_csv,operations::import_csv,operations::quarantine_history,operations::quarantine_preview,operations::quarantine_commit,operations::quarantine_restore,operations::models,operations::settings,operations::put_settings,operations::profiles,operations::save_profile,operations::delete_profile,operations::apply_profile,operations::estimate_profile,operations::cache_status,operations::cache_cleanup,operations::cache_migrate,operations::cache_migrations,operations::cache_cleanup_old,operations::thumb,operations::preview,operations::original),components(schemas(PhotoFilter)),security(("session"=[])),modifiers(&Security))]
+struct GeneratedApiDoc;
+
 pub struct ApiDoc;
+impl OpenApi for ApiDoc {
+    fn openapi() -> utoipa::openapi::OpenApi {
+        let mut doc = GeneratedApiDoc::openapi();
+        ensure_response_descriptions(&mut doc);
+        doc
+    }
+}
+
+fn ensure_response_descriptions(doc: &mut utoipa::openapi::OpenApi) {
+    // OpenAPI requires this field; utoipa 6 omits an empty description.
+    for path in doc.paths.paths.values_mut() {
+        for operation in [
+            &mut path.get,
+            &mut path.put,
+            &mut path.post,
+            &mut path.delete,
+            &mut path.options,
+            &mut path.head,
+            &mut path.patch,
+            &mut path.trace,
+            &mut path.query,
+        ]
+        .into_iter()
+        .flatten()
+        {
+            for response in operation.responses.responses.values_mut() {
+                if let utoipa::openapi::RefOr::T(response) = response {
+                    if response.description.is_empty() {
+                        response.description = "Response".into();
+                    }
+                }
+            }
+        }
+    }
+}
 struct Security;
 impl utoipa::Modify for Security {
     fn modify(&self, doc: &mut utoipa::openapi::OpenApi) {

@@ -48,8 +48,8 @@ Dependabot 按生态把普通 minor/patch 更新分组，每个更新配置最�
 当前集成现有 PR #1–#14，保持应用版本 `0.1.0-beta2`，不打 Tag、不发布安装包。合并方式保留各 PR 原提交，使合入主分支后 GitHub 可识别间接合并；以集成 PR 的统一验证为准，不绕过必需检查。
 
 - 前端采用 TypeScript 7，并显式声明 Node/React 类型；API 生成器 `openapi-typescript` 7 仍依赖 TypeScript 5 的编译器 API，因此与该编译器一起归根目录维护包管理，不使用强制 peer dependency 安装。两份锁都由 `make setup` 安装，CI 的 API 检查也安装根目录工具。
-- `ort` rc.13 使用 `api-22` 保持已校验的 ONNX Runtime 1.22 资源及模型不变；迁移 session/outlet、DirectML 和可恢复 builder 错误 API，保留线程数、设备选择及 CPU 回退。引用计数环境由库释放，移除只适用于 rc.10 的 macOS 手动退出释放。
-- utoipa 6 重新生成 OpenAPI 和前端声明：可空联合顺序变化、单项 `oneOf` 简化为 `$ref`、空响应描述省略。接口字段和运行时请求行为不变。
+- `ort` rc.13 使用 `api-22` 保持已校验的 ONNX Runtime 1.22 资源及模型不变；迁移 session/outlet、DirectML 和可恢复 builder 错误 API，保留线程数、设备选择及 CPU 回退。移除只适用于 rc.10 的 macOS 手动退出释放。Windows 在 [CI 38125408318](https://github.com/UynajGI/Iris/actions/runs/38125408318) 出现推理通过后退出崩溃；在进程内固定保留一个环境 `Arc`，避免 TLS detach 阶段触发原生释放，交由进程回收。会话、张量和模型缓冲仍正常释放，不按模型/请求累积环境引用；跟踪 [ort #609](https://github.com/pykeio/ort/issues/609) / [#610](https://github.com/pykeio/ort/pull/610)，此兼容策略不是上游问题已经修复的声明。
+- utoipa 6 重新生成 OpenAPI 和前端声明：可空联合顺序变化、单项 `oneOf` 简化为 `$ref`。导出边界为原本为空的响应描述补充非空默认值，避免上游省略 OpenAPI 必需字段；已有描述保留，序列化与 HTTP 导出有回归测试。接口字段和运行时请求行为不变。
 - glib 按用户要求暂缓，不升级、vendor、添加忽略项或关闭告警。其余审计和完整门禁保持启用。
 
 集成代码 `3f037b5` 已通过真实 Lefthook 提交与完整推送门禁、`cargo check --workspace --all-targets --locked`、`make test`、API 比较、复杂度及工作流检查、TypeScript 7 类型检查和前端构建；默认模型真实 `bundled_onnx_tensor_smoke` 显式通过，无头浏览器 19 组回归通过。忽略和跳过项不计为通过。Dependabot 刷新后的 14 个 PR 头提交也已纳入历史，合并前后源码树逐字相同；不是重新执行旧的原生安装器、Unix 推理或 GPU 验收。

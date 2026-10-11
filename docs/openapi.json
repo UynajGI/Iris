@@ -16,6 +16,7 @@
         "operationId": "bootstrap",
         "responses": {
           "200": {
+            "description": "Response",
             "content": {
               "application/json": {
                 "schema": {
@@ -33,6 +34,7 @@
         "operationId": "gpu_devices",
         "responses": {
           "200": {
+            "description": "Response",
             "content": {
               "application/json": {
                 "schema": {
@@ -66,6 +68,7 @@
         ],
         "responses": {
           "200": {
+            "description": "Response",
             "content": {
               "application/json": {
                 "schema": {
@@ -85,6 +88,7 @@
         "operationId": "status",
         "responses": {
           "200": {
+            "description": "Response",
             "content": {
               "application/json": {
                 "schema": {
@@ -112,6 +116,7 @@
         },
         "responses": {
           "200": {
+            "description": "Response",
             "content": {
               "application/json": {
                 "schema": {
@@ -131,6 +136,7 @@
         "operationId": "cancel_model_install",
         "responses": {
           "200": {
+            "description": "Response",
             "content": {
               "application/json": {
                 "schema": {
@@ -150,6 +156,7 @@
         "operationId": "catalog",
         "responses": {
           "200": {
+            "description": "Response",
             "content": {
               "application/json": {
                 "schema": {
@@ -181,6 +188,7 @@
         ],
         "responses": {
           "200": {
+            "description": "Response",
             "content": {
               "application/json": {
                 "schema": {
@@ -348,6 +356,7 @@
         "operationId": "profiles",
         "responses": {
           "200": {
+            "description": "Response",
             "content": {
               "application/json": {
                 "schema": {
@@ -378,6 +387,7 @@
         },
         "responses": {
           "200": {
+            "description": "Response",
             "content": {
               "application/json": {
                 "schema": {
@@ -407,6 +417,7 @@
         ],
         "responses": {
           "200": {
+            "description": "Response",
             "content": {
               "text/plain": {
                 "schema": {
@@ -446,6 +457,7 @@
         },
         "responses": {
           "200": {
+            "description": "Response",
             "content": {
               "application/json": {
                 "schema": {
@@ -463,6 +475,7 @@
         "operationId": "projects",
         "responses": {
           "200": {
+            "description": "Response",
             "content": {
               "application/json": {
                 "schema": {
@@ -491,6 +504,7 @@
         },
         "responses": {
           "200": {
+            "description": "Response",
             "content": {
               "application/json": {
                 "schema": {
@@ -519,6 +533,7 @@
         ],
         "responses": {
           "200": {
+            "description": "Response",
             "content": {
               "application/json": {
                 "schema": {
@@ -563,6 +578,7 @@
         },
         "responses": {
           "200": {
+            "description": "Response",
             "content": {
               "application/json": {
                 "schema": {
@@ -609,6 +625,7 @@
         },
         "responses": {
           "200": {
+            "description": "Response",
             "content": {
               "application/json": {
                 "schema": {
@@ -639,6 +656,7 @@
         ],
         "responses": {
           "200": {
+            "description": "Response",
             "content": {
               "application/json": {
                 "schema": {
@@ -669,6 +687,7 @@
         ],
         "responses": {
           "200": {
+            "description": "Response",
             "content": {
               "application/json": {
                 "schema": {
@@ -709,6 +728,7 @@
         },
         "responses": {
           "200": {
+            "description": "Response",
             "content": {
               "application/json": {
                 "schema": {
@@ -739,6 +759,7 @@
         ],
         "responses": {
           "200": {
+            "description": "Response",
             "content": {
               "application/json": {
                 "schema": {
@@ -780,6 +801,7 @@
         ],
         "responses": {
           "200": {
+            "description": "Response",
             "content": {
               "application/json": {
                 "schema": {
@@ -808,6 +830,7 @@
         ],
         "responses": {
           "200": {
+            "description": "Response",
             "content": {
               "application/json": {
                 "schema": {
@@ -846,6 +869,7 @@
         },
         "responses": {
           "200": {
+            "description": "Response",
             "content": {
               "application/json": {
                 "schema": {
@@ -886,6 +910,7 @@
         },
         "responses": {
           "200": {
+            "description": "Response",
             "content": {
               "application/json": {
                 "schema": {
@@ -926,6 +951,7 @@
         },
         "responses": {
           "200": {
+            "description": "Response",
             "content": {
               "application/json": {
                 "schema": {
@@ -966,6 +992,7 @@
         },
         "responses": {
           "200": {
+            "description": "Response",
             "content": {
               "application/json": {
                 "schema": {
@@ -994,6 +1021,7 @@
         ],
         "responses": {
           "200": {
+            "description": "Response",
             "content": {
               "application/json": {
                 "schema": {
@@ -1025,6 +1053,7 @@
         ],
         "responses": {
           "200": {
+            "description": "Response",
             "content": {
               "application/json": {
                 "schema": {
@@ -1065,6 +1094,7 @@
         },
         "responses": {
           "200": {
+            "description": "Response",
             "content": {
               "application/json": {
                 "schema": {
@@ -1103,6 +1133,7 @@
         },
         "responses": {
           "200": {
+            "description": "Response",
             "content": {
               "application/json": {
                 "schema": {
@@ -1131,6 +1162,7 @@
         ],
         "responses": {
           "200": {
+            "description": "Response",
             "content": {
               "application/json": {
                 "schema": {
@@ -1159,6 +1191,7 @@
         ],
         "responses": {
           "200": {
+            "description": "Response",
             "content": {
               "application/json": {
                 "schema": {
@@ -1271,6 +1304,7 @@
         ],
         "responses": {
           "200": {
+            "description": "Response",
             "content": {
               "application/json": {
                 "schema": {
@@ -1312,6 +1346,7 @@
         ],
         "responses": {
           "200": {
+            "description": "Response",
             "content": {
               "application/json": {
                 "schema": {}
@@ -1338,6 +1373,7 @@
         ],
         "responses": {
           "200": {
+            "description": "Response",
             "content": {
               "application/json": {
                 "schema": {
@@ -1368,6 +1404,7 @@
         ],
         "responses": {
           "200": {
+            "description": "Response",
             "content": {
               "application/json": {
                 "schema": {
@@ -1411,6 +1448,7 @@
         },
         "responses": {
           "200": {
+            "description": "Response",
             "content": {
               "application/json": {
                 "schema": {
@@ -1441,6 +1479,7 @@
         ],
         "responses": {
           "200": {
+            "description": "Response",
             "content": {
               "application/json": {
                 "schema": {
@@ -1481,6 +1520,7 @@
         },
         "responses": {
           "200": {
+            "description": "Response",
             "content": {
               "application/json": {
                 "schema": {
@@ -1509,6 +1549,7 @@
         ],
         "responses": {
           "200": {
+            "description": "Response",
             "content": {
               "application/json": {
                 "schema": {
@@ -1555,6 +1596,7 @@
         },
         "responses": {
           "200": {
+            "description": "Response",
             "content": {
               "application/json": {
                 "schema": {
@@ -1583,6 +1625,7 @@
         ],
         "responses": {
           "200": {
+            "description": "Response",
             "content": {
               "application/json": {
                 "schema": {
@@ -1613,6 +1656,7 @@
         ],
         "responses": {
           "200": {
+            "description": "Response",
             "content": {
               "application/json": {
                 "schema": {
@@ -1651,6 +1695,7 @@
         },
         "responses": {
           "200": {
+            "description": "Response",
             "content": {
               "application/json": {
                 "schema": {

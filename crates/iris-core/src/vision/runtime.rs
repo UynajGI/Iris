@@ -17,6 +17,21 @@ static CPU_ONLY: AtomicBool = AtomicBool::new(false);
 static WARNINGS: OnceLock<Mutex<Vec<String>>> = OnceLock::new();
 static SEQUENCE: AtomicUsize = AtomicUsize::new(0);
 
+#[cfg(windows)]
+fn retain_process_environment() -> Result<()> {
+    // ort rc.13 releases its global environment from a Windows TLS detach
+    // callback, after the dynamically loaded runtime's CRT has shut down.
+    // MSVC then aborts even after successful inference (CI 38125408318).
+    // Retain ONE environment reference until process reclamation, as in rc.10;
+    // sessions, tensors and model buffers still drop normally. Never manually
+    // ReleaseEnv: ort also owns the pointer. Revisit with upstream ort#609/#610.
+    static ENVIRONMENT: OnceLock<std::sync::Arc<ort::environment::Environment>> = OnceLock::new();
+    if ENVIRONMENT.get().is_none() {
+        let _ = ENVIRONMENT.set(ort::environment::Environment::current()?);
+    }
+    Ok(())
+}
+
 fn requested() -> bool {
     std::env::var("IRIS_WORKER_EXECUTION_PROVIDER").as_deref() == Ok("directml")
 }
@@ -173,6 +188,8 @@ fn initialize_unix(dir: &Path) -> Result<()> {
 }
 
 fn builder(gpu: bool, name: &str) -> Result<SessionBuilder> {
+    #[cfg(windows)]
+    retain_process_environment()?;
     let mut builder = Session::builder()?
         .with_intra_threads(1)
         .map_err(ort::Error::<()>::from)?

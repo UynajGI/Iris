@@ -1,5 +1,5 @@
 // Generated from iris-daemon OpenAPI. Do not edit.
-// Contract SHA-256: 9acc6b9a200133ce3e9228f66cbb4e0a703e68b0270c4d5b2b136306edb5f22d
+// Contract SHA-256: 4c7bd94328f6542320464aa49a4b261105f2c39fa96d5c9fca1e0389d60cc015
 export interface paths {
     "/api/v1/bootstrap": {
         parameters: {
@@ -1292,6 +1292,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1311,6 +1312,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1339,6 +1341,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1358,6 +1361,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1381,6 +1385,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1400,6 +1405,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1419,6 +1425,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1440,6 +1447,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1529,6 +1537,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1552,6 +1561,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1573,6 +1583,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1598,6 +1609,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1617,6 +1629,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1640,6 +1653,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1661,6 +1675,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1686,6 +1701,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1711,6 +1727,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1732,6 +1749,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1753,6 +1771,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1778,6 +1797,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1799,6 +1819,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1821,6 +1842,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1842,6 +1864,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1867,6 +1890,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1892,6 +1916,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1917,6 +1942,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1942,6 +1968,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1963,6 +1990,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1984,6 +2012,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2009,6 +2038,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2034,6 +2064,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2055,6 +2086,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2076,6 +2108,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2108,6 +2141,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2130,6 +2164,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2151,6 +2186,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2172,6 +2208,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2197,6 +2234,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2218,6 +2256,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2243,6 +2282,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2264,6 +2304,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2289,6 +2330,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2310,6 +2352,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2331,6 +2374,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2356,6 +2400,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
