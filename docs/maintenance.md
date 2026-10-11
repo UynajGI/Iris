@@ -39,7 +39,7 @@ npm 审计显式请求官方 registry，不依赖本机镜像是否支持漏洞�
 
 Python 维护命令显式使用 PyPI 官方索引，避免机器上的 `UV_DEFAULT_INDEX` 改变锁文件来源；不修改该全局环境变量。更新锁时也使用 `uv lock --default-index https://pypi.org/simple`。
 
-新函数圈复杂度 ≤15、有效代码行 ≤120。[complexity-limits.json](../tools/complexity-limits.json) 列出接入时已存在的函数及各自上限，按路径和函数名匹配；同一函数任一指标增加，或新增超限函数，均失败。`make complexity` 仍是盘点入口，默认 NLOC=100，与门禁的 120 不同。历史上限是需要逐步删除的配置，不是健康度报告；修复函数时应收紧或移除条目，不应为通过 CI 增大上限。
+全库门禁要求圈复杂度 ≤15、有效代码行 ≤120。[complexity-limits.json](../tools/complexity-limits.json) 的 `legacy` 当前为空，历史豁免已全部移除；任何函数超过统一门禁阈值都会失败。`make complexity` 仍是盘点入口，默认 NLOC=100，与门禁的 120 不同；加 `ARGS="--fail"` 时超限返回失败。当前代码在这套更严格的盘点阈值下也已清零，不应重新添加历史上限来绕过检查。
 
 Ruff 暂不强制全库格式或导入排序；mypy 不作为混合仓库的默认类型门禁。Clippy 的全目标零警告迁移也未在本次强行启用，避免将已有 lint 债务混入维护层改动。Rust 编译和 TypeScript 类型检查继续负责各自语言的类型正确性。
 
@@ -53,7 +53,9 @@ Python 审计覆盖维护环境的锁定依赖；显式准备的 ONNX、媒体�
 
 ## 2026-10-11 本地接入证据
 
-完整 `make pre-push` 通过。维护工具测试通过：93 项 Python 测试，无跳过，包含实际 Git 提交、部分暂存隔离、工作流错误、复杂度回退和下载摘要失败用例。Rust 格式/编译、TypeScript 类型检查、API 差异比较、Ruff、actionlint 与复杂度门禁通过；前端测试 88 项通过、1 项 live API 跳过，Node 工具测试 11 项通过。默认并行 Rust workspace 和原生宿主测试合计 202 项通过、24 项忽略，外部模型/媒体条件对应的忽略项仍未运行。复杂度门禁检查 2243 个函数，配置保留 84 个历史超限条目；删除了本轮修复的四个条目，没有放宽上限。
+重构清零前的维护层接入检查点：完整 `make pre-push` 通过。维护工具测试通过：93 项 Python 测试，无跳过，包含实际 Git 提交、部分暂存隔离、工作流错误、复杂度回退和下载摘要失败用例。Rust 格式/编译、TypeScript 类型检查、API 差异比较、Ruff、actionlint 与复杂度门禁通过；前端测试 88 项通过、1 项 live API 跳过，Node 工具测试 11 项通过。默认并行 Rust workspace 和原生宿主测试合计 202 项通过、24 项忽略，外部模型/媒体条件对应的忽略项仍未运行。当时复杂度门禁检查 2243 个函数，配置保留 84 个历史超限条目；删除了该轮修复的四个条目，没有放宽上限。
+
+重构完成后的当前复杂度复核：233 个文件、2453 个函数，CCN ≤15 / NLOC ≤100 的 `make complexity ARGS="--fail"` 为 0 条超限；CCN ≤15 / NLOC ≤120 的 `make complexity-check` 同样通过。`legacy` 已为空。完整重构验收记录见[复杂度检查](complexity.md)；本次复核仅重跑复杂度检查，不把此前测试记录表述为本次重跑结果。
 
 真实暂存树的提交候选通过 `pre-commit`，包含暂存质量门禁和公开源码检查；完整门禁另检查文档链接。本地 commit-msg、pre-commit、pre-push 钩子已安装，检查不改写暂存内容。
 
