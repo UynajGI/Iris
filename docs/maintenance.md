@@ -55,6 +55,8 @@ Dependabot 按生态把普通 minor/patch 更新分组，每个更新配置最�
 
 自动化只使用最小权限的 `GITHUB_TOKEN`，不需要 PAT。GitHub 为防递归不会因该 token 的合并再触发普通 push 工作流；被合并的同一头提交已经通过上述 PR 检查。需要主分支独立复验时，可手动运行 Verify。CI 不是功能绝对不变的证明，原生安装、真实 GPU 和人工交互验收边界不变。
 
+Changelog 生成器及其临时 Git 测试隔离调用者的 `GIT_*` 环境变量，避免在 worktree 的推送钩子中把临时仓库操作指向共享 Git 元数据。回归测试核对被污染环境下原仓库的配置、索引和 HEAD 均不变。
+
 浏览器回归中的选择器通过 CDP `Runtime.callFunctionOn.arguments` 作为数据传递，不再把 JSON 字符串拼入可执行代码。复杂度控制台日志中的 CCN/NLOC 只接受显式整数值，不输出非数值内容。这些工具修复分别对应 CodeQL 的 `js/bad-code-sanitization` 和 `py/clear-text-logging-sensitive-data` 命中；本地测试不能替代 GitHub CodeQL 复扫。`make test-tools` 包含参数隔离、错误清理、两种数字日志和依赖/工作流策略回归。
 
 ## 依赖集成（2026-10-11）

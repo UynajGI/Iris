@@ -7,13 +7,22 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const cli = resolve(root, 'node_modules/git-cliff/lib/cli/cli.js');
 
+// A caller's hook/worktree context must never redirect an explicit repository.
+export function changelogEnvironment(environment = process.env) {
+  return Object.fromEntries(
+    Object.entries(environment).filter(([key]) => !key.toUpperCase().startsWith('GIT_'))
+  );
+}
+
 export function generate(directory = root, { release = false } = {}) {
   const version = JSON.parse(
     readFileSync(resolve(directory, 'apps/shell/package.json'), 'utf8')
   ).version;
   if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(version))
     throw new Error('Invalid release version');
-  const git = (...args) => execFileSync('git', args, { cwd: directory, encoding: 'utf8' }).trim();
+  const env = changelogEnvironment();
+  const git = (...args) =>
+    execFileSync('git', args, { cwd: directory, encoding: 'utf8', env }).trim();
   if (git('rev-parse', '--is-shallow-repository') !== 'false')
     throw new Error('Fetch full Git history and tags before generating changelogs');
   const tag = `v${version}`;
@@ -28,6 +37,7 @@ export function generate(directory = root, { release = false } = {}) {
     execFileSync(process.execPath, [cli, ...args], {
       cwd: directory,
       encoding: 'utf8',
+      env,
       maxBuffer: 16 * 1024 * 1024,
     })
       .replaceAll('\r\n', '\n')

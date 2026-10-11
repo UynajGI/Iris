@@ -1,11 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { generate, releaseNotes } from '../changelog.mjs';
+import { changelogEnvironment, generate, releaseNotes } from '../changelog.mjs';
 
 function fixture() {
   const directory = mkdtempSync(resolve(tmpdir(), 'iris-changelog-'));
@@ -15,7 +15,7 @@ function fixture() {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
       env: {
-        ...process.env,
+        ...changelogEnvironment(),
         GIT_AUTHOR_NAME: 'Iris Test',
         GIT_AUTHOR_EMAIL: 'test@example.invalid',
         GIT_COMMITTER_NAME: 'Iris Test',
@@ -88,10 +88,44 @@ test('shallow history and a reused release version fail closed', () => {
     assert.throws(() => generate(directory), /Bump the application version/);
     execFileSync('git', ['clone', '--depth', '1', pathToFileURL(directory).href, clone], {
       stdio: 'pipe',
+      env: changelogEnvironment(),
     });
     assert.throws(() => generate(clone), /Fetch full Git history/);
   } finally {
     rmSync(directory, { recursive: true, force: true });
     rmSync(clone, { recursive: true, force: true });
+  }
+});
+
+test('hook Git variables cannot redirect fixtures or changelog generation', () => {
+  const owner = fixture();
+  const original = { ...process.env };
+  let other;
+  try {
+    writeFileSync(resolve(owner.directory, 'owner.txt'), 'owner');
+    owner.git('add', '.');
+    owner.git('-c', 'commit.gpgsign=false', 'commit', '-qm', 'fix: owner-only history');
+    const config = readFileSync(resolve(owner.directory, '.git/config'));
+    const index = readFileSync(resolve(owner.directory, '.git/index'));
+    const head = owner.git('rev-parse', 'HEAD');
+    Object.assign(process.env, {
+      GIT_DIR: resolve(owner.directory, '.git'),
+      GIT_COMMON_DIR: resolve(owner.directory, '.git'),
+      GIT_WORK_TREE: owner.directory,
+      GIT_INDEX_FILE: resolve(owner.directory, '.git/index'),
+      GIT_PREFIX: 'hook/',
+    });
+    other = fixture();
+    const result = generate(other.directory);
+    assert.doesNotMatch(result, /owner-only history/);
+    assert.match(result, /reject linked model paths/);
+    assert.deepEqual(readFileSync(resolve(owner.directory, '.git/config')), config);
+    assert.deepEqual(readFileSync(resolve(owner.directory, '.git/index')), index);
+    assert.equal(owner.git('rev-parse', 'HEAD'), head);
+  } finally {
+    for (const key of Object.keys(process.env)) if (!(key in original)) delete process.env[key];
+    Object.assign(process.env, original);
+    if (other) rmSync(other.directory, { recursive: true, force: true });
+    rmSync(owner.directory, { recursive: true, force: true });
   }
 });
