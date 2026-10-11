@@ -52,6 +52,8 @@ Dependabot 按生态把普通 minor/patch 更新分组，每个更新配置最�
 - utoipa 6 重新生成 OpenAPI 和前端声明：可空联合顺序变化、单项 `oneOf` 简化为 `$ref`、空响应描述省略。接口字段和运行时请求行为不变。
 - glib 按用户要求暂缓，不升级、vendor、添加忽略项或关闭告警。其余审计和完整门禁保持启用。
 
+集成代码 `3f037b5` 已通过真实 Lefthook 提交与完整推送门禁、`cargo check --workspace --all-targets --locked`、`make test`、API 比较、复杂度及工作流检查、TypeScript 7 类型检查和前端构建；默认模型真实 `bundled_onnx_tensor_smoke` 显式通过，无头浏览器 19 组回归通过。忽略和跳过项不计为通过。Dependabot 刷新后的 14 个 PR 头提交也已纳入历史，合并前后源码树逐字相同；不是重新执行旧的原生安装器、Unix 推理或 GPU 验收。
+
 ## 有意保留的边界
 
 npm 审计显式请求官方 registry，不依赖本机镜像是否支持漏洞接口，也不修改全局 npm 配置。安装依赖继续使用开发者选定的 registry。
