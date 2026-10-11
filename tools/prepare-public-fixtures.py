@@ -122,22 +122,26 @@ def main() -> None:
     base = ROOT / "reference/test-data"
     base.mkdir(parents=True, exist_ok=True)
     items = piq_items(base)
-    results = []
     manifest = base / "manifest.json"
-    for item in items:
-        results.append(persist(base, item))
-        manifest.write_text(
-            json.dumps(results, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-        )
-        print(f"Verified {item['path']}", flush=True)
+    results = (
+        {item["path"]: item for item in json.loads(manifest.read_bytes())}
+        if manifest.exists()
+        else {}
+    )
     if args.raw:
-        for item in raw_items(base):
-            results.append(persist(base, item))
-            manifest.write_text(
-                json.dumps(results, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-            )
-            print(f"Verified {item['path']}", flush=True)
-    print(f"Complete: {len(results)} files, {sum(item['bytes'] for item in results)} bytes")
+        items.extend(raw_items(base))
+    for item in items:
+        results[item["path"]] = persist(base, item)
+        temporary = manifest.with_suffix(".tmp")
+        temporary.write_text(
+            json.dumps(list(results.values()), ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        temporary.replace(manifest)
+        print(f"Verified {item['path']}", flush=True)
+    print(
+        f"Complete: {len(results)} files, {sum(item['bytes'] for item in results.values())} bytes"
+    )
 
 
 if __name__ == "__main__":

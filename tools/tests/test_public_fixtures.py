@@ -24,6 +24,35 @@ verify = load_tool("verify-public-fixtures")
 
 
 class PublicFixtureTests(unittest.TestCase):
+    def test_prepare_preserves_catalog_and_raw_is_explicit(self):
+        prepare = expand.PREPARE
+        for raw_enabled in (False, True):
+            with (
+                self.subTest(raw=raw_enabled),
+                tempfile.TemporaryDirectory(prefix="iris-fixture-unit-") as directory,
+            ):
+                root = Path(directory)
+                base = root / "reference/test-data"
+                base.mkdir(parents=True)
+                old = {"path": "retained", "bytes": 2}
+                piq = {"path": "piq", "bytes": 3}
+                raw = {"path": "raw", "bytes": 5}
+                manifest = base / "manifest.json"
+                manifest.write_text(json.dumps([old]), encoding="utf-8")
+                with (
+                    patch.object(prepare, "ROOT", root),
+                    patch.object(prepare, "piq_items", side_effect=lambda _: [piq]),
+                    patch.object(prepare, "raw_items", return_value=[raw]) as raw_items,
+                    patch.object(prepare, "persist", side_effect=lambda _, item: item),
+                    patch.object(sys, "argv", ["prepare", *(["--raw"] if raw_enabled else [])]),
+                    patch("builtins.print"),
+                ):
+                    prepare.main()
+                expected = [old, piq, *([raw] if raw_enabled else [])]
+                self.assertEqual(json.loads(manifest.read_text()), expected)
+                self.assertEqual(raw_items.call_count, int(raw_enabled))
+                self.assertFalse(manifest.with_suffix(".tmp").exists())
+
     def test_downloads_merge_existing_records_and_persist_verified_results(self):
         with tempfile.TemporaryDirectory(prefix="iris-fixture-unit-") as directory:
             manifest = Path(directory) / "manifest.json"
