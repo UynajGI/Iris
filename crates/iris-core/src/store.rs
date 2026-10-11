@@ -2,7 +2,7 @@ use anyhow::{bail, Context, Result};
 use rusqlite::Connection;
 use std::path::{Path, PathBuf};
 
-pub const SCHEMA_VERSION: i64 = 5;
+pub const SCHEMA_VERSION: i64 = 6;
 pub struct Store {
     pub conn: Connection,
     pub path: PathBuf,
@@ -46,11 +46,23 @@ impl Store {
 
 fn invalidate_old_groups(conn: &Connection) -> Result<()> {
     let tx = conn.unchecked_transaction()?;
+    let previous: String = tx.query_row(
+        "SELECT COALESCE((SELECT version FROM engine_cache_versions WHERE name='groups'), '')",
+        [],
+        |row| row.get(0),
+    )?;
+    if previous == crate::vision::ANALYSIS_VERSION {
+        return Ok(());
+    }
     tx.execute(
         "UPDATE projects SET groups_dirty=1 WHERE id IN (SELECT p.project_id FROM photos p JOIN analyses a ON a.photo_id=p.id WHERE a.version IS NOT ?1)",
         [crate::vision::ANALYSIS_VERSION],
     )?;
     tx.execute("DELETE FROM burst_groups WHERE project_id IN (SELECT id FROM projects WHERE groups_dirty=1)", [])?;
+    tx.execute(
+        "INSERT INTO engine_cache_versions(name,version) VALUES('groups',?1) ON CONFLICT(name) DO UPDATE SET version=excluded.version",
+        [crate::vision::ANALYSIS_VERSION],
+    )?;
     tx.commit()?;
     Ok(())
 }
@@ -74,6 +86,9 @@ fn upgrade_database(conn: &Connection, path: &Path, version: i64) -> Result<Opti
     }
     if version < 5 {
         conn.execute_batch(MIGRATION_5)?;
+    }
+    if version < 6 {
+        conn.execute_batch(MIGRATION_6)?;
     }
     Ok(recovery_notice)
 }
@@ -167,6 +182,13 @@ const MIGRATION_5: &str = r#"
 BEGIN IMMEDIATE;
 CREATE TABLE IF NOT EXISTS analysis_runs(project_id INTEGER PRIMARY KEY REFERENCES projects(id),data TEXT NOT NULL,completed_at TEXT NOT NULL);
 PRAGMA user_version=5;
+COMMIT;
+"#;
+
+const MIGRATION_6: &str = r#"
+BEGIN IMMEDIATE;
+CREATE TABLE engine_cache_versions(name TEXT PRIMARY KEY,version TEXT NOT NULL);
+PRAGMA user_version=6;
 COMMIT;
 "#;
 

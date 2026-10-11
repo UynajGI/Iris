@@ -69,6 +69,14 @@ fn old_analysis_groups_are_invalidated_on_database_reopen() {
     )
     .unwrap();
     assert!(!svc.project(id).unwrap().groups_dirty);
+    // Simulate a database last opened by the previous analysis engine.
+    svc.store
+        .conn
+        .execute(
+            "UPDATE engine_cache_versions SET version='iris-vision-v6' WHERE name='groups'",
+            [],
+        )
+        .unwrap();
     let database = svc.store.path.clone();
     drop(svc);
     let mut svc = Services::new(Store::open(database).unwrap());
@@ -89,6 +97,55 @@ fn old_analysis_groups_are_invalidated_on_database_reopen() {
         !svc.project(id).unwrap().groups_dirty,
         "current empty grouping survives reopen"
     );
+}
+
+#[test]
+fn rebuilt_groups_survive_reopen_with_failed_old_analysis() {
+    for empty in [false, true] {
+        let (temp, mut svc, id) = fixture();
+        jpg(&temp.path().join("photos/c.jpg"), 100);
+        svc.scan(id).unwrap();
+        let photos = svc.photos(id, PhotoFilter::default()).unwrap();
+        for photo in &photos {
+            svc.save_analysis(photo.id, json!({"version":"iris-vision-v6","faces":[]}))
+                .unwrap();
+        }
+        svc.store
+            .conn
+            .execute("DELETE FROM engine_cache_versions", [])
+            .unwrap();
+        let database = svc.store.path.clone();
+        drop(svc);
+        let mut svc = Services::new(Store::open(&database).unwrap());
+        assert!(svc.project(id).unwrap().groups_dirty);
+        // The first photo fails re-analysis and keeps its historical record.
+        for photo in &photos[1..] {
+            svc.save_analysis(
+                photo.id,
+                json!({"version":iris_core::vision::ANALYSIS_VERSION,"faces":[]}),
+            )
+            .unwrap();
+        }
+        let groups = if empty {
+            vec![]
+        } else {
+            vec![iris_core::BurstGroup {
+                id: "rebuilt".into(),
+                project_id: id,
+                kind: "duplicate".into(),
+                member_photo_ids: photos[1..].iter().map(|p| p.id).collect(),
+                assessment: None,
+            }]
+        };
+        svc.save_groups(id, groups).unwrap();
+        for _ in 0..2 {
+            drop(svc);
+            svc = Services::new(Store::open(&database).unwrap());
+            assert!(!svc.project(id).unwrap().groups_dirty);
+            assert_eq!(svc.project(id).unwrap().pending_analysis, 1);
+            assert_eq!(svc.groups(id).unwrap().len(), usize::from(!empty));
+        }
+    }
 }
 
 #[test]
