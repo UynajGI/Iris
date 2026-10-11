@@ -10,6 +10,7 @@ mod niqe;
 pub mod runtime;
 mod scoring;
 mod scrfd;
+mod selection;
 mod semantic;
 mod settings_validation;
 use anyhow::{bail, Result};
@@ -24,6 +25,9 @@ pub use scoring::{FaceQuality, ScoreBreakdown, ScoreComponent, ScoreInput, Score
 pub use scrfd::{
     detector_model_status, validate_detector_model, DetectorModelStatus, ModelAvailability,
 };
+pub use selection::{
+    assess_group, GroupAssessment, GroupComparison, SelectionEvidence, SelectionReason,
+};
 pub use semantic::{
     embedding_matches_settings, embedding_model_status, group_semantic, semantic_candidates,
     validate_embedding_model, EmbeddingModelStatus, SemanticEmbedding,
@@ -32,7 +36,7 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::time::Instant;
 use utoipa::ToSchema;
-pub const ANALYSIS_VERSION: &str = "iris-vision-v6-local-pipeline-2026-10-07";
+pub const ANALYSIS_VERSION: &str = "iris-vision-v7-selection-evidence-2026-10-11";
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
@@ -237,6 +241,8 @@ pub struct VisionAnalysis {
     pub composite_score: f64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub score_breakdown: Option<ScoreBreakdown>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub selection_evidence: Option<SelectionEvidence>,
     pub verdict: Verdict,
     pub phash: String,
     pub structure: Vec<f32>,
@@ -458,6 +464,7 @@ impl VisionEngine {
                 composition: None,
                 composite_score: 0.,
                 score_breakdown: None,
+                selection_evidence: None,
                 verdict: Verdict::Review,
                 phash: metrics::phash(im),
                 structure,
@@ -531,16 +538,17 @@ pub fn rescore(analysis: &VisionAnalysis, settings: &AnalysisSettings) -> Vision
             || a.exposure.highlight_clip > 0.65);
     a.verdict = if closed {
         Verdict::Review
-    } else if severe_quality && a.composite_score < settings.reject_threshold {
-        Verdict::RejectSuggest
-    } else if all_open
-        && a.composite_score >= settings.recommend_threshold
-        && a.exposure.verdict == "normal"
+    } else if severe_quality
+        && a.composite_score < settings.reject_threshold
+        && !selection::raw_preview(&a)
     {
+        Verdict::RejectSuggest
+    } else if selection::can_recommend(&a, settings.recommend_threshold, all_open) {
         Verdict::Recommend
     } else {
         Verdict::Review
     };
+    a.selection_evidence = Some(selection::evidence(&a));
     a
 }
 

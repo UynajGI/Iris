@@ -9,6 +9,7 @@ import { filterLabels } from './PhotoFilters.js';
 import { useGalleryView } from './useGalleryView.js';
 import { useWorkspacePanels } from './useWorkspacePanels.js';
 import { useWorkspaceKeyboard } from './workspace-key-handler.js';
+import { usePreviewPrefetch } from './usePreviewPrefetch.js';
 
 export interface WorkspaceOptions {
   store: IrisStore;
@@ -33,6 +34,12 @@ export function usePhotoWorkspace(options: WorkspaceOptions) {
   const current = currentPhoto(state);
   const gallery = useGalleryView({ store, state, page, workspace, current });
   const { view } = gallery;
+  usePreviewPrefetch(
+    store.client,
+    group?.photos ?? state.photos,
+    current?.id ?? null,
+    page === 'photos' && (view === 'loupe' || !!group)
+  );
   const progress = state.progress;
   const running = !!progress && ['running', 'paused', 'cancelling'].includes(progress.state);
   const activeFilters = Object.keys(filterLabels).filter(

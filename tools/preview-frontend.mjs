@@ -10,15 +10,39 @@ import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = join(root, 'apps/shell/dist');
+const dataset = process.env.IRIS_REVIEW_DATASET?.toLowerCase();
+const sourcePath = process.env.IRIS_REVIEW_PHOTOS;
+if (!['ppr10k', 'piq23'].includes(dataset) || !sourcePath)
+  throw new Error(
+    'Set IRIS_REVIEW_DATASET=ppr10k or piq23 and IRIS_REVIEW_PHOTOS to an authorized dataset image directory. Personal photos are not used.'
+  );
+const source = resolve(sourcePath);
+const privatePhotos = join(root, 'test-photos');
+if (
+  source.toLowerCase() === privatePhotos.toLowerCase() ||
+  source.toLowerCase().startsWith(privatePhotos.toLowerCase() + sep)
+)
+  throw new Error('Personal test-photos fixtures are disabled. Configure a dataset directory.');
+const samples = (await readdir(source))
+  .filter((name) => /\.(jpe?g|png|webp)$/i.test(name))
+  .sort()
+  .slice(0, 12);
+if (samples.length < 12)
+  throw new Error(
+    'Provide at least 12 dataset JPEG/PNG/WebP images; this harness does not convert RAW/TIFF or duplicate samples.'
+  );
 const temporary = await mkdtemp(join(tmpdir(), 'iris-ui-review-'));
 const photos = join(temporary, 'photos');
 const models = join(temporary, 'models');
 await mkdir(photos);
 await mkdir(models);
-for (const name of (await readdir(join(root, 'test-photos')))
-  .filter((name) => /\.jpe?g$/i.test(name))
-  .slice(0, 12)) {
-  await copyFile(join(root, 'test-photos', name), join(photos, name));
+// Explicit duplicate copies exercise comparison UI deterministically; not a burst benchmark.
+const repeat = process.env.IRIS_REVIEW_DUPLICATES === '1' ? 3 : 1;
+for (const name of samples.slice(0, 12 / repeat)) {
+  for (let index = 0; index < repeat; index++) {
+    const destination = repeat === 1 ? name : `${index}-${name}`;
+    await copyFile(join(source, name), join(photos, destination));
+  }
 }
 for (const name of [
   'manifest.json',

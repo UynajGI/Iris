@@ -7,7 +7,7 @@ Iris-owned source and documentation use GPL-3.0-or-later; preserve third-party n
 - Prefer shared core/daemon services over duplicating business logic in CLI, MCP or the frontend.
 - Test risks and behavior changes; do not count ignored or unrun checks as passes.
 - Never commit photographs, downloaded weights/runtimes, private databases, signing material, local agent tools or generated reports.
-- Use disposable authorized photo copies for write/export/quarantine tests.
+- Do not use the user's personal photographs for demos or tests. Use explicitly configured public fixtures (PIQ23/PPR10K research data, Google HDR+ bursts, CC0 raw.pixls.us samples) within their dataset terms, or synthetic fixtures for unit tests; never fall back to `test-photos/`. Use disposable copies for write/export/quarantine tests.
 - Regenerate OpenAPI and frontend types when the contract changes.
 - Run tools/check-public-tree.py after staging to check public-source boundaries and links.
 - Do not publish, push, accept optional model licenses or change machine-wide settings without user authorization.

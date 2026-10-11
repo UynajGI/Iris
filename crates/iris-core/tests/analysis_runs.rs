@@ -13,7 +13,9 @@ fn version_four_upgrade_and_run_history_preserve_project_settings() {
     services
         .store
         .conn
-        .execute_batch("DROP TABLE analysis_runs; PRAGMA user_version=4;")
+        .execute_batch(
+            "DROP TABLE engine_cache_versions; DROP TABLE analysis_runs; PRAGMA user_version=4;",
+        )
         .unwrap();
     drop(services);
 

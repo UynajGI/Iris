@@ -929,7 +929,7 @@ try {
     await wait('!!document.fullscreenElement');
     await key('p');
     await wait(
-      'document.querySelector(".compare-cell[aria-pressed=true]")?.textContent.includes("已标记")',
+      'document.querySelector(".compare-cell[data-focused=true]")?.textContent.includes("已标记")',
       'group flag applied'
     );
     assert.ok(await evaluate('!!document.fullscreenElement'));
@@ -937,6 +937,84 @@ try {
     await click('.subbar > .sub-button');
     await wait('!!document.querySelector(".grid")');
   });
+  await check(
+    'selection evidence and original face comparison at desktop and compact sizes',
+    async () => {
+      await click('.view-tab[title="相似组比较"]');
+      await wait(
+        'document.querySelectorAll(".compare-reasons li").length > 0',
+        'shared group evidence'
+      );
+      await wait('!!document.querySelector(".selection-reasons")', 'photo evidence');
+      await click('.compare-options button:last-child');
+      await wait(
+        'document.querySelectorAll(".face-detail svg image").length >= 2',
+        'aligned face regions'
+      );
+      await wait(
+        '[...document.querySelectorAll(".detail-source")].every(n=>n.textContent.includes("原图局部"))',
+        'original face detail',
+        60000
+      );
+      const identity = await evaluate(
+        'document.querySelector(".compare-cell .compare-caption .filename-line").textContent'
+      );
+      const before = await evaluate(
+        'document.querySelector(".face-detail svg").getAttribute("viewBox")'
+      );
+      await evaluate(
+        '(() => {const s=document.querySelector(".face-detail select");if(s.options.length>1){s.value="1";s.dispatchEvent(new Event("change",{bubbles:true}));}})()'
+      );
+      if (await evaluate('document.querySelector(".face-detail select").options.length > 1')) {
+        await wait(
+          `document.querySelector('.face-detail svg').getAttribute('viewBox') !== ${JSON.stringify(before)}`,
+          'different selected face region'
+        );
+      }
+      assert.equal(
+        await evaluate(
+          'document.querySelector(".compare-cell .compare-caption .filename-line").textContent'
+        ),
+        identity
+      );
+      await shot('30-selection-face-detail');
+      await send('Emulation.setDeviceMetricsOverride', {
+        width: 800,
+        height: 560,
+        deviceScaleFactor: 1,
+        mobile: false,
+      });
+      await wait('!document.querySelector(".sidebar-left")');
+      assert.ok(await evaluate('document.documentElement.scrollWidth <= innerWidth'));
+      assert.ok(
+        await evaluate(
+          '[...document.querySelectorAll(".face-detail-frame")].every(n=>n.getBoundingClientRect().height >= 80)'
+        )
+      );
+      assert.ok(
+        await evaluate(`[...document.querySelectorAll('.compare-cell')].every(cell => {
+        const detail=cell.querySelector('.face-detail').getBoundingClientRect();
+        const caption=cell.querySelector('.compare-caption').getBoundingClientRect();
+        const frame=cell.querySelector('.face-detail-frame').getBoundingClientRect();
+        const source=cell.querySelector('.detail-source').getBoundingClientRect();
+        return frame.bottom <= source.top + 1 && detail.bottom <= caption.top + 1;
+      })`),
+        'compact face detail must not overlap its caption'
+      );
+      await shot('31-selection-face-compact');
+      await send('Emulation.setDeviceMetricsOverride', {
+        width: 1440,
+        height: 960,
+        deviceScaleFactor: 1,
+        mobile: false,
+      });
+      await click('.compare-options button:first-child');
+      await wait('document.querySelectorAll(".compare-frame img.loaded").length >= 2');
+      await shot('32-selection-evidence');
+      await click('.subbar > .sub-button');
+      await wait('!!document.querySelector(".grid")');
+    }
+  );
   await check('rating, image identity and face overlay follow the current photo', async () => {
     const oldPreview = await evaluate('document.querySelector(".navigator-frame img")?.src');
     await click('.cell:nth-child(5) .cell-photo');
@@ -957,6 +1035,10 @@ try {
       'original image and overlay ready'
     );
     await wait('!document.querySelector(".zoom-stage").classList.contains("zoom-animating")');
+    await wait(
+      '!document.querySelector(".zoom-badge") && !!document.querySelector(".zoom-image.loaded") && !!document.querySelector(".face-layer")',
+      'original pixels and overlay settled'
+    );
     assert.ok(
       await evaluate(
         '(() => {const a=document.querySelector(".face-layer").getBoundingClientRect(),b=document.querySelector(".zoom-image").getBoundingClientRect();return ["x","y","width","height"].every(key=>Math.abs(a[key]-b[key])<1);})()'
@@ -1050,6 +1132,13 @@ try {
     assert.ok(await evaluate('!!document.querySelector(".zoom-image.loaded")'));
     await key('g');
     corrupt = 'preview';
+    // Reload to clear the in-memory preview cache before injecting a decode failure.
+    await send('Page.reload', { ignoreCache: true });
+    await wait('!!document.querySelector(".projects-heading")');
+    await wait('!!document.querySelector(".project-open")');
+    await click('.project-open');
+    await wait('document.querySelectorAll(".cell").length > 0');
+    await click('.cell:first-child');
     await key('e');
     await wait('!!document.querySelector(".zoom-failed")');
     assert.equal(await evaluate('!!document.querySelector(".zoom-loading")'), false);

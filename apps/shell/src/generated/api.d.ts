@@ -1,5 +1,5 @@
 // Generated from iris-daemon OpenAPI. Do not edit.
-// Contract SHA-256: 4c7bd94328f6542320464aa49a4b261105f2c39fa96d5c9fca1e0389d60cc015
+// Contract SHA-256: 92f676763c57fe4de9722f776ad5438639d77ea327e893a02c8a955bac25a1f1
 export interface paths {
     "/api/v1/bootstrap": {
         parameters: {
@@ -814,6 +814,7 @@ export interface components {
             version: string;
         };
         BurstGroup: {
+            assessment?: components["schemas"]["GroupAssessment"] | null;
             id: string;
             kind: string;
             member_photo_ids: number[];
@@ -1025,6 +1026,26 @@ export interface components {
         };
         /** @enum {string} */
         GpuEnumerationStatus: "available" | "unavailable" | "unsupported";
+        GroupAssessment: {
+            candidate_photo_ids: number[];
+            /** Format: double */
+            close_score_gap: number;
+            comparisons: components["schemas"]["GroupComparison"][];
+            method: string;
+            needs_review: boolean;
+            /**
+             * Format: int64
+             * @description Comparison reference only. Never an instruction to discard other members.
+             */
+            reference_photo_id?: number | null;
+        };
+        GroupComparison: {
+            /** Format: int64 */
+            photo_id: number;
+            reasons: string[];
+            /** Format: double */
+            score_gap?: number | null;
+        };
         HeadPose: {
             method: string;
             /** Format: float */
@@ -1233,6 +1254,17 @@ export interface components {
              */
             weight: number;
         };
+        SelectionEvidence: {
+            basis: string;
+            method: string;
+            reasons: components["schemas"]["SelectionReason"][];
+            subject: string;
+        };
+        SelectionReason: {
+            code: string;
+            /** @description observation, limitation, or context; missing evidence is not a defect. */
+            kind: string;
+        };
         SemanticEmbedding: {
             model_sha256: string;
             preprocessing: string;
@@ -1263,6 +1295,7 @@ export interface components {
             phash: string;
             preview_source?: string | null;
             score_breakdown?: components["schemas"]["ScoreBreakdown"] | null;
+            selection_evidence?: components["schemas"]["SelectionEvidence"] | null;
             /** Format: double */
             sharpness_fft: number;
             /** Format: double */

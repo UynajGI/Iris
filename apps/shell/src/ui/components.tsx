@@ -10,6 +10,7 @@ import {
 import type { IrisClient } from '../client.js';
 import type { Photo } from '../types.js';
 import { usePhotoUrl } from '../react.js';
+import { mediaRevision } from '../media-cache.js';
 import { Icon } from './Icon.js';
 
 export function Button({
@@ -144,7 +145,7 @@ export function PhotoImage({
   photo: Photo;
   kind?: 'thumb' | 'preview' | 'original';
 }) {
-  const media = usePhotoUrl(client, photo.id, kind);
+  const media = usePhotoUrl(client, photo.id, kind, mediaRevision(photo));
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const [loadedUrl, setLoadedUrl] = useState<string | null>(null);
   const failed = !!media.error || (!!media.url && failedUrl === media.url);
@@ -163,7 +164,10 @@ export function PhotoImage({
       decoding="async"
       draggable={false}
       onLoad={() => setLoadedUrl(media.url)}
-      onError={() => setFailedUrl(media.url)}
+      onError={() => {
+        media.invalidate();
+        setFailedUrl(media.url);
+      }}
     />
   ) : (
     <span

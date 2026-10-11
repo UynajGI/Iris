@@ -44,6 +44,111 @@ fn group_invalidation_survives_reopen_and_distinguishes_empty_groups() {
 }
 
 #[test]
+fn old_analysis_groups_are_invalidated_on_database_reopen() {
+    let (_temp, mut svc, id) = fixture();
+    svc.scan(id).unwrap();
+    let members: Vec<_> = svc
+        .photos(id, PhotoFilter::default())
+        .unwrap()
+        .iter()
+        .map(|p| p.id)
+        .collect();
+    for photo_id in &members {
+        svc.save_analysis(*photo_id, json!({"version":"iris-vision-v6","faces":[]}))
+            .unwrap();
+    }
+    svc.save_groups(
+        id,
+        vec![iris_core::BurstGroup {
+            id: "old".into(),
+            project_id: id,
+            kind: "duplicate".into(),
+            member_photo_ids: members,
+            assessment: None,
+        }],
+    )
+    .unwrap();
+    assert!(!svc.project(id).unwrap().groups_dirty);
+    // Simulate a database last opened by the previous analysis engine.
+    svc.store
+        .conn
+        .execute(
+            "UPDATE engine_cache_versions SET version='iris-vision-v6' WHERE name='groups'",
+            [],
+        )
+        .unwrap();
+    let database = svc.store.path.clone();
+    drop(svc);
+    let mut svc = Services::new(Store::open(database).unwrap());
+    assert!(svc.project(id).unwrap().groups_dirty);
+    assert!(svc.groups(id).unwrap().is_empty());
+    for photo in svc.photos(id, PhotoFilter::default()).unwrap() {
+        svc.save_analysis(
+            photo.id,
+            json!({"version": iris_core::vision::ANALYSIS_VERSION, "faces":[]}),
+        )
+        .unwrap();
+    }
+    svc.save_groups(id, vec![]).unwrap();
+    let database = svc.store.path.clone();
+    drop(svc);
+    let svc = Services::new(Store::open(database).unwrap());
+    assert!(
+        !svc.project(id).unwrap().groups_dirty,
+        "current empty grouping survives reopen"
+    );
+}
+
+#[test]
+fn rebuilt_groups_survive_reopen_with_failed_old_analysis() {
+    for empty in [false, true] {
+        let (temp, mut svc, id) = fixture();
+        jpg(&temp.path().join("photos/c.jpg"), 100);
+        svc.scan(id).unwrap();
+        let photos = svc.photos(id, PhotoFilter::default()).unwrap();
+        for photo in &photos {
+            svc.save_analysis(photo.id, json!({"version":"iris-vision-v6","faces":[]}))
+                .unwrap();
+        }
+        svc.store
+            .conn
+            .execute("DELETE FROM engine_cache_versions", [])
+            .unwrap();
+        let database = svc.store.path.clone();
+        drop(svc);
+        let mut svc = Services::new(Store::open(&database).unwrap());
+        assert!(svc.project(id).unwrap().groups_dirty);
+        // The first photo fails re-analysis and keeps its historical record.
+        for photo in &photos[1..] {
+            svc.save_analysis(
+                photo.id,
+                json!({"version":iris_core::vision::ANALYSIS_VERSION,"faces":[]}),
+            )
+            .unwrap();
+        }
+        let groups = if empty {
+            vec![]
+        } else {
+            vec![iris_core::BurstGroup {
+                id: "rebuilt".into(),
+                project_id: id,
+                kind: "duplicate".into(),
+                member_photo_ids: photos[1..].iter().map(|p| p.id).collect(),
+                assessment: None,
+            }]
+        };
+        svc.save_groups(id, groups).unwrap();
+        for _ in 0..2 {
+            drop(svc);
+            svc = Services::new(Store::open(&database).unwrap());
+            assert!(!svc.project(id).unwrap().groups_dirty);
+            assert_eq!(svc.project(id).unwrap().pending_analysis, 1);
+            assert_eq!(svc.groups(id).unwrap().len(), usize::from(!empty));
+        }
+    }
+}
+
+#[test]
 fn save_groups_checks_only_active_project_members_before_replacing_groups() {
     let (temp, mut svc, id) = fixture();
     svc.scan(id).unwrap();
@@ -65,6 +170,7 @@ fn save_groups_checks_only_active_project_members_before_replacing_groups() {
         project_id,
         kind: "duplicate".into(),
         member_photo_ids,
+        assessment: None,
     };
     svc.save_groups(id, vec![group(id, members.clone())])
         .unwrap();
@@ -203,6 +309,7 @@ fn schema_two_upgrade_preserves_projects_and_has_pre_upgrade_backup() {
     conn.execute_batch("CREATE TABLE projects(id INTEGER PRIMARY KEY,root TEXT,name TEXT,created_at TEXT,cache_root TEXT,groups_dirty INTEGER);
         CREATE TABLE photos(id INTEGER PRIMARY KEY,project_id INTEGER,missing INTEGER,quarantined INTEGER);
         CREATE TABLE analyses(photo_id INTEGER PRIMARY KEY,version TEXT,data TEXT NOT NULL DEFAULT '{}');
+        CREATE TABLE burst_groups(id TEXT,project_id INTEGER,kind TEXT,members TEXT);
         INSERT INTO projects VALUES(1,'photos','kept','2020-01-01T00:00:00Z','cache',0);
         PRAGMA user_version=2;").unwrap();
     drop(conn);
@@ -1047,10 +1154,11 @@ fn preview_cache_preserves_aspect_and_settings_estimates_actual_verdicts() {
         preview_source: None,
         faces: vec![],
         sharpness_lap: 1.,
-        sharpness_fft: 1.,
+        sharpness_fft: 0.04,
         niqe: None,
         composition: None,
         score_breakdown: None,
+        selection_evidence: None,
         embedding: None,
         exposure: iris_core::vision::Exposure {
             mean: 10.,
@@ -1094,7 +1202,7 @@ fn preview_cache_preserves_aspect_and_settings_estimates_actual_verdicts() {
 fn full_current_analysis(svc: &Services, project_id: i64) -> serde_json::Value {
     json!({
         "width":24,"height":16,"original_width":24,"original_height":16,
-        "orientation":1,"faces":[],"sharpness_lap":1.,"sharpness_fft":1.,
+        "orientation":1,"faces":[],"sharpness_lap":1.,"sharpness_fft":0.04,
         "niqe":null,"exposure":{"mean":10.,"shadow_clip":0.8,
         "highlight_clip":0.,"verdict":"underexposed"},"composite_score":0.,
         "verdict":"reject_suggest","phash":"0","structure":[],"warnings":[],

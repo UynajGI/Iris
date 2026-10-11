@@ -83,6 +83,7 @@ fn poor_analysis() -> VisionAnalysis {
         composition: None,
         composite_score: 0.,
         score_breakdown: None,
+        selection_evidence: None,
         verdict: Verdict::Review,
         phash: "0".into(),
         structure: vec![],
@@ -90,6 +91,79 @@ fn poor_analysis() -> VisionAnalysis {
         warnings: vec![],
         version: "test".into(),
     }
+}
+
+#[test]
+fn selection_tonal_style_is_not_a_defect_and_scenes_can_be_recommended() {
+    let mut a = poor_analysis();
+    a.sharpness_lap = 400.;
+    a.sharpness_fft = 0.8;
+    a.exposure.shadow_clip = 0.;
+    a.exposure.highlight_clip = 0.;
+    let settings = AnalysisSettings::default();
+    let mut scores = Vec::new();
+    for mean in [40., 128., 215.] {
+        a.exposure.mean = mean;
+        let result = rescore(&a, &settings);
+        assert_eq!(result.verdict, Verdict::Recommend);
+        assert_eq!(result.selection_evidence.as_ref().unwrap().subject, "scene");
+        scores.push(result.composite_score);
+    }
+    assert_eq!(scores[0], scores[1]);
+    assert_eq!(scores[1], scores[2]);
+}
+
+#[test]
+fn selection_raw_preview_never_proves_irrecoverable_and_invalid_metrics_are_withheld() {
+    let mut a = poor_analysis();
+    a.preview_source = Some("raw_embedded_jpeg".into());
+    let result = rescore(&a, &AnalysisSettings::default());
+    assert_eq!(result.verdict, Verdict::Review);
+    assert!(result
+        .selection_evidence
+        .unwrap()
+        .reasons
+        .iter()
+        .any(|r| r.code == "raw_recovery_unknown"));
+    a.sharpness_lap = f64::NAN;
+    let result = rescore(&a, &AnalysisSettings::default());
+    assert_eq!(result.verdict, Verdict::Review);
+    assert!(result
+        .selection_evidence
+        .unwrap()
+        .reasons
+        .iter()
+        .any(|r| r.code == "invalid_measurements"));
+}
+
+#[test]
+fn selection_group_keeps_close_candidates_and_unknown_members() {
+    let mut a = poor_analysis();
+    a.sharpness_lap = 500.;
+    a.sharpness_fft = 0.9;
+    a.exposure.mean = 128.;
+    a.exposure.shadow_clip = 0.;
+    let a = rescore(&a, &AnalysisSettings::default());
+    let mut b = a.clone();
+    b.composite_score -= 3.;
+    let group = iris_core::vision::assess_group(&[(7, Some(&a)), (8, Some(&b)), (9, None)]);
+    assert_eq!(group.reference_photo_id, Some(7));
+    assert_eq!(group.candidate_photo_ids, vec![7, 8]);
+    assert!(group.needs_review);
+    assert!(group.comparisons[1]
+        .reasons
+        .contains(&"close_quality".into()));
+    assert_eq!(group.comparisons[2].score_gap, None);
+    // A caution about preview highlights is compatible with relative comparison,
+    // but never silently removes the need for human review.
+    b.verdict = Verdict::Review;
+    let group = iris_core::vision::assess_group(&[(7, Some(&a)), (8, Some(&b))]);
+    assert_eq!(group.candidate_photo_ids, vec![7, 8]);
+    assert!(group.needs_review);
+    b.composite_score = f64::NAN;
+    let group = iris_core::vision::assess_group(&[(8, Some(&b))]);
+    assert_eq!(group.reference_photo_id, None);
+    assert!(group.candidate_photo_ids.is_empty());
 }
 
 fn face_at(x: f32, y: f32) -> Face {
@@ -111,6 +185,49 @@ fn face_at(x: f32, y: f32) -> Face {
         landmarks: vec![[x, y, 0.]; 478],
         unreliable_reason: None,
     }
+}
+
+#[test]
+fn selection_group_reviews_recommended_photos_with_different_face_counts() {
+    let mut face = face_at(50., 50.);
+    face.quality = Some(iris_core::vision::FaceQuality {
+        method: "fixture".into(),
+        crop_width: 100,
+        crop_height: 100,
+        sharpness_lap: 500.,
+        exposure: poor_analysis().exposure,
+        sharpness_score: 85.,
+        exposure_score: 85.,
+        resolution_score: 85.,
+        score: 85.,
+    });
+    let eye = Eye {
+        state: EyeState::Open,
+        ear: 0.3,
+        blink_score: Some(0.),
+    };
+    face.left_eye = Some(eye.clone());
+    face.right_eye = Some(eye);
+    let mut a = poor_analysis();
+    a.sharpness_lap = 500.;
+    a.sharpness_fft = 0.9;
+    a.exposure.mean = 128.;
+    a.exposure.shadow_clip = 0.;
+    a.faces = vec![face.clone()];
+    a.verdict = Verdict::Recommend;
+    a.composite_score = 85.;
+    let mut b = a.clone();
+    b.faces.push(face);
+    let equal = iris_core::vision::assess_group(&[(1, Some(&a)), (2, Some(&a))]);
+    assert!(
+        !equal.needs_review,
+        "both individual recommendations are usable"
+    );
+    let different = iris_core::vision::assess_group(&[(1, Some(&a)), (2, Some(&b))]);
+    assert!(different.needs_review);
+    assert!(different.comparisons[1]
+        .reasons
+        .contains(&"different_face_count".into()));
 }
 
 #[test]

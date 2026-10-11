@@ -59,6 +59,36 @@ class DependencyPolicyTests(unittest.TestCase):
         for trigger in ["pull_request", "workflow_call", "workflow_dispatch"]:
             self.assertIn(trigger, triggers)
 
+    def test_automerge_only_uses_trusted_default_branch_and_minimal_permissions(self):
+        workflow = yaml.load(
+            (ROOT / ".github/workflows/dependabot-automerge.yml").read_text(),
+            Loader=yaml.BaseLoader,
+        )
+        self.assertEqual(
+            workflow["on"], {"workflow_run": {"workflows": ["Verify"], "types": ["completed"]}}
+        )
+        self.assertEqual(workflow["permissions"], {})
+        self.assertIn("github.event.workflow_run.head_branch", workflow["concurrency"]["group"])
+        job = workflow["jobs"]["merge"]
+        self.assertEqual(
+            job["permissions"],
+            {
+                "actions": "read",
+                "checks": "read",
+                "contents": "write",
+                "pull-requests": "write",
+                "security-events": "read",
+            },
+        )
+        checkout = job["steps"][0]
+        self.assertEqual(checkout["with"]["ref"], "${{ github.event.repository.default_branch }}")
+        self.assertEqual(checkout["with"]["persist-credentials"], "false")
+        self.assertIn("head_repository.full_name == github.repository", job["if"])
+        self.assertIn("startsWith(github.event.workflow_run.head_branch, 'dependabot/')", job["if"])
+        for step in job["steps"]:
+            self.assertNotIn("download-artifact", step.get("uses", ""))
+            self.assertNotIn("--admin", step.get("run", ""))
+
 
 if __name__ == "__main__":
     unittest.main()

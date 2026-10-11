@@ -1,6 +1,7 @@
 """Public source export must not accidentally include local/private material."""
 
 import importlib.util
+import os
 import shutil
 import subprocess
 import sys
@@ -8,6 +9,7 @@ import tempfile
 import unittest
 import zipfile
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 spec = importlib.util.spec_from_file_location("source_package", ROOT / "tools/package-source.py")
@@ -17,6 +19,13 @@ spec.loader.exec_module(module)
 
 class PublicSourceTests(unittest.TestCase):
     def setUp(self):
+        # Hooks export repository-local Git context; fixtures must never inherit it.
+        environment = {
+            key: value for key, value in os.environ.items() if not key.upper().startswith("GIT_")
+        }
+        isolation = patch.dict(os.environ, environment, clear=True)
+        isolation.start()
+        self.addCleanup(isolation.stop)
         self.temp = tempfile.TemporaryDirectory(prefix="iris-public-source-")
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name) / "repo"
@@ -53,6 +62,35 @@ class PublicSourceTests(unittest.TestCase):
         self.write("README.md", "changed\n")
         with self.assertRaisesRegex(ValueError, "clean working tree"):
             module.package(self.root, Path(self.temp.name) / "dirty.zip")
+
+    def test_hook_git_context_cannot_modify_another_repository(self):
+        git_dir = self.root / ".git"
+        before = {name: (git_dir / name).read_bytes() for name in ("config", "index", "HEAD")}
+        revision = self.git("rev-parse", "HEAD")
+        environment = {
+            **os.environ,
+            "GIT_DIR": str(git_dir),
+            "GIT_COMMON_DIR": str(git_dir),
+            "GIT_WORK_TREE": str(self.root),
+            "GIT_INDEX_FILE": str(git_dir / "index"),
+            "GIT_PREFIX": "tools/",
+        }
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "unittest",
+                "test_public_source.PublicSourceTests.test_export_contains_only_committed_public_tree_and_rejects_dirty_sources",
+            ],
+            cwd=ROOT / "tools/tests",
+            env=environment,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(before, {name: (git_dir / name).read_bytes() for name in before})
+        self.assertEqual(revision, self.git("rev-parse", "HEAD"))
 
     def test_private_tracked_file_and_missing_public_link_block_export(self):
         self.write("reference/notes.md", "private reference")

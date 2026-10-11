@@ -9,6 +9,7 @@ import {
 import type { IrisClient } from '../client.js';
 import type { Photo } from '../types.js';
 import { usePhotoUrl } from '../react.js';
+import { mediaRevision } from '../media-cache.js';
 import { Icon } from './Icon.js';
 
 const MIN_SCALE_FACTOR = 1;
@@ -62,8 +63,9 @@ export function ZoomViewer({
   const drag = useRef<{ id: number; x: number; y: number; vx: number; vy: number } | null>(null);
   const wantsOriginal = view.zoom > 0 && browserDecodable.has(photo.format.toLowerCase());
   const [originalRequested, setOriginalRequested] = useState(false);
-  const preview = usePhotoUrl(client, photo.id, 'preview');
-  const original = usePhotoUrl(client, originalRequested ? photo.id : null, 'original');
+  const revision = mediaRevision(photo);
+  const preview = usePhotoUrl(client, photo.id, 'preview', revision);
+  const original = usePhotoUrl(client, originalRequested ? photo.id : null, 'original', revision);
   const [loaded, setLoaded] = useState<string | null>(null);
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const [failedOriginal, setFailedOriginal] = useState<string | null>(null);
@@ -77,7 +79,7 @@ export function ZoomViewer({
     setOriginalReady(false);
     setPreviewAspect(null);
     return stopAnimation;
-  }, [photo.id, stopAnimation]);
+  }, [photo.id, revision, stopAnimation]);
   useLayoutEffect(() => {
     const node = stage.current;
     if (!node) return;
@@ -301,7 +303,10 @@ export function ZoomViewer({
                 event.currentTarget.naturalWidth / Math.max(1, event.currentTarget.naturalHeight)
               );
           }}
-          onError={() => setFailedUrl(source)}
+          onError={() => {
+            (showOriginal ? original : preview).invalidate();
+            setFailedUrl(source);
+          }}
           style={{
             width,
             height,
@@ -317,7 +322,10 @@ export function ZoomViewer({
           alt=""
           aria-hidden="true"
           onLoad={() => setOriginalReady(true)}
-          onError={() => setFailedOriginal(original.url)}
+          onError={() => {
+            original.invalidate();
+            setFailedOriginal(original.url);
+          }}
         />
       )}
       {source && loaded === source && !failed && faces.length > 0 && (

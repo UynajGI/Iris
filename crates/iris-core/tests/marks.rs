@@ -18,7 +18,7 @@ fn version_three_upgrade_preserves_existing_decisions_and_creates_backup() {
     services
         .store
         .conn
-        .execute_batch("DROP TABLE analysis_runs; DROP TABLE photo_marks; PRAGMA user_version=3;")
+        .execute_batch("DROP TABLE engine_cache_versions; DROP TABLE analysis_runs; DROP TABLE photo_marks; PRAGMA user_version=3;")
         .unwrap();
     drop(services);
     let store = Store::open(&database).unwrap();

@@ -1,8 +1,9 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { readPhotoAnalysis } from '../analysis-readout.js';
-import type { Photo } from '../types.js';
+import type { Photo, VisionAnalysis } from '../types.js';
 import { Icon } from './Icon.js';
 import { componentNames, formatBytes, formatTaken, verdictNames } from './photo-readouts.js';
+import { previewSource, selectionReason } from '../selection-readout.js';
 
 export function AnalysisPanel({ photo }: { photo: Photo }) {
   const analysis = readPhotoAnalysis(photo);
@@ -53,6 +54,8 @@ export function AnalysisPanel({ photo }: { photo: Photo }) {
           </p>
         </div>
       </div>
+      <p className="muted analysis-basis">{previewSource(photo)} · 技术评估不代表审美</p>
+      <SelectionReasons evidence={analysis.current.selection_evidence} />
       {components.length > 0 && (
         <ul className="meters">
           {components.map((item) => {
@@ -83,6 +86,21 @@ export function AnalysisPanel({ photo }: { photo: Photo }) {
         </details>
       )}
     </div>
+  );
+}
+
+function SelectionReasons({ evidence }: { evidence: VisionAnalysis['selection_evidence'] }) {
+  if (!evidence) return null;
+  return (
+    <ul className="selection-reasons">
+      {evidence.reasons
+        .filter((item) => item.code !== 'preview_measurement')
+        .map((item) => (
+          <li key={item.code} data-kind={item.kind}>
+            {selectionReason(item.code)}
+          </li>
+        ))}
+    </ul>
   );
 }
 

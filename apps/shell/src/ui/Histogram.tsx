@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { IrisClient } from '../client.js';
 import type { Photo } from '../types.js';
 import { usePhotoUrl } from '../react.js';
+import { mediaRevision } from '../media-cache.js';
 import {
   channels,
   histogramPeak,
@@ -200,7 +201,12 @@ function useScopeResult(mediaUrl: string | null) {
 }
 
 export function Histogram({ client, photo }: { client: IrisClient; photo: Photo | undefined }) {
-  const media = usePhotoUrl(client, photo?.id ?? null, 'preview');
+  const media = usePhotoUrl(
+    client,
+    photo?.id ?? null,
+    'preview',
+    photo ? mediaRevision(photo) : ''
+  );
   const [settings, setSettings] = useState(preferences);
   const { mode, selected } = settings;
   const result = useScopeResult(media.url);

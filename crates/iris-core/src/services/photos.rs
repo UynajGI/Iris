@@ -1,5 +1,7 @@
 use super::*;
 
+const GROUP_ANALYSES_SQL: &str = "SELECT p.id,a.data FROM (SELECT DISTINCT m.value AS id FROM burst_groups g, json_each(g.members) m WHERE g.project_id=?1) members JOIN photos p ON p.id=members.id JOIN analyses a ON a.photo_id=p.id WHERE p.project_id=?1 AND p.missing=0 AND p.quarantined=0";
+
 fn matches_photo_filter(p: &Photo, filter: &PhotoFilter) -> bool {
     (filter.include_missing.unwrap_or(false) || (!p.missing && !p.quarantined))
         && filter.decision.is_none_or(|d| d == p.decision)
@@ -190,8 +192,66 @@ impl Services {
                 project_id,
                 kind,
                 member_photo_ids: serde_json::from_str(&members)?,
+                assessment: None,
             });
         }
+        if !out.is_empty() {
+            let analyses = self.group_analyses(project_id)?;
+            for group in &mut out {
+                let items: Vec<_> = group
+                    .member_photo_ids
+                    .iter()
+                    .map(|id| (*id, analyses.get(id)))
+                    .collect();
+                group.assessment = Some(crate::vision::assess_group(&items));
+            }
+        }
         Ok(out)
+    }
+
+    fn group_analyses(
+        &self,
+        project_id: i64,
+    ) -> Result<std::collections::HashMap<i64, crate::vision::VisionAnalysis>> {
+        let settings = self.settings(project_id)?;
+        let mut query = self.store.conn.prepare(GROUP_ANALYSES_SQL)?;
+        let rows = query.query_map([project_id], |r| {
+            Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?))
+        })?;
+        let mut analyses = std::collections::HashMap::new();
+        for row in rows {
+            let (id, data) = row?;
+            let Ok(value) = serde_json::from_str::<Value>(&data) else {
+                continue;
+            };
+            if analysis_status(Some(&value), &settings) != AnalysisStatus::Current {
+                continue;
+            }
+            if let Ok(analysis) = serde_json::from_value(value) {
+                analyses.insert(id, analysis);
+            }
+        }
+        Ok(analyses)
+    }
+}
+
+#[cfg(test)]
+mod group_query_tests {
+    #[test]
+    fn only_distinct_available_same_project_group_members_reach_deserialization() {
+        let db = rusqlite::Connection::open_in_memory().unwrap();
+        db.execute_batch("CREATE TABLE photos(id INTEGER PRIMARY KEY,project_id INTEGER,missing INTEGER,quarantined INTEGER);
+            CREATE TABLE analyses(photo_id INTEGER PRIMARY KEY,data TEXT);
+            CREATE TABLE burst_groups(project_id INTEGER,members TEXT);
+            INSERT INTO photos VALUES(1,1,0,0),(2,1,0,0),(3,1,1,0),(4,1,0,1),(5,2,0,0);
+            INSERT INTO analyses VALUES(1,'member'),(2,'unrelated invalid JSON'),(3,'missing'),(4,'quarantined'),(5,'foreign');
+            INSERT INTO burst_groups VALUES(1,'[1,3,4,5]'),(1,'[1]'),(2,'[2]');").unwrap();
+        let mut query = db.prepare(super::GROUP_ANALYSES_SQL).unwrap();
+        let selected = query
+            .query_map([1], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?)))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(selected, vec![(1, "member".into())]);
     }
 }
