@@ -26,10 +26,13 @@ URLs. WebSocket reconnect uses bounded exponential backoff and full state
 refresh; periodic polling recovers dropped events. No frontend operation
 deletes source images. Quarantine commit requires the exact preview manifest.
 
-Project settings are scoped by project ID. Decisions are serialized, become
-visible after server acknowledgement, and use the server's persisted undo
-history. Commands ignore text fields, composing input, and repeated keydown
-events. Custom bindings can be supplied to `CommandSystem`.
+Project settings are scoped by project ID. Library/group decision commands are
+serialized and reconciled after server acknowledgement. Toolbar decision toggles,
+ratings and colors display optimistic feedback immediately, persist through the
+same queue, and roll back failed edits without erasing newer changes. The server
+remains authoritative and owns persisted undo history. Commands ignore text
+fields, composing input, and repeated keydown events. Custom bindings can be
+supplied to `CommandSystem`.
 
 View preferences are saved per canonical project root: filter/sort values,
 page size (1–1000), and the existing review-open flag. Page offsets and photo or
@@ -74,8 +77,8 @@ photo navigation follow the active group focus; closing the group restores
 library keyboard behavior. Loading groups consume keyboard commands without
 falling back to the library, and Ctrl/Cmd+A does not select the hidden library.
 Explicit `dispatch('keep')` and other library commands retain their library
-semantics. `useGroupSession(store)` exposes the same state to React; no comparison
-layout is supplied.
+semantics. `useGroupSession(store)` exposes the same state to the React comparison
+presentation; the headless state layer remains independent of its layout.
 
 Group data refreshes after its writes, undo, decision/resync events, reconnect,
 or `refreshGroup()`. HTTP polling also refreshes it while WebSocket is down.
@@ -144,9 +147,13 @@ SCRFD/FaceOcc failure without fallback, and a persisted v4 record rejected as st
 until real default-model reanalysis supplies a current score breakdown. Without those variables, only this
 integration test is explicitly skipped.
 
-Generate API types from the daemon's exported schema with
-`npm run generate:api -- ../../path/to/openapi.json`. The generator is
-`tools/generate-client.mjs`; generated source carries the contract hash.
+From the repository root, run `make setup` before `make api` to regenerate the
+daemon OpenAPI and application types, or `make api-check` for a read-only freshness
+check. Both npm lockfiles must be installed: the root maintenance package owns
+`openapi-typescript` and its supported TypeScript 5 compiler API, while this
+application uses TypeScript 7. Installing only this directory is insufficient for
+API generation. The internal `generate:api` script also requires those root
+dependencies. Generated source carries the contract hash.
 
 The independent `src-tauri` crate keeps desktop dependencies out of the core
 workspace. `cargo test --manifest-path src-tauri/Cargo.toml` tests the supervisor.
@@ -161,7 +168,8 @@ validates its version, checks authenticated heartbeats, restarts failed children
 and notifies the frontend to retrieve a fresh token. Exit requests graceful
 shutdown through stdin before a bounded forced-exit fallback. Update installation
 uses a stricter graceful-shutdown path: timeout or abnormal exit cancels the install.
-The visible presentation remains separate work.
+The React presentation is implemented; interactive native acceptance remains
+separate from browser regressions and host protocol tests.
 
 The host passes an absolute model directory to the daemon. Set `IRIS_MODEL_DIR`
 explicitly, use `DaemonHost::with_model_dir`, or install `models` beside the
