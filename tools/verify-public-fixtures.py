@@ -42,52 +42,72 @@ class Client:
     def job(self, project: int, kind: str) -> dict:
         self.request("POST", f"/projects/{project}/{kind}")
         started = time.monotonic()
+        last_log = started
         while time.monotonic() - started < 1800:
             progress = self.request("GET", f"/projects/{project}/progress")
             if progress["state"] in {"completed", "failed", "cancelled"}:
                 return progress
+            if time.monotonic() - last_log > 30:
+                print(f"{kind}: {progress['completed']}/{progress['total']}", flush=True)
+                last_log = time.monotonic()
             time.sleep(0.2)
         raise TimeoutError(kind)
 
 
 def preview(client: Client, photo: dict) -> dict:
-    payload = client.request("GET", f"/photos/{photo['id']}/preview", binary=True)
-    assert payload.startswith(b"\xff\xd8"), photo["filename"]
-    return {"name": photo["filename"], "format": photo["format"], "preview_bytes": len(payload)}
+    result = {"name": photo["filename"], "format": photo["format"]}
+    try:
+        payload = client.request("GET", f"/photos/{photo['id']}/preview", binary=True)
+        assert payload.startswith(b"\xff\xd8"), "Expected JPEG preview"
+        result["preview_bytes"] = len(payload)
+    except Exception as error:
+        result["error"] = str(error)
+    return result
+
+
+def pipeline_passed(
+    jobs: list[dict], media: list[dict], analyzed: int, scanned: int, expected: int
+) -> bool:
+    return (
+        scanned == analyzed == expected
+        and all(job["state"] == "completed" and not job["errors"] for job in jobs)
+        and not any("error" in item for item in media)
+        and (jobs[-1].get("result") or {}).get("reused") == expected
+    )
 
 
 def exercise(client: Client, photos: Path, count: int) -> dict:
     project = client.request("POST", "/projects", {"root": str(photos)})["id"]
     scan = client.job(project, "scan")
-    assert scan["state"] == "completed" and not scan["errors"], scan
     listing = client.request("GET", f"/projects/{project}/photos")
-    assert len(listing) == count, (len(listing), count)
-    print(f"Scanned {len(listing)} supported source images", flush=True)
+    print(f"Scanned {len(listing)}/{count}; scan errors: {len(scan['errors'])}", flush=True)
     media = []
     with ThreadPoolExecutor(max_workers=4) as pool:
         for item in pool.map(lambda photo: preview(client, photo), listing):
             media.append(item)
             if len(media) % 50 == 0:
-                print(f"Verified previews {len(media)}/{count}", flush=True)
+                print(f"Checked previews {len(media)}/{count}", flush=True)
     analysis = client.job(project, "analyze")
-    assert analysis["state"] == "completed" and not analysis["errors"], analysis
     listing = client.request("GET", f"/projects/{project}/photos")
-    assert all(
-        p["analysis_status"] == "current" and p["analysis"].get("selection_evidence")
+    current = [
+        p
         for p in listing
-    )
-    print(f"Analyzed {count} images; checking incremental reuse", flush=True)
+        if p["analysis_status"] == "current" and (p["analysis"] or {}).get("selection_evidence")
+    ]
+    print(f"Analyzed {len(current)} images; checking incremental reuse", flush=True)
     repeat = client.job(project, "analyze")
-    assert repeat["state"] == "completed" and not repeat["errors"], repeat
-    assert repeat["result"]["reused"] == count, repeat
     return {
+        "ok": pipeline_passed([scan, analysis, repeat], media, len(current), len(listing), count),
+        "scanned": len(listing),
+        "analyzed": len(current),
+        "previews_succeeded": sum("error" not in item for item in media),
         "scan": scan,
         "analysis": analysis,
         "repeat": repeat,
         "media": media,
-        "faces_detected_in": sum(bool(p["analysis"]["faces"]) for p in listing),
+        "faces_detected_in": sum(bool(p["analysis"]["faces"]) for p in current),
         "preview_sources": sorted(
-            {p["analysis"].get("preview_source") or "unknown" for p in listing}
+            {p["analysis"].get("preview_source") or "unknown" for p in current}
         ),
         "groups_returned": len(client.request("GET", f"/projects/{project}/groups")),
     }
@@ -97,6 +117,12 @@ def parse_inputs() -> tuple[argparse.Namespace, list[dict]]:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dataset", help="Filter the manifest by dataset name substring")
     parser.add_argument("--limit", type=int, help="Optional positive diagnostic subset size")
+    parser.add_argument(
+        "--daemon",
+        type=Path,
+        default=ROOT / "target/debug/iris-daemon.exe",
+        help="Daemon executable; prefer a current release build for a large RAW corpus",
+    )
     parser.add_argument(
         "--output", type=Path, default=ROOT / "artifacts/public-fixtures-verification.json"
     )
@@ -120,6 +146,7 @@ def main() -> None:
         "accuracy_validated": False,
         "personal_photos_used": False,
         "count": len(manifest),
+        "daemon": str(args.daemon.resolve()),
     }
     # Keep currently unsupported formats as explicit negative import controls.
     unsupported = [
@@ -138,7 +165,7 @@ def main() -> None:
             with (work / "daemon.log").open("w", encoding="utf-8") as log:
                 process = subprocess.Popen(
                     [
-                        str(ROOT / "target/debug/iris-daemon.exe"),
+                        str(args.daemon.resolve()),
                         "--data-dir",
                         str(work / "data"),
                         "--model-dir",
@@ -164,7 +191,7 @@ def main() -> None:
                         process.kill()
                         process.wait()
             assert all(digest(FIXTURES / item["path"]) == item["sha256"] for item in manifest)
-            report.update(ok=True, sources_unchanged=True)
+            report.update(completed=True, sources_unchanged=True)
     except Exception as error:
         report["error"] = str(error)
         raise
@@ -177,6 +204,8 @@ def main() -> None:
                 ensure_ascii=False,
             )
         )
+    if not report["ok"]:
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

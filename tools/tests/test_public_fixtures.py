@@ -7,7 +7,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -24,6 +24,39 @@ verify = load_tool("verify-public-fixtures")
 
 
 class PublicFixtureTests(unittest.TestCase):
+    def test_scan_failure_still_checks_valid_photos_and_keeps_failure_status(self):
+        client = Mock()
+        photo = {
+            "id": 1,
+            "filename": "good.dng",
+            "format": "dng",
+            "analysis_status": "current",
+            "analysis": {"selection_evidence": {"observations": []}, "faces": []},
+        }
+        client.request.side_effect = [{"id": 1}, [photo], [photo], []]
+        client.job.side_effect = [
+            {"state": "failed", "errors": ["bad.cr2"], "failed_scan_paths": ["bad.cr2"]},
+            {"state": "completed", "errors": []},
+            {"state": "completed", "errors": [], "result": {"reused": 1}},
+        ]
+        with (
+            patch.object(verify, "preview", return_value={"preview_bytes": 5}),
+            patch("builtins.print"),
+        ):
+            result = verify.exercise(client, Path("public-copies"), 2)
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["scanned"], 1)
+        self.assertEqual(result["analyzed"], 1)
+        self.assertEqual(result["previews_succeeded"], 1)
+        self.assertEqual(client.job.call_count, 3)
+
+    def test_preview_failure_is_recorded(self):
+        client = Mock()
+        client.request.side_effect = OSError("decoder unavailable")
+        result = verify.preview(client, {"id": 1, "filename": "bad.dng", "format": "dng"})
+        self.assertEqual(result["error"], "decoder unavailable")
+        self.assertNotIn("preview_bytes", result)
+
     def test_prepare_preserves_catalog_and_raw_is_explicit(self):
         prepare = expand.PREPARE
         for raw_enabled in (False, True):
