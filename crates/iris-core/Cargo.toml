@@ -21,7 +21,7 @@ rustfft = "6"
 ort = { version = "=2.0.0-rc.10", default-features = false, features = ["std", "ndarray", "load-dynamic"] }
 sha2 = "0.10"
 csv = "1"
-nalgebra = "0.34"
+nalgebra = "0.35"
 tempfile = "3"
 
 [dev-dependencies]
