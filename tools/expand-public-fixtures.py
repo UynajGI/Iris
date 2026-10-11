@@ -9,6 +9,7 @@ import importlib.util
 import json
 import re
 import shutil
+import time
 import urllib.parse
 from collections import Counter, defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -124,6 +125,42 @@ def download(item: dict) -> dict:
     return record
 
 
+def save_manifest(manifest: Path, records: dict) -> None:
+    temporary = manifest.with_suffix(".tmp")
+    temporary.write_text(
+        json.dumps(list(records.values()), ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    for attempt in range(20):
+        try:
+            temporary.replace(manifest)
+            return
+        except PermissionError:
+            if attempt == 19:
+                raise
+            time.sleep(0.1)
+
+
+def download_items(items: list[dict], records: dict[str, dict], manifest: Path) -> None:
+    errors = []
+    with ThreadPoolExecutor(max_workers=16) as pool:
+        futures = [pool.submit(download, item) for item in items]
+        for index, future in enumerate(as_completed(futures), 1):
+            try:
+                item = future.result()
+                records[item["path"]] = item
+                save_manifest(manifest, records)
+            except Exception as error:
+                errors.append(str(error))
+                print(f"Download failed: {error}", flush=True)
+                continue
+            if index % 10 == 0 or index == len(items):
+                print(f"Verified {index}/{len(items)}; catalog {len(records)} images", flush=True)
+    save_manifest(manifest, records)
+    if errors:
+        raise RuntimeError(f"{len(errors)} downloads failed; verified files retained for retry")
+
+
 def main() -> None:
     manifest = BASE / "manifest.json"
     records = {item["path"]: item for item in json.loads(manifest.read_bytes())}
@@ -140,19 +177,7 @@ def main() -> None:
         f"Plan: {len(items)} downloads, 60 complete real bursts, estimated {required / 1e9:.2f} GB",
         flush=True,
     )
-    with ThreadPoolExecutor(max_workers=8) as pool:
-        futures = [pool.submit(download, item) for item in items]
-        for index, future in enumerate(as_completed(futures), 1):
-            item = future.result()
-            records[item["path"]] = item
-            temporary = manifest.with_suffix(".tmp")
-            temporary.write_text(
-                json.dumps(list(records.values()), ensure_ascii=False, indent=2) + "\n",
-                encoding="utf-8",
-            )
-            temporary.replace(manifest)
-            if index % 10 == 0 or index == len(items):
-                print(f"Verified {index}/{len(items)}; catalog {len(records)} images", flush=True)
+    download_items(items, records, manifest)
     hashes = {item["sha256"] for item in records.values()}
     assert len(hashes) >= 500, f"Only {len(hashes)} distinct source files"
     report = {
