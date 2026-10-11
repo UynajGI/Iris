@@ -105,23 +105,7 @@ fn inspect(dir: &Path, settings: &AnalysisSettings) -> (DetectorModelStatus, Opt
             bail!("model SHA-256 mismatch; expected {expected}, actual {actual}");
         }
         if is_scrfd {
-            let metadata_path = crate::model_paths::checked_model_path(dir, METADATA)?;
-            if !metadata_path.exists() {
-                status.state = ModelAvailability::Missing;
-                bail!("SCRFD metadata missing: {}", metadata_path.display());
-            }
-            let metadata: Metadata =
-                serde_json::from_slice(&read_bounded(&metadata_path, 64 * 1024)?)
-                    .context("invalid SCRFD metadata JSON")?;
-            if metadata.model_id != "scrfd_500m_kps"
-                || !metadata.source_url.starts_with("https://")
-                || metadata.source_url.len() <= 8
-                || !metadata.license_url.starts_with("https://")
-                || metadata.license_url.len() <= 8
-                || metadata.license_note.trim().is_empty()
-            {
-                bail!("SCRFD metadata requires model_id scrfd_500m_kps, HTTPS source_url/license_url and nonempty license_note; metadata is not authorization");
-            }
+            validate_metadata(dir, &mut status)?;
         }
         Ok(bytes)
     })();
@@ -141,6 +125,26 @@ fn inspect(dir: &Path, settings: &AnalysisSettings) -> (DetectorModelStatus, Opt
             (status, None)
         }
     }
+}
+
+fn validate_metadata(dir: &Path, status: &mut DetectorModelStatus) -> Result<()> {
+    let metadata_path = crate::model_paths::checked_model_path(dir, METADATA)?;
+    if !metadata_path.exists() {
+        status.state = ModelAvailability::Missing;
+        bail!("SCRFD metadata missing: {}", metadata_path.display());
+    }
+    let metadata: Metadata = serde_json::from_slice(&read_bounded(&metadata_path, 64 * 1024)?)
+        .context("invalid SCRFD metadata JSON")?;
+    if metadata.model_id != "scrfd_500m_kps"
+        || !metadata.source_url.starts_with("https://")
+        || metadata.source_url.len() <= 8
+        || !metadata.license_url.starts_with("https://")
+        || metadata.license_url.len() <= 8
+        || metadata.license_note.trim().is_empty()
+    {
+        bail!("SCRFD metadata requires model_id scrfd_500m_kps, HTTPS source_url/license_url and nonempty license_note; metadata is not authorization");
+    }
+    Ok(())
 }
 
 /// Does not initialize ONNX Runtime or perform inference.
@@ -266,61 +270,14 @@ fn decode(
     }
     let mut candidates = Vec::new();
     for (level, stride) in STRIDES.into_iter().enumerate() {
-        let cols = SIDE / stride;
-        let count = cols * cols * 2;
-        let scores = &tensors[level];
-        let boxes = &tensors[level + 3];
-        let points = &tensors[level + 6];
-        validate_tensor(scores, count, 1)?;
-        validate_tensor(boxes, count, 4)?;
-        validate_tensor(points, count, 10)?;
-        if scores.values.iter().any(|v| !(0.0..=1.0).contains(v)) {
-            bail!("SCRFD scores outside contract");
-        }
-        // Official regression heads can produce finite negative distances,
-        // including low-score anchors on a blank image. The upstream decoder
-        // permits signed distances; reject only invalid/degenerate decoded boxes.
-        let step = stride as f32 / scale;
-        for i in 0..count {
-            let score = scores.values[i];
-            if score < threshold {
-                continue;
-            }
-            let cx = ((i / 2) % cols) as f32;
-            let cy = ((i / 2) / cols) as f32;
-            let b = &boxes.values[i * 4..i * 4 + 4];
-            let raw = [
-                (cx - b[0]) * step,
-                (cy - b[1]) * step,
-                (cx + b[2]) * step,
-                (cy + b[3]) * step,
-            ];
-            if raw.iter().any(|v| !v.is_finite()) {
-                bail!("SCRFD decoded box overflow");
-            }
-            let x1 = raw[0].clamp(0., width as f32);
-            let y1 = raw[1].clamp(0., height as f32);
-            let x2 = raw[2].clamp(0., width as f32);
-            let y2 = raw[3].clamp(0., height as f32);
-            if x2 - x1 < 8. || y2 - y1 < 8. {
-                continue;
-            }
-            let mut keypoints = [[0.; 2]; 5];
-            for (j, point) in keypoints.iter_mut().enumerate() {
-                *point = [
-                    (cx + points.values[i * 10 + j * 2]) * step,
-                    (cy + points.values[i * 10 + j * 2 + 1]) * step,
-                ];
-                if point.iter().any(|v| !v.is_finite()) {
-                    bail!("SCRFD decoded keypoint overflow");
-                }
-            }
-            candidates.push(Detection {
-                bbox: [x1, y1, x2 - x1, y2 - y1],
-                confidence: score,
-                keypoints,
-            });
-        }
+        decode_level(
+            [&tensors[level], &tensors[level + 3], &tensors[level + 6]],
+            stride,
+            (width, height),
+            scale,
+            threshold,
+            &mut candidates,
+        )?;
     }
     candidates.sort_by(|a, b| b.confidence.total_cmp(&a.confidence));
     candidates.truncate(5000);
@@ -334,6 +291,71 @@ fn decode(
         }
     }
     Ok(keep)
+}
+
+fn decode_level(
+    tensors: [&TensorView<'_>; 3],
+    stride: usize,
+    size: (u32, u32),
+    scale: f32,
+    threshold: f32,
+    candidates: &mut Vec<Detection>,
+) -> Result<()> {
+    let cols = SIDE / stride;
+    let count = cols * cols * 2;
+    let [scores, boxes, points] = tensors;
+    let (width, height) = size;
+    validate_tensor(scores, count, 1)?;
+    validate_tensor(boxes, count, 4)?;
+    validate_tensor(points, count, 10)?;
+    if scores.values.iter().any(|v| !(0.0..=1.0).contains(v)) {
+        bail!("SCRFD scores outside contract");
+    }
+    // Official regression heads can produce finite negative distances,
+    // including low-score anchors on a blank image. The upstream decoder
+    // permits signed distances; reject only invalid/degenerate decoded boxes.
+    let step = stride as f32 / scale;
+    for i in 0..count {
+        let score = scores.values[i];
+        if score < threshold {
+            continue;
+        }
+        let cx = ((i / 2) % cols) as f32;
+        let cy = ((i / 2) / cols) as f32;
+        let b = &boxes.values[i * 4..i * 4 + 4];
+        let raw = [
+            (cx - b[0]) * step,
+            (cy - b[1]) * step,
+            (cx + b[2]) * step,
+            (cy + b[3]) * step,
+        ];
+        if raw.iter().any(|v| !v.is_finite()) {
+            bail!("SCRFD decoded box overflow");
+        }
+        let x1 = raw[0].clamp(0., width as f32);
+        let y1 = raw[1].clamp(0., height as f32);
+        let x2 = raw[2].clamp(0., width as f32);
+        let y2 = raw[3].clamp(0., height as f32);
+        if x2 - x1 < 8. || y2 - y1 < 8. {
+            continue;
+        }
+        let mut keypoints = [[0.; 2]; 5];
+        for (j, point) in keypoints.iter_mut().enumerate() {
+            *point = [
+                (cx + points.values[i * 10 + j * 2]) * step,
+                (cy + points.values[i * 10 + j * 2 + 1]) * step,
+            ];
+            if point.iter().any(|v| !v.is_finite()) {
+                bail!("SCRFD decoded keypoint overflow");
+            }
+        }
+        candidates.push(Detection {
+            bbox: [x1, y1, x2 - x1, y2 - y1],
+            confidence: score,
+            keypoints,
+        });
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -501,41 +523,49 @@ mod tests {
             )?;
         }
         if let Some(fixture) = std::env::var_os("IRIS_SCRFD_GEOMETRY_PHOTO") {
-            let output_path = std::env::var_os("IRIS_SCRFD_GEOMETRY_REPORT")
-                .context("IRIS_SCRFD_GEOMETRY_REPORT required with fixture")?;
-            let preview = super::super::decode_jpeg_preview(Path::new(&fixture), 1280)?;
-            let image = preview.image;
-            let (input, scale) = preprocess(&image)?;
-            let outputs = detector.session.run(ort::inputs![Tensor::from_array((
-                [1usize, 3, SIDE, SIDE],
-                input
-            ))?])?;
-            let tensors = (0..9)
-                .map(|i| {
-                    let (shape, values) = outputs[i].try_extract_tensor::<f32>()?;
-                    Ok(TensorView {
-                        shape: &shape[..],
-                        values,
-                    })
-                })
-                .collect::<Result<Vec<_>>>()?;
-            let detections = decode(&tensors, image.width(), image.height(), scale, 0.55)?;
-            let report = serde_json::json!({
-                "model_sha256": selected.scrfd_model_sha256,
-                "width": image.width(), "height": image.height(), "scale": scale, "threshold": 0.55,
-                "output_names": OFFICIAL_OUTPUTS,
-                "tensors": tensors.iter().map(|t| serde_json::json!({"shape": t.shape, "values": t.values})).collect::<Vec<_>>(),
-                "detections": detections.iter().map(|d| serde_json::json!({"bbox": d.bbox, "confidence": d.confidence, "keypoints": d.keypoints})).collect::<Vec<_>>(),
-                "scope": "Private local tensor/geometry compatibility capture; no independent accuracy labels"
-            });
-            use std::io::Write;
-            let mut file = std::fs::OpenOptions::new()
-                .write(true)
-                .create_new(true)
-                .open(output_path)?;
-            file.write_all(&serde_json::to_vec(&report)?)?;
+            capture_geometry(&mut detector, &selected, &fixture)?;
         }
         println!("Original official SCRFD bytes executed on square/landscape/portrait inputs; no accuracy claim");
+        Ok(())
+    }
+    fn capture_geometry(
+        detector: &mut ScrfdDetector,
+        selected: &AnalysisSettings,
+        fixture: &std::ffi::OsStr,
+    ) -> Result<()> {
+        let output_path = std::env::var_os("IRIS_SCRFD_GEOMETRY_REPORT")
+            .context("IRIS_SCRFD_GEOMETRY_REPORT required with fixture")?;
+        let preview = super::super::decode_jpeg_preview(Path::new(fixture), 1280)?;
+        let image = preview.image;
+        let (input, scale) = preprocess(&image)?;
+        let outputs = detector.session.run(ort::inputs![Tensor::from_array((
+            [1usize, 3, SIDE, SIDE],
+            input
+        ))?])?;
+        let tensors = (0..9)
+            .map(|i| {
+                let (shape, values) = outputs[i].try_extract_tensor::<f32>()?;
+                Ok(TensorView {
+                    shape: &shape[..],
+                    values,
+                })
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let detections = decode(&tensors, image.width(), image.height(), scale, 0.55)?;
+        let report = serde_json::json!({
+            "model_sha256": selected.scrfd_model_sha256,
+            "width": image.width(), "height": image.height(), "scale": scale, "threshold": 0.55,
+            "output_names": OFFICIAL_OUTPUTS,
+            "tensors": tensors.iter().map(|t| serde_json::json!({"shape": t.shape, "values": t.values})).collect::<Vec<_>>(),
+            "detections": detections.iter().map(|d| serde_json::json!({"bbox": d.bbox, "confidence": d.confidence, "keypoints": d.keypoints})).collect::<Vec<_>>(),
+            "scope": "Private local tensor/geometry compatibility capture; no independent accuracy labels"
+        });
+        use std::io::Write;
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(output_path)?;
+        file.write_all(&serde_json::to_vec(&report)?)?;
         Ok(())
     }
 }

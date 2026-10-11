@@ -196,6 +196,10 @@ async fn recent_projects_and_manifest_cache_cleanup_have_authenticated_scoped_ro
     );
     assert!(!source.join("old.bin").exists());
     assert!(source.join("unlisted.txt").exists());
+    assert_project_hide_and_open(&app, &state, id, other).await;
+}
+
+async fn assert_project_hide_and_open(app: &Router, state: &AppState, id: i64, other: i64) {
     assert_eq!(
         call(
             &app,
@@ -329,18 +333,61 @@ async fn active_job_rejects_duplicate_without_waiting_for_busy_database() {
     }
 }
 
+async fn start_paused_scan(app: &Router, state: &AppState, id: i64) -> (StatusCode, Value) {
+    // Register and pause the job before releasing its startup database barrier.
+    let startup = state.services.lock().unwrap();
+    let scan_app = app.clone();
+    let scan_state = state.clone();
+    let scan = tokio::spawn(async move {
+        call(
+            &scan_app,
+            &scan_state,
+            "POST",
+            &format!("/api/v1/projects/{id}/scan"),
+            json!({}),
+        )
+        .await
+    });
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while !state.jobs.lock().unwrap().contains_key(&id) {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("scan job did not register");
+    let paused = call(
+        app,
+        state,
+        "POST",
+        &format!("/api/v1/projects/{id}/pause"),
+        json!({}),
+    )
+    .await;
+    drop(startup);
+    assert_eq!(
+        tokio::time::timeout(Duration::from_secs(5), scan)
+            .await
+            .expect("scan did not start")
+            .unwrap()
+            .0,
+        StatusCode::OK
+    );
+    // A valid first photo publishes progress immediately before the pause loop.
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while progress(app, state, id).await["completed"] == 0 {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("scan did not reach its pause checkpoint");
+    paused
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn real_scan_pause_resume_cancel_and_terminal_progress() {
     let (_tmp, state, app, id) = fixture(1000);
     let endpoint = |action: &str| format!("/api/v1/projects/{id}/{action}");
-    assert_eq!(
-        call(&app, &state, "POST", &endpoint("scan"), json!({}))
-            .await
-            .0,
-        StatusCode::OK
-    );
-    let paused = call(&app, &state, "POST", &endpoint("pause"), json!({})).await;
-    tokio::time::sleep(Duration::from_millis(30)).await;
+    let paused = start_paused_scan(&app, &state, id).await;
     let settled = progress(&app, &state, id).await;
     tokio::time::sleep(Duration::from_millis(100)).await;
     let later = progress(&app, &state, id).await;
@@ -653,36 +700,7 @@ async fn accept_api_supports_explicit_scope_and_legacy_empty_body() {
             .0,
         StatusCode::BAD_REQUEST
     );
-    for (body, expected) in [
-        (r#"{"photo_ids":[]}"#, StatusCode::OK),
-        ("invalid-json", StatusCode::BAD_REQUEST),
-    ] {
-        let response = app
-            .clone()
-            .oneshot(
-                Request::builder()
-                    .method("POST")
-                    .uri(&path)
-                    .header("authorization", format!("Bearer {}", state.token))
-                    .body(Body::from(body))
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-        assert_eq!(response.status(), expected);
-        for photo in &ids {
-            assert_eq!(
-                state
-                    .services
-                    .lock()
-                    .unwrap()
-                    .photo(*photo)
-                    .unwrap()
-                    .decision,
-                Action::Pending
-            );
-        }
-    }
+    assert_accept_empty_or_invalid_bodies_leave_photos_pending(&app, &state, &path, &ids).await;
     let response = app
         .clone()
         .oneshot(
@@ -702,6 +720,44 @@ async fn accept_api_supports_explicit_scope_and_legacy_empty_body() {
     let service = state.services.lock().unwrap();
     assert_eq!(service.photo(ids[0]).unwrap().decision, Action::Keep);
     assert_eq!(service.photo(ids[1]).unwrap().decision, Action::Reject);
+}
+
+async fn assert_accept_empty_or_invalid_bodies_leave_photos_pending(
+    app: &Router,
+    state: &AppState,
+    path: &str,
+    ids: &[i64],
+) {
+    for (body, expected) in [
+        (r#"{"photo_ids":[]}"#, StatusCode::OK),
+        ("invalid-json", StatusCode::BAD_REQUEST),
+    ] {
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri(path)
+                    .header("authorization", format!("Bearer {}", state.token))
+                    .body(Body::from(body))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), expected);
+        for photo in ids {
+            assert_eq!(
+                state
+                    .services
+                    .lock()
+                    .unwrap()
+                    .photo(*photo)
+                    .unwrap()
+                    .decision,
+                Action::Pending
+            );
+        }
+    }
 }
 
 #[test]

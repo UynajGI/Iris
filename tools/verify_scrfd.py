@@ -40,27 +40,7 @@ def verify_geometry(report: dict) -> dict:
     tensors = report["tensors"]
     if len(tensors) != 9:
         raise ValueError("Nine output heads required")
-    candidates = []
-    for level, stride in enumerate((8, 16, 32)):
-        count = 2 * (640 // stride) ** 2
-        scores, boxes, points = (tensors[level + offset] for offset in (0, 3, 6))
-        for tensor, channels in ((scores, 1), (boxes, 4), (points, 10)):
-            if tensor["shape"] not in ([count, channels], [1, count, channels]):
-                raise ValueError("Unexpected output head shape")
-            if len(tensor["values"]) != count * channels or not all(map(math.isfinite, tensor["values"])):
-                raise ValueError("Malformed output values")
-        for index, confidence in enumerate(scores["values"]):
-            if confidence < report["threshold"]:
-                continue
-            # Two anchor predictions at each grid point, with no half-cell offset.
-            cell = index // 2
-            center = (cell % (640 // stride) * stride, cell // (640 // stride) * stride)
-            l, t, r, b = (v * stride for v in boxes["values"][index * 4:index * 4 + 4])
-            x0, y0 = max(0., min(width, (center[0] - l) / scale)), max(0., min(height, (center[1] - t) / scale))
-            x1, y1 = max(0., min(width, (center[0] + r) / scale)), max(0., min(height, (center[1] + b) / scale))
-            keypoints = [(center[j % 2] + value * stride) / scale
-                         for j, value in enumerate(points["values"][index * 10:index * 10 + 10])]
-            candidates.append([confidence, x0, y0, x1 - x0, y1 - y0, *keypoints])
+    candidates = geometry_candidates(report, tensors, width, height, scale)
     detections = report["detections"]
     if not detections:
         raise ValueError("Geometry fixture needs at least one real detection")
@@ -105,28 +85,10 @@ def main() -> None:
     settings = {"face_detector": "scrfd_500m", "scrfd_model_sha256": MODEL_SHA256}
     settings_file = out / "scrfd-settings.json"
     settings_file.write_text(json.dumps(settings, indent=2), "utf-8")
-    for variant in ("yunet", "scrfd"):
-        command = [sys.executable, str(Path(__file__).with_name("verify_sample.py")),
-                   "--fixtures", str(args.fixtures.resolve()), "--daemon", str(args.daemon.resolve()),
-                   "--models", str(args.models.resolve()), "--output", str(out / f"{variant}.json"),
-                   "--snapshot", str(out / f"{variant}.sqlite3")]
-        if variant == "scrfd":
-            command += ["--settings-file", str(settings_file)]
-        with (out / f"{variant}.log").open("w", encoding="utf-8") as log:
-            subprocess.run(command, stdout=log, stderr=subprocess.STDOUT, check=True)
-        print(f"{variant}: 100-JPG local workflow completed", flush=True)
-    reports = {name: json.loads((out / f"{name}.json").read_text("utf-8")) for name in ("yunet", "scrfd")}
-    before, after = (predictions(out / f"{name}.sqlite3") for name in ("yunet", "scrfd"))
+    reports, before, after = run_paired_workflows(args, out, settings_file)
     if len(before) != 100 or before.keys() != after.keys():
         raise ValueError("Paired snapshots must contain the same 100 photos")
-    counts = {"same": 0, "scrfd_more": 0, "scrfd_fewer": 0}
-    for path, baseline in before.items():
-        selected = after[path]
-        for field in ("width", "height", "original_width", "original_height", "orientation", "sharpness_lap", "sharpness_fft", "niqe", "exposure", "phash", "structure", "version"):
-            if baseline[field] != selected[field]:
-                raise ValueError(f"Non-detector observation changed: {field}")
-        difference = len(selected["faces"]) - len(baseline["faces"])
-        counts["same" if difference == 0 else "scrfd_more" if difference > 0 else "scrfd_fewer"] += 1
+    counts = compare_detector_predictions(before, after)
     report = {
         "passed": True, "photos": 100, "daemon_sha256": digest(args.daemon),
         "model_sha256": MODEL_SHA256, "license_scope": "noncommercial-research",
@@ -142,6 +104,59 @@ def main() -> None:
     (out / "verification.json").write_text(json.dumps(report, indent=2) + "\n", "utf-8")
     print(json.dumps(report, indent=2))
 
+
+
+def geometry_candidates(report, tensors, width, height, scale):
+    candidates = []
+    for level, stride in enumerate((8, 16, 32)):
+        count = 2 * (640 // stride) ** 2
+        scores, boxes, points = (tensors[level + offset] for offset in (0, 3, 6))
+        for tensor, channels in ((scores, 1), (boxes, 4), (points, 10)):
+            if tensor["shape"] not in ([count, channels], [1, count, channels]):
+                raise ValueError("Unexpected output head shape")
+            if len(tensor["values"]) != count * channels or not all(map(math.isfinite, tensor["values"])):
+                raise ValueError("Malformed output values")
+        for index, confidence in enumerate(scores["values"]):
+            if confidence < report["threshold"]:
+                continue
+            # Two anchor predictions at each grid point, with no half-cell offset.
+            cell = index // 2
+            center = (cell % (640 // stride) * stride, cell // (640 // stride) * stride)
+            l, t, r, b = (v * stride for v in boxes["values"][index * 4:index * 4 + 4])
+            x0, y0 = max(0., min(width, (center[0] - l) / scale)), max(0., min(height, (center[1] - t) / scale))
+            x1, y1 = max(0., min(width, (center[0] + r) / scale)), max(0., min(height, (center[1] + b) / scale))
+            keypoints = [(center[j % 2] + value * stride) / scale
+                         for j, value in enumerate(points["values"][index * 10:index * 10 + 10])]
+            candidates.append([confidence, x0, y0, x1 - x0, y1 - y0, *keypoints])
+    return candidates
+
+
+def compare_detector_predictions(before, after):
+    counts = {"same": 0, "scrfd_more": 0, "scrfd_fewer": 0}
+    for path, baseline in before.items():
+        selected = after[path]
+        for field in ("width", "height", "original_width", "original_height", "orientation", "sharpness_lap", "sharpness_fft", "niqe", "exposure", "phash", "structure", "version"):
+            if baseline[field] != selected[field]:
+                raise ValueError(f"Non-detector observation changed: {field}")
+        difference = len(selected["faces"]) - len(baseline["faces"])
+        counts["same" if difference == 0 else "scrfd_more" if difference > 0 else "scrfd_fewer"] += 1
+    return counts
+
+
+def run_paired_workflows(args, out, settings_file):
+    for variant in ("yunet", "scrfd"):
+        command = [sys.executable, str(Path(__file__).with_name("verify_sample.py")),
+                   "--fixtures", str(args.fixtures.resolve()), "--daemon", str(args.daemon.resolve()),
+                   "--models", str(args.models.resolve()), "--output", str(out / f"{variant}.json"),
+                   "--snapshot", str(out / f"{variant}.sqlite3")]
+        if variant == "scrfd":
+            command += ["--settings-file", str(settings_file)]
+        with (out / f"{variant}.log").open("w", encoding="utf-8") as log:
+            subprocess.run(command, stdout=log, stderr=subprocess.STDOUT, check=True)
+        print(f"{variant}: 100-JPG local workflow completed", flush=True)
+    reports = {name: json.loads((out / f"{name}.json").read_text("utf-8")) for name in ("yunet", "scrfd")}
+    before, after = (predictions(out / f"{name}.sqlite3") for name in ("yunet", "scrfd"))
+    return reports, before, after
 
 if __name__ == "__main__":
     main()

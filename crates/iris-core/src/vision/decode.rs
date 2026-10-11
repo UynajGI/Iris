@@ -152,19 +152,7 @@ pub fn decode_jpeg_preview(path: &Path, max_edge: u32) -> Result<DecodedPreview>
     }
     decoder.set_max_decoding_buffer_size(256 * 1024 * 1024);
     let pixels = decoder.decode().context("JPEG decode failed")?;
-    let image = match original.pixel_format {
-        PixelFormat::RGB24 => {
-            RgbImage::from_raw(dw.into(), dh.into(), pixels).context("invalid RGB JPEG")?
-        }
-        PixelFormat::L8 => {
-            let mut image = RgbImage::new(dw.into(), dh.into());
-            for (p, v) in image.pixels_mut().zip(pixels) {
-                *p = Rgb([v, v, v]);
-            }
-            image
-        }
-        _ => bail!("Unsupported JPEG color space; only RGB and grayscale are supported"),
-    };
+    let image = jpeg_pixels_to_rgb(original.pixel_format, dw, dh, pixels)?;
     let orientation = exif::Reader::new()
         .read_from_container(&mut BufReader::new(File::open(path)?))
         .ok()
@@ -180,6 +168,22 @@ pub fn decode_jpeg_preview(path: &Path, max_edge: u32) -> Result<DecodedPreview>
         original_width: w,
         original_height: h,
         orientation,
+    })
+}
+
+fn jpeg_pixels_to_rgb(format: PixelFormat, dw: u16, dh: u16, pixels: Vec<u8>) -> Result<RgbImage> {
+    Ok(match format {
+        PixelFormat::RGB24 => {
+            RgbImage::from_raw(dw.into(), dh.into(), pixels).context("invalid RGB JPEG")?
+        }
+        PixelFormat::L8 => {
+            let mut image = RgbImage::new(dw.into(), dh.into());
+            for (p, v) in image.pixels_mut().zip(pixels) {
+                *p = Rgb([v, v, v]);
+            }
+            image
+        }
+        _ => bail!("Unsupported JPEG color space; only RGB and grayscale are supported"),
     })
 }
 

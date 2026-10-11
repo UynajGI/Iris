@@ -50,7 +50,10 @@ try {
     } else if (message.method === 'Runtime.exceptionThrown') {
       exceptions.push(message.params.exceptionDetails.text);
     } else if (message.method === 'Fetch.requestPaused') {
-      const { requestId, request } = message.params;
+      handlePausedRequest(message.params);
+    }
+  });
+  function handlePausedRequest({ requestId, request }) {
       if (taskFixture && request.method === 'GET' && new URL(request.url).pathname.endsWith('/progress')) {
         void send('Fetch.fulfillRequest', { requestId, responseCode: 200, responseHeaders: [{ name: 'Content-Type', value: 'application/json' }, { name: 'Access-Control-Allow-Origin', value: origin }], body: Buffer.from(JSON.stringify(taskFixture)).toString('base64') }).catch(error => exceptions.push(error.message));
         return;
@@ -63,8 +66,7 @@ try {
       void send(replace ? 'Fetch.fulfillRequest' : 'Fetch.continueRequest', replace
         ? { requestId, responseCode: 200, responseHeaders: [{ name: 'Content-Type', value: 'image/jpeg' }, { name: 'Access-Control-Allow-Origin', value: origin }], body: Buffer.from('invalid-image-fixture').toString('base64') }
         : { requestId }).catch(error => exceptions.push(error.message));
-    }
-  });
+  }
   async function evaluate(expression) {
     const response = await send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true, userGesture: true });
     if (response.exceptionDetails) throw new Error(response.exceptionDetails.exception?.description ?? response.exceptionDetails.text);

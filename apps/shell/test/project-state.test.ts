@@ -13,6 +13,11 @@ function fixture() {
     const body = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>;
     requests.push({ path, method, body });
     const project = projects[Number(path.match(/^\/projects\/(\d+)/)?.[1] ?? 1) - 1]!;
+    const value = projectRoutes(path, method, body, project);
+    return Response.json(value);
+  }));
+
+  function projectRoutes(path: string, method: string, body: Record<string, unknown>, project: typeof projects[number]): unknown {
     let value: unknown;
     if (path === '/bootstrap') value = { version: '0.1.0', capabilities: ['jpeg'] };
     else if (path === '/profiles') value = [];
@@ -23,11 +28,22 @@ function fixture() {
     } else if (path.endsWith('/open')) { project.last_opened_at = String(++opened + 10); project.hidden = false; value = project; }
     else if (path.endsWith('/hide')) { project.hidden = true; value = project; }
     else if (/^\/projects\/\d+$/.test(path)) value = project;
-    else if (path === '/settings') value = {};
+    else value = workspaceRoutes(path, project, body);
+    return value;
+  }
+
+  function workspaceRoutes(path: string, project: typeof projects[number], body: Record<string, unknown>): unknown {
+    let value: unknown;
+    if (path === '/settings') value = {};
     else if (path === '/models') value = { selected: 'yunet', detectors: [] };
     else if (path.endsWith('/photos') || path.endsWith('/groups') || path.endsWith('/quarantine')) value = [];
     else if (path.endsWith('/progress')) value = { kind: 'analysis', state: 'completed', completed: 0, total: 0, errors: [], result: null };
-    else if (path.endsWith('/cache/migrate')) {
+    else return cacheRoutes(path, project, body);
+    return value;
+  }
+  function cacheRoutes(path: string, project: typeof projects[number], body: Record<string, unknown>): unknown {
+    let value: unknown;
+    if (path.endsWith('/cache/migrate')) {
       migrations.push({ id: 'migration-1', project_id: project.id, source_root: project.cache_root, destination_root: body.destination as string, created_at: '', state: 'ready', files: [{ path: 'thumb.jpg', size_bytes: 10, sha256: 'a'.repeat(64), cleaned: false }], error: null });
       project.cache_root = body.destination as string; value = { root: project.cache_root, files: 1, bytes: 10 };
     } else if (path.endsWith('/cache/migrations')) value = migrations.filter(migration => migration.project_id === project.id);
@@ -36,8 +52,8 @@ function fixture() {
       value = migrations[0];
     } else if (path.endsWith('/cache')) value = { root: project.cache_root, files: 1, bytes: 10 };
     else throw new Error(`Unexpected route ${path}`);
-    return Response.json(value);
-  }));
+    return value;
+  }
   const preferences = new ViewPreferencesRepository();
   return { client, store: new IrisStore(client, preferences), preferences, requests, projects };
 }

@@ -136,17 +136,7 @@ impl Models {
         if let Some(w) = &self.blend_warning {
             warnings.push(w.clone());
         }
-        let detections = match settings.face_detector {
-            FaceDetectorProvider::Yunet => self.detect(image, settings.face_confidence)?,
-            FaceDetectorProvider::Scrfd500m => {
-                self.prepare_detector(settings)?;
-                let (hash, detector) = self.scrfd.as_mut().context("SCRFD not loaded")?;
-                warnings.push(format!(
-                    "Face detector: scrfd_500m_kps; SHA-256 {hash}; accuracy not validated"
-                ));
-                detector.detect(image, settings.face_confidence)?
-            }
-        };
+        let detections = self.detect_configured(image, settings, warnings)?;
         if detections.len() > settings.max_faces {
             warnings.push(format!(
                 "Detected {} faces; only {} analyzed; omitted faces require review",
@@ -233,42 +223,14 @@ impl Models {
             let kps = outputs[format!("kps_{stride}").as_str()]
                 .try_extract_tensor::<f32>()?
                 .1;
-            let cols = 640 / stride;
-            for i in 0..cols * cols {
-                let score = (cls[i].clamp(0., 1.) * obj[i].clamp(0., 1.)).sqrt();
-                if score < threshold {
-                    continue;
-                }
-                let cx = (i % cols) as f32;
-                let cy = (i / cols) as f32;
-                let step = stride as f32 / scale;
-                let bw = bbox[4 * i + 2].exp() * step;
-                let bh = bbox[4 * i + 3].exp() * step;
-                let x = (cx + bbox[4 * i]) * step - bw / 2.;
-                let y = (cy + bbox[4 * i + 1]) * step - bh / 2.;
-                if ![x, y, bw, bh].iter().all(|v| v.is_finite()) || bw < 8. || bh < 8. {
-                    continue;
-                }
-                let x1 = x.clamp(0., image.width() as f32);
-                let y1 = y.clamp(0., image.height() as f32);
-                let x2 = (x + bw).clamp(0., image.width() as f32);
-                let y2 = (y + bh).clamp(0., image.height() as f32);
-                if x2 - x1 < 8. || y2 - y1 < 8. {
-                    continue;
-                }
-                let mut keypoints = [[0.; 2]; 5];
-                for j in 0..5 {
-                    keypoints[j] = [
-                        (cx + kps[i * 10 + j * 2]) * step,
-                        (cy + kps[i * 10 + j * 2 + 1]) * step,
-                    ];
-                }
-                candidates.push(Detection {
-                    bbox: [x1, y1, x2 - x1, y2 - y1],
-                    confidence: score,
-                    keypoints,
-                });
-            }
+            decode_yunet_level(
+                image,
+                threshold,
+                scale,
+                stride,
+                [cls, obj, bbox, kps],
+                &mut candidates,
+            );
         }
         candidates.sort_by(|a, b| b.confidence.total_cmp(&a.confidence));
         candidates.truncate(5000);
@@ -348,20 +310,41 @@ impl Models {
             roll: angle.to_degrees(),
             method: "landmark_plane_proxy".into(),
         });
-        let unreliable = if w.min(h) < 64. {
-            Some("small face (<64 preview pixels)")
-        } else if luminance < 45. {
-            Some("low face luminance")
-        } else if yaw.abs() > 35. || pitch.abs() > 35. || angle.to_degrees().abs() > 40. {
-            Some("oblique head pose")
-        } else {
-            None
-        };
+        let unreliable = landmark_reliability(w, h, luminance, yaw, pitch, angle);
         if let Some(reason) = unreliable {
             face.unreliable_reason = Some(reason.into());
             return Ok(());
         }
-        let blend = if let Some(model) = &mut self.blendshapes {
+        let blend = Self::face_blendshapes(&mut self.blendshapes, face)?;
+        observe_eyes(image, &local, face, blend);
+        Ok(())
+    }
+    fn detect_configured(
+        &mut self,
+        image: &RgbImage,
+        settings: &AnalysisSettings,
+        warnings: &mut Vec<String>,
+    ) -> Result<Vec<Detection>> {
+        let detections = match settings.face_detector {
+            FaceDetectorProvider::Yunet => self.detect(image, settings.face_confidence)?,
+            FaceDetectorProvider::Scrfd500m => {
+                self.prepare_detector(settings)?;
+                let (hash, detector) = self.scrfd.as_mut().context("SCRFD not loaded")?;
+                warnings.push(format!(
+                    "Face detector: scrfd_500m_kps; SHA-256 {hash}; accuracy not validated"
+                ));
+                detector.detect(image, settings.face_confidence)?
+            }
+        };
+
+        Ok(detections)
+    }
+
+    fn face_blendshapes(
+        blendshapes: &mut Option<Session>,
+        face: &Face,
+    ) -> Result<Option<Vec<f32>>> {
+        let blend = if let Some(model) = blendshapes {
             let mut inputs = Vec::with_capacity(292);
             for i in SUBSET {
                 inputs.extend_from_slice(&face.landmarks[i][..2]);
@@ -383,39 +366,110 @@ impl Models {
         } else {
             None
         };
-        let left_ear = ear(&local, [362, 385, 387, 263, 373, 380]);
-        let right_ear = ear(&local, [33, 160, 158, 133, 153, 144]);
-        let left_blink = blend.as_ref().map(|b| b[9]);
-        let right_blink = blend.as_ref().map(|b| b[10]);
-        // Neither landmarks nor blendshapes provide per-eye visibility. These
-        // measured ROI gates suppress unobservable eyes; they do not recognize
-        // general occlusions (e.g. textured or skin-coloured obstructions).
-        face.left_eye_unreliable_reason = super::eye_quality::rejection_reason(
-            image,
-            &face.landmarks,
-            [362, 385, 387, 263, 373, 380],
-            left_ear,
-        );
-        face.right_eye_unreliable_reason = super::eye_quality::rejection_reason(
-            image,
-            &face.landmarks,
-            [33, 160, 158, 133, 153, 144],
-            right_ear,
-        );
-        face.left_eye = face.left_eye_unreliable_reason.is_none().then_some(Eye {
-            state: classify_eye(left_blink, left_ear),
-            blink_score: left_blink,
-            ear: left_ear,
-        });
-        face.right_eye = face.right_eye_unreliable_reason.is_none().then_some(Eye {
-            state: classify_eye(right_blink, right_ear),
-            blink_score: right_blink,
-            ear: right_ear,
-        });
-        face.smile_score = blend.map(|b| (b[44] + b[45]) / 2.);
-        Ok(())
+        Ok(blend)
     }
 }
+
+fn landmark_reliability(
+    w: f32,
+    h: f32,
+    luminance: f32,
+    yaw: f32,
+    pitch: f32,
+    angle: f32,
+) -> Option<&'static str> {
+    let unreliable = if w.min(h) < 64. {
+        Some("small face (<64 preview pixels)")
+    } else if luminance < 45. {
+        Some("low face luminance")
+    } else if yaw.abs() > 35. || pitch.abs() > 35. || angle.to_degrees().abs() > 40. {
+        Some("oblique head pose")
+    } else {
+        None
+    };
+    unreliable
+}
+
+fn decode_yunet_level(
+    image: &RgbImage,
+    threshold: f32,
+    scale: f32,
+    stride: usize,
+    tensors: [&[f32]; 4],
+    candidates: &mut Vec<Detection>,
+) {
+    let [cls, obj, bbox, kps] = tensors;
+    let cols = 640 / stride;
+    for i in 0..cols * cols {
+        let score = (cls[i].clamp(0., 1.) * obj[i].clamp(0., 1.)).sqrt();
+        if score < threshold {
+            continue;
+        }
+        let cx = (i % cols) as f32;
+        let cy = (i / cols) as f32;
+        let step = stride as f32 / scale;
+        let bw = bbox[4 * i + 2].exp() * step;
+        let bh = bbox[4 * i + 3].exp() * step;
+        let x = (cx + bbox[4 * i]) * step - bw / 2.;
+        let y = (cy + bbox[4 * i + 1]) * step - bh / 2.;
+        if ![x, y, bw, bh].iter().all(|v| v.is_finite()) || bw < 8. || bh < 8. {
+            continue;
+        }
+        let x1 = x.clamp(0., image.width() as f32);
+        let y1 = y.clamp(0., image.height() as f32);
+        let x2 = (x + bw).clamp(0., image.width() as f32);
+        let y2 = (y + bh).clamp(0., image.height() as f32);
+        if x2 - x1 < 8. || y2 - y1 < 8. {
+            continue;
+        }
+        let mut keypoints = [[0.; 2]; 5];
+        for j in 0..5 {
+            keypoints[j] = [
+                (cx + kps[i * 10 + j * 2]) * step,
+                (cy + kps[i * 10 + j * 2 + 1]) * step,
+            ];
+        }
+        candidates.push(Detection {
+            bbox: [x1, y1, x2 - x1, y2 - y1],
+            confidence: score,
+            keypoints,
+        });
+    }
+}
+
+fn observe_eyes(image: &RgbImage, local: &[[f32; 3]], face: &mut Face, blend: Option<Vec<f32>>) {
+    let left_ear = ear(&local, [362, 385, 387, 263, 373, 380]);
+    let right_ear = ear(&local, [33, 160, 158, 133, 153, 144]);
+    let left_blink = blend.as_ref().map(|b| b[9]);
+    let right_blink = blend.as_ref().map(|b| b[10]);
+    // Neither landmarks nor blendshapes provide per-eye visibility. These
+    // measured ROI gates suppress unobservable eyes; they do not recognize
+    // general occlusions (e.g. textured or skin-coloured obstructions).
+    face.left_eye_unreliable_reason = super::eye_quality::rejection_reason(
+        image,
+        &face.landmarks,
+        [362, 385, 387, 263, 373, 380],
+        left_ear,
+    );
+    face.right_eye_unreliable_reason = super::eye_quality::rejection_reason(
+        image,
+        &face.landmarks,
+        [33, 160, 158, 133, 153, 144],
+        right_ear,
+    );
+    face.left_eye = face.left_eye_unreliable_reason.is_none().then_some(Eye {
+        state: classify_eye(left_blink, left_ear),
+        blink_score: left_blink,
+        ear: left_ear,
+    });
+    face.right_eye = face.right_eye_unreliable_reason.is_none().then_some(Eye {
+        state: classify_eye(right_blink, right_ear),
+        blink_score: right_blink,
+        ear: right_ear,
+    });
+    face.smile_score = blend.map(|b| (b[44] + b[45]) / 2.);
+}
+
 pub(super) fn sample(image: &RgbImage, x: f32, y: f32) -> [f32; 3] {
     let x = x.clamp(0., image.width().saturating_sub(1) as f32);
     let y = y.clamp(0., image.height().saturating_sub(1) as f32);
@@ -465,12 +519,7 @@ mod tests {
         assert_eq!(iou(&[0., 0., 10., 10.], &[20., 0., 10., 10.]), 0.);
     }
 
-    /// Artifact/runtime compatibility only; synthetic inputs make no accuracy claim.
-    #[test]
-    #[ignore = "requires bundled model assets and ONNX Runtime; run after tools/setup-models.py"]
-    fn bundled_onnx_tensor_smoke() -> Result<()> {
-        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../models");
-        let mut models = Models::load(&root)?;
+    fn assert_yunet_tensor(models: &mut Models) -> Result<()> {
         let detector_input: Vec<f32> = (0..3 * 640 * 640).map(|i| (i % 251) as f32).collect();
         let output = models.yunet.run(ort::inputs![Tensor::from_array((
             [1usize, 3, 640, 640],
@@ -490,6 +539,16 @@ mod tests {
             }
         }
         drop(output);
+        Ok(())
+    }
+
+    /// Artifact/runtime compatibility only; synthetic inputs make no accuracy claim.
+    #[test]
+    #[ignore = "requires bundled model assets and ONNX Runtime; run after tools/setup-models.py"]
+    fn bundled_onnx_tensor_smoke() -> Result<()> {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../models");
+        let mut models = Models::load(&root)?;
+        assert_yunet_tensor(&mut models)?;
         let landmarks_input: Vec<f32> = (0..256 * 256 * 3)
             .map(|i| (i % 251) as f32 / 250.)
             .collect();

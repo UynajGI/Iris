@@ -26,6 +26,27 @@ fn verify_host(report: &std::path::Path) -> anyhow::Result<()> {
     let models = host.model_dir()?;
     let manifest: serde_json::Value =
         serde_json::from_slice(&std::fs::read(models.join("manifest.json"))?)?;
+    let files = packaged_model_files(&manifest)?;
+    for file in &files {
+        let path = models.join(file).canonicalize()?;
+        anyhow::ensure!(
+            path.starts_with(&models) && path.is_file(),
+            "invalid packaged model path"
+        );
+    }
+    let session = host.start()?;
+    session.heartbeat()?;
+    host.stop();
+    std::fs::write(
+        report,
+        serde_json::to_vec_pretty(&serde_json::json!({
+            "ok": true, "heartbeat": true, "version": session.version,
+            "model_dir": models, "files": files, "credentials_logged": false
+        }))?,
+    )?;
+    Ok(())
+}
+fn packaged_model_files(manifest: &serde_json::Value) -> anyhow::Result<Vec<String>> {
     let mut files = vec![
         if cfg!(windows) {
             "onnxruntime.dll"
@@ -48,25 +69,9 @@ fn verify_host(report: &std::path::Path) -> anyhow::Result<()> {
                 .into(),
         );
     }
-    for file in &files {
-        let path = models.join(file).canonicalize()?;
-        anyhow::ensure!(
-            path.starts_with(&models) && path.is_file(),
-            "invalid packaged model path"
-        );
-    }
-    let session = host.start()?;
-    session.heartbeat()?;
-    host.stop();
-    std::fs::write(
-        report,
-        serde_json::to_vec_pretty(&serde_json::json!({
-            "ok": true, "heartbeat": true, "version": session.version,
-            "model_dir": models, "files": files, "credentials_logged": false
-        }))?,
-    )?;
-    Ok(())
+    Ok(files)
 }
+
 use anyhow::Context;
 
 struct Host(Arc<Mutex<DaemonHost>>);
@@ -159,8 +164,7 @@ fn daemon_session(host: tauri::State<'_, Host>) -> Result<Session, String> {
         .session()
         .map_err(|e| e.to_string())
 }
-fn main() {
-    let arguments: Vec<_> = std::env::args_os().collect();
+fn try_verify_host(arguments: &[std::ffi::OsString]) -> bool {
     if arguments.get(1).is_some_and(|arg| arg == "--verify-host") {
         let result = arguments
             .get(2)
@@ -170,6 +174,14 @@ fn main() {
             eprintln!("Portable host verification failed: {error:#}");
             std::process::exit(1);
         }
+        return true;
+    }
+    false
+}
+
+fn main() {
+    let arguments: Vec<_> = std::env::args_os().collect();
+    if try_verify_host(&arguments) {
         return;
     }
     let builder = tauri::Builder::default()
@@ -249,13 +261,15 @@ fn main() {
         })
         .build(tauri::generate_context!())
         .expect("failed to initialize desktop daemon host");
-    app.run(|handle, event| {
-        if let tauri::RunEvent::Exit = event {
-            if let Some(host) = handle.try_state::<Host>() {
-                if let Ok(mut host) = host.0.lock() {
-                    host.stop();
-                }
+    app.run(stop_host_on_exit);
+}
+
+fn stop_host_on_exit(handle: &tauri::AppHandle, event: tauri::RunEvent) {
+    if let tauri::RunEvent::Exit = event {
+        if let Some(host) = handle.try_state::<Host>() {
+            if let Ok(mut host) = host.0.lock() {
+                host.stop();
             }
         }
-    });
+    }
 }

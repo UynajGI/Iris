@@ -35,21 +35,7 @@ def main():
     report = {"quality_validated": False, "external_api_calls": False}
     with tempfile.TemporaryDirectory(prefix="iris-local-expansion-") as temp:
         work = Path(temp)
-        models = work / "custom-model-root"
-        shutil.copytree(args.models, models, ignore=shutil.ignore_patterns("optional"))
-        (models / "optional").mkdir()
-        model = models / "optional/dinov3_vits16.onnx"
-        shutil.copy2(args.embedding_model, model)
-        photos = work / "photos"
-        photos.mkdir()
-        for i, source in enumerate(sources):
-            shutil.copy2(source, photos / f"real-{i}.jpg")
-        shutil.copy2(sources[0], photos / "real-0-duplicate.jpg")
-        media = root / "crates/iris-core/tests/fixtures/media"
-        for source in media.iterdir():
-            if source.suffix.lower() in {".png", ".webp", ".heic", ".heif"}:
-                shutil.copy2(source, photos / source.name)
-        original_hashes = {p.name: digest(p) for p in photos.iterdir()}
+        models, model, photos, original_hashes = prepare_fixtures(args, root, work, sources)
         with (work / "daemon.log").open("w", encoding="utf-8") as err:
             process = subprocess.Popen([str(args.daemon.resolve()), "--data-dir", str(work / "data"), "--model-dir", str(models), "--worker-limit", "2"], cwd=work, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=err, text=True)
             try:
@@ -80,18 +66,7 @@ def main():
                 report["scan"] = job("scan")
                 listing = request("GET", f"/projects/{project}/photos")
                 assert len(listing) == len(original_hashes), listing
-                mime = {"jpeg": "image/jpeg", "png": "image/png", "webp": "image/webp", "heic": "image/heic"}
-                formats = set()
-                for photo in listing:
-                    formats.add(photo["format"])
-                    content_type, data = request("GET", f"/photos/{photo['id']}/original", raw=True)
-                    assert content_type == mime[photo["format"]], (photo, content_type)
-                    assert hashlib.sha256(data).hexdigest() == original_hashes[photo["filename"]]
-                    for route in ("thumb", "preview"):
-                        content_type, data = request("GET", f"/photos/{photo['id']}/{route}", raw=True)
-                        assert content_type == "image/jpeg" and data[:2] == b"\xff\xd8"
-                assert formats == {"jpeg", "png", "webp", "heic"}, formats
-                report["formats"] = sorted(formats)
+                verify_media_routes(request, listing, original_hashes, report)
                 report["default_analysis"] = job("analyze")
                 baseline = {p["id"]: p["analysis"] for p in request("GET", f"/projects/{project}/photos")}
                 settings = request("GET", f"/settings?project_id={project}")
@@ -103,25 +78,9 @@ def main():
                 vectors = {p["id"]: p["analysis"].get("embedding") for p in listing}
                 assert 0 < sum(v is not None for v in vectors.values()) < len(listing), vectors
                 report["candidate_only_embedding_count"] = sum(v is not None for v in vectors.values())
-                for photo in listing:
-                    quality = dict(photo["analysis"])
-                    quality.pop("embedding", None)
-                    quality.pop("settings", None)
-                    expected = dict(baseline[photo["id"]])
-                    expected.pop("embedding", None)
-                    expected.pop("settings", None)
-                    quality.pop("elapsed_ms", None)
-                    expected.pop("elapsed_ms", None)
-                    assert quality == expected, (photo["filename"], {k: (expected.get(k), quality.get(k)) for k in quality.keys() | expected.keys() if quality.get(k) != expected.get(k)})
+                verify_default_quality(listing, baseline)
                 report["default_quality_preserved"] = True
-                for photo in listing:
-                    assert photo["analysis_status"] == "current"
-                    embedding = photo["analysis"].get("embedding")
-                    if embedding is None:
-                        continue
-                    assert embedding["model_sha256"] == SHA and len(embedding["vector"]) == 384
-                    assert abs(sum(x*x for x in embedding["vector"]) - 1) < .001
-                    assert all(math.isfinite(x) for x in embedding["vector"])
+                verify_embeddings(listing)
                 report["incremental"] = job("analyze")
                 assert report["incremental"]["result"]["reused"] == len(listing)
                 settings["semantic_similarity_threshold"] = .91
@@ -133,23 +92,7 @@ def main():
                 assert report["threshold_reanalysis"]["result"]["semantic"]["computed"] == 0
                 assert vectors == {p["id"]: p["analysis"].get("embedding") for p in request("GET", f"/projects/{project}/photos")}
                 report["threshold_vectors_identical"] = True
-                # Artifact preflight must reject even when every persisted vector is current.
-                model.write_bytes(b"corrupt disposable model")
-                report["corrupt_model"] = job("analyze", False)
-                model.unlink()
-                report["missing_model"] = job("analyze")
-                assert report["missing_model"]["result"]["semantic"]["mode"] == "phash_fallback"
-                assert report["missing_model"]["result"]["semantic"]["warnings"]
-                shutil.copy2(args.embedding_model, model)
-                report["restored_model"] = job("analyze")
-                assert report["restored_model"]["result"]["reused"] == len(listing)
-                settings["embedding_model_sha256"] = "a" * 64
-                request("PUT", f"/settings?project_id={project}", settings)
-                report["wrong_hash"] = job("analyze", False)
-                settings.update(embedding_provider="none", embedding_model_sha256=None, semantic_similarity_threshold=None)
-                request("PUT", f"/settings?project_id={project}", settings)
-                report["disabled"] = job("analyze")
-                assert report["disabled"]["result"]["semantic"]["mode"] == "phash"
+                verify_artifact_gates(request, job, settings, project, model, args, listing, report)
                 assert {p.name: digest(p) for p in photos.iterdir() if p.is_file()} == original_hashes
                 report["source_bytes_unchanged"] = True
                 report["photo_count"] = len(listing)
@@ -168,6 +111,84 @@ def main():
     args.output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({"ok": True, "photos": report["photo_count"], "formats": report["formats"], "report": str(args.output)}))
 
+
+
+def verify_media_routes(request, listing, original_hashes, report):
+    mime = {"jpeg": "image/jpeg", "png": "image/png", "webp": "image/webp", "heic": "image/heic"}
+    formats = set()
+    for photo in listing:
+        formats.add(photo["format"])
+        content_type, data = request("GET", f"/photos/{photo['id']}/original", raw=True)
+        assert content_type == mime[photo["format"]], (photo, content_type)
+        assert hashlib.sha256(data).hexdigest() == original_hashes[photo["filename"]]
+        for route in ("thumb", "preview"):
+            content_type, data = request("GET", f"/photos/{photo['id']}/{route}", raw=True)
+            assert content_type == "image/jpeg" and data[:2] == b"\xff\xd8"
+    assert formats == {"jpeg", "png", "webp", "heic"}, formats
+    report["formats"] = sorted(formats)
+
+
+def verify_default_quality(listing, baseline):
+    for photo in listing:
+        quality = dict(photo["analysis"])
+        quality.pop("embedding", None)
+        quality.pop("settings", None)
+        expected = dict(baseline[photo["id"]])
+        expected.pop("embedding", None)
+        expected.pop("settings", None)
+        quality.pop("elapsed_ms", None)
+        expected.pop("elapsed_ms", None)
+        assert quality == expected, (photo["filename"], {k: (expected.get(k), quality.get(k)) for k in quality.keys() | expected.keys() if quality.get(k) != expected.get(k)})
+
+
+def verify_embeddings(listing):
+    for photo in listing:
+        assert photo["analysis_status"] == "current"
+        embedding = photo["analysis"].get("embedding")
+        if embedding is None:
+            continue
+        assert embedding["model_sha256"] == SHA and len(embedding["vector"]) == 384
+        assert abs(sum(x*x for x in embedding["vector"]) - 1) < .001
+        assert all(math.isfinite(x) for x in embedding["vector"])
+
+
+def verify_artifact_gates(request, job, settings, project, model, args, listing, report):
+    # Artifact preflight must reject even when every persisted vector is current.
+    model.write_bytes(b"corrupt disposable model")
+    report["corrupt_model"] = job("analyze", False)
+    model.unlink()
+    report["missing_model"] = job("analyze")
+    assert report["missing_model"]["result"]["semantic"]["mode"] == "phash_fallback"
+    assert report["missing_model"]["result"]["semantic"]["warnings"]
+    shutil.copy2(args.embedding_model, model)
+    report["restored_model"] = job("analyze")
+    assert report["restored_model"]["result"]["reused"] == len(listing)
+    settings["embedding_model_sha256"] = "a" * 64
+    request("PUT", f"/settings?project_id={project}", settings)
+    report["wrong_hash"] = job("analyze", False)
+    settings.update(embedding_provider="none", embedding_model_sha256=None, semantic_similarity_threshold=None)
+    request("PUT", f"/settings?project_id={project}", settings)
+    report["disabled"] = job("analyze")
+    assert report["disabled"]["result"]["semantic"]["mode"] == "phash"
+
+
+def prepare_fixtures(args, root, work, sources):
+    models = work / "custom-model-root"
+    shutil.copytree(args.models, models, ignore=shutil.ignore_patterns("optional"))
+    (models / "optional").mkdir()
+    model = models / "optional/dinov3_vits16.onnx"
+    shutil.copy2(args.embedding_model, model)
+    photos = work / "photos"
+    photos.mkdir()
+    for i, source in enumerate(sources):
+        shutil.copy2(source, photos / f"real-{i}.jpg")
+    shutil.copy2(sources[0], photos / "real-0-duplicate.jpg")
+    media = root / "crates/iris-core/tests/fixtures/media"
+    for source in media.iterdir():
+        if source.suffix.lower() in {".png", ".webp", ".heic", ".heif"}:
+            shutil.copy2(source, photos / source.name)
+    original_hashes = {p.name: digest(p) for p in photos.iterdir()}
+    return models, model, photos, original_hashes
 
 if __name__ == "__main__":
     main()

@@ -253,32 +253,7 @@ impl AnalysisWorker {
             bail!("worker request exceeds protocol limit");
         }
         bytes.push(b'\n');
-        let result = (|| -> Result<VisionAnalysis> {
-            self.process
-                .as_ref()
-                .context("worker unavailable")?
-                .writes
-                .as_ref()
-                .context("worker input closed")?
-                .send(bytes)
-                .context("worker writer exited")?;
-            let line = self.receive("analysis")?;
-            let reply: Reply =
-                serde_json::from_str(&line).context("malformed analysis worker reply")?;
-            if reply.id != id {
-                bail!("analysis worker reply id mismatch");
-            }
-            match (reply.analysis, reply.error) {
-                (Some(analysis), None) if !reply.fatal => Ok(analysis),
-                (None, Some(message)) if !reply.fatal => {
-                    Err(anyhow::anyhow!("analysis failed: {message}"))
-                }
-                (None, Some(message)) => {
-                    Err(anyhow::anyhow!("analysis worker fatal error: {message}"))
-                }
-                _ => Err(anyhow::anyhow!("invalid analysis worker reply envelope")),
-            }
-        })();
+        let result = self.exchange(bytes, id);
         // Restart after any unsuccessful request; never reuse uncertain native state.
         if result.is_err() {
             if let Some(mut process) = self.process.take() {
@@ -287,6 +262,52 @@ impl AnalysisWorker {
         }
         result
     }
+    fn exchange(&self, bytes: Vec<u8>, id: u64) -> Result<VisionAnalysis> {
+        self.process
+            .as_ref()
+            .context("worker unavailable")?
+            .writes
+            .as_ref()
+            .context("worker input closed")?
+            .send(bytes)
+            .context("worker writer exited")?;
+        let line = self.receive("analysis")?;
+        let reply: Reply =
+            serde_json::from_str(&line).context("malformed analysis worker reply")?;
+        if reply.id != id {
+            bail!("analysis worker reply id mismatch");
+        }
+        match (reply.analysis, reply.error) {
+            (Some(analysis), None) if !reply.fatal => Ok(analysis),
+            (None, Some(message)) if !reply.fatal => {
+                Err(anyhow::anyhow!("analysis failed: {message}"))
+            }
+            (None, Some(message)) => Err(anyhow::anyhow!("analysis worker fatal error: {message}")),
+            _ => Err(anyhow::anyhow!("invalid analysis worker reply envelope")),
+        }
+    }
+
+    fn startup_handshake(&self) -> Result<()> {
+        let line = self.receive("startup")?;
+        let ready: Ready =
+            serde_json::from_str(&line).context("malformed analysis worker handshake")?;
+        if ready.protocol != PROTOCOL {
+            bail!("analysis worker protocol mismatch");
+        }
+        if !ready.ready {
+            bail!(
+                "analysis worker startup failed: {}",
+                ready
+                    .error
+                    .unwrap_or_else(|| "unknown model initialization error".into())
+            );
+        }
+        if ready.error.is_some() {
+            bail!("invalid analysis worker handshake envelope");
+        }
+        Ok(())
+    }
+
     fn check_cancel(&self) -> Result<()> {
         if self
             .cancel
@@ -359,38 +380,9 @@ impl AnalysisWorker {
         let stdout = child.stdout.take().context("worker stdout unavailable")?;
         let (tx, rx) = mpsc::channel();
         let reader_tx = tx.clone();
-        let reader = std::thread::spawn(move || {
-            let mut reader = BufReader::new(stdout);
-            loop {
-                match read_line(&mut reader) {
-                    Ok(Some(line)) => {
-                        if reader_tx.send(Incoming::Line(line)).is_err() {
-                            break;
-                        }
-                    }
-                    Ok(None) => {
-                        let _ = reader_tx.send(Incoming::Error(
-                            "unexpected end of output (worker exited)".into(),
-                        ));
-                        break;
-                    }
-                    Err(error) => {
-                        let _ = reader_tx.send(Incoming::Error(error.to_string()));
-                        break;
-                    }
-                }
-            }
-        });
+        let reader = std::thread::spawn(move || read_worker_output(stdout, reader_tx));
         let (writes, requests) = mpsc::channel::<Vec<u8>>();
-        let writer = std::thread::spawn(move || {
-            let mut writer = BufWriter::new(stdin);
-            for request in requests {
-                if let Err(error) = writer.write_all(&request).and_then(|_| writer.flush()) {
-                    let _ = tx.send(Incoming::Error(format!("request write failed: {error}")));
-                    break;
-                }
-            }
-        });
+        let writer = std::thread::spawn(move || write_worker_requests(stdin, requests, tx));
         self.process = Some(Process {
             child,
             #[cfg(windows)]
@@ -400,32 +392,50 @@ impl AnalysisWorker {
             reader: Some(reader),
             writer: Some(writer),
         });
-        let handshake = (|| -> Result<()> {
-            let line = self.receive("startup")?;
-            let ready: Ready =
-                serde_json::from_str(&line).context("malformed analysis worker handshake")?;
-            if ready.protocol != PROTOCOL {
-                bail!("analysis worker protocol mismatch");
-            }
-            if !ready.ready {
-                bail!(
-                    "analysis worker startup failed: {}",
-                    ready
-                        .error
-                        .unwrap_or_else(|| "unknown model initialization error".into())
-                );
-            }
-            if ready.error.is_some() {
-                bail!("invalid analysis worker handshake envelope");
-            }
-            Ok(())
-        })();
+        let handshake = self.startup_handshake();
         if handshake.is_err() {
             if let Some(mut process) = self.process.take() {
                 process.stop();
             }
         }
         handshake
+    }
+}
+
+fn read_worker_output(stdout: std::process::ChildStdout, reader_tx: mpsc::Sender<Incoming>) {
+    let mut reader = BufReader::new(stdout);
+    loop {
+        match read_line(&mut reader) {
+            Ok(Some(line)) => {
+                if reader_tx.send(Incoming::Line(line)).is_err() {
+                    break;
+                }
+            }
+            Ok(None) => {
+                let _ = reader_tx.send(Incoming::Error(
+                    "unexpected end of output (worker exited)".into(),
+                ));
+                break;
+            }
+            Err(error) => {
+                let _ = reader_tx.send(Incoming::Error(error.to_string()));
+                break;
+            }
+        }
+    }
+}
+
+fn write_worker_requests(
+    stdin: std::process::ChildStdin,
+    requests: mpsc::Receiver<Vec<u8>>,
+    tx: mpsc::Sender<Incoming>,
+) {
+    let mut writer = BufWriter::new(stdin);
+    for request in requests {
+        if let Err(error) = writer.write_all(&request).and_then(|_| writer.flush()) {
+            let _ = tx.send(Incoming::Error(format!("request write failed: {error}")));
+            break;
+        }
     }
 }
 

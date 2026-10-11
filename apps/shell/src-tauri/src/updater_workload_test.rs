@@ -120,152 +120,7 @@ fn real_active_analysis_workers_exit_before_update_and_database_recovers() {
     let mut processes = Vec::<ObservedProcess>::new();
     let mut report = json!({"ok":false, "fixture":"temporary synthetic JPGs", "installer_invoked":false, "forced_cleanup":false});
     let result = (|| -> Result<()> {
-        let first = host.start()?;
-        let daemon_pid = host.child.as_ref().context("daemon child absent")?.id();
-        let daemon_handle = ObservedProcess::open(daemon_pid)?;
-        let project = request(
-            &first,
-            "POST",
-            "/api/v1/projects",
-            Some(json!({"root":photos})),
-        )?;
-        let id = project["id"].as_i64().context("missing project id")?;
-        let progress_path = format!("/api/v1/projects/{id}/progress");
-        request(&first, "POST", &format!("/api/v1/projects/{id}/scan"), None)?;
-        let deadline = Instant::now() + Duration::from_secs(90);
-        let count = loop {
-            let progress = request(&first, "GET", &progress_path, None)?;
-            if progress["state"] == "completed" {
-                anyhow::ensure!(
-                    progress["errors"].as_array().is_some_and(|v| v.is_empty()),
-                    "scan errors"
-                );
-                break progress["completed"]
-                    .as_u64()
-                    .context("missing scan count")?;
-            }
-            anyhow::ensure!(progress["state"] == "running", "scan did not complete");
-            anyhow::ensure!(Instant::now() < deadline, "scan deadline exceeded");
-            std::thread::sleep(Duration::from_millis(100));
-        };
-        anyhow::ensure!(
-            (24..=64).contains(&count),
-            "expected 24..64 bounded test photos, got {count}"
-        );
-        request(
-            &first,
-            "POST",
-            &format!("/api/v1/projects/{id}/analyze"),
-            None,
-        )?;
-        let deadline = Instant::now() + Duration::from_secs(90);
-        let active = loop {
-            for pid in worker_pids(daemon_pid)? {
-                if !processes.iter().any(|process| process.pid == pid) {
-                    if let Ok(process) = ObservedProcess::open(pid) {
-                        processes.push(process);
-                    }
-                }
-            }
-            let progress = request(&first, "GET", &progress_path, None)?;
-            let completed = progress["completed"].as_u64().unwrap_or(0);
-            let total = progress["total"].as_u64().unwrap_or(0);
-            let alive = processes.iter().filter(|process| !process.exited()).count();
-            report["last_observed_progress"] = progress.clone();
-            report["last_observed_live_workers"] = json!(alive);
-            if progress["kind"] == "analysis"
-                && progress["state"] == "running"
-                && completed > 0
-                && completed < total
-                && alive > 0
-            {
-                anyhow::ensure!(
-                    progress["errors"].as_array().is_some_and(|v| v.is_empty()),
-                    "analysis errors before pause"
-                );
-                report["active_workers"] = json!(alive);
-                break progress;
-            }
-            anyhow::ensure!(progress["state"] == "running", "analysis completed before a partial-work/active-worker observation; scenario not covered");
-            anyhow::ensure!(
-                Instant::now() < deadline,
-                "active worker observation deadline exceeded; scenario not covered"
-            );
-            std::thread::sleep(Duration::from_millis(100));
-        };
-        report["photo_count"] = json!(count);
-        report["progress_before_pause"] = active;
-        report["worker_pids"] = json!(processes
-            .iter()
-            .map(|process| process.pid)
-            .collect::<Vec<_>>());
-        let started = Instant::now();
-        host.pause_for_update()?;
-        report["pause_duration_ms"] = json!(started.elapsed().as_millis());
-        anyhow::ensure!(
-            daemon_handle.wait(1000),
-            "daemon process remains alive after pause"
-        );
-        for worker in &processes {
-            anyhow::ensure!(
-                worker.wait(5000),
-                "analysis worker {} survived daemon pause",
-                worker.pid
-            );
-        }
-        anyhow::ensure!(
-            worker_pids(daemon_pid)?.is_empty(),
-            "new analysis children survived pause"
-        );
-        anyhow::ensure!(host.session().is_err(), "paused host exposed a session");
-        anyhow::ensure!(
-            host.supervise()?.is_none(),
-            "paused supervisor restarted daemon"
-        );
-        anyhow::ensure!(
-            first.heartbeat().is_err(),
-            "old daemon still accepts requests"
-        );
-        report["daemon_exited"] = json!(true);
-        report["workers_exited"] = json!(true);
-        let sqlite = Command::new("python")
-            .args(["-c", "import sqlite3,sys,pathlib; c=sqlite3.connect(pathlib.Path(sys.argv[1]).as_uri()+'?mode=ro',uri=True); result=c.execute('PRAGMA quick_check').fetchall(); assert result==[('ok',)], result; print('ok'); c.close()"])
-            .arg(directory.join("library.sqlite3")).creation_flags(0x08000000).output()?;
-        anyhow::ensure!(
-            sqlite.status.success() && String::from_utf8_lossy(&sqlite.stdout).trim() == "ok",
-            "SQLite read-only quick_check failed"
-        );
-        report["database_reopened_readonly"] = json!(true);
-        report["sqlite_quick_check"] = json!("ok");
-        let second = host.resume_after_update_failure()?;
-        anyhow::ensure!(
-            first.token != second.token,
-            "recovery did not rotate session token"
-        );
-        second.heartbeat()?;
-        let persisted = request(
-            &second,
-            "GET",
-            &format!("/api/v1/projects/{id}/photos"),
-            None,
-        )?;
-        let persisted = persisted
-            .as_array()
-            .context("missing restored photo records")?;
-        anyhow::ensure!(
-            persisted.len() == count as usize,
-            "photo records changed during recovery"
-        );
-        let analyzed = persisted
-            .iter()
-            .filter(|photo| !photo["analysis"].is_null())
-            .count();
-        anyhow::ensure!(analyzed > 0, "committed analysis results were lost");
-        report["restored_photo_count"] = json!(persisted.len());
-        report["persisted_analysis_count"] = json!(analyzed);
-        report["fresh_session_token"] = json!(true);
-        report["ok"] = json!(true);
-        Ok(())
+        run_update_workload(&mut host, &photos, &directory, &mut processes, &mut report)
     })();
     host.stop();
     // Even a failed assertion must not leave owned test workers running.
@@ -289,4 +144,199 @@ fn real_active_analysis_workers_exit_before_update_and_database_recovers() {
     assert!(directory.starts_with(&temp) && directory != temp);
     std::fs::remove_dir_all(directory).unwrap();
     result.unwrap();
+}
+
+fn wait_for_scan(first: &Session, progress_path: &str) -> Result<u64> {
+    let deadline = Instant::now() + Duration::from_secs(90);
+    let count = loop {
+        let progress = request(&first, "GET", &progress_path, None)?;
+        if progress["state"] == "completed" {
+            anyhow::ensure!(
+                progress["errors"].as_array().is_some_and(|v| v.is_empty()),
+                "scan errors"
+            );
+            break progress["completed"]
+                .as_u64()
+                .context("missing scan count")?;
+        }
+        anyhow::ensure!(progress["state"] == "running", "scan did not complete");
+        anyhow::ensure!(Instant::now() < deadline, "scan deadline exceeded");
+        std::thread::sleep(Duration::from_millis(100));
+    };
+    Ok(count)
+}
+
+fn wait_for_active_workers(
+    first: &Session,
+    progress_path: &str,
+    daemon_pid: u32,
+    processes: &mut Vec<ObservedProcess>,
+    report: &mut Value,
+) -> Result<Value> {
+    let deadline = Instant::now() + Duration::from_secs(90);
+    let active = loop {
+        for pid in worker_pids(daemon_pid)? {
+            if !processes.iter().any(|process| process.pid == pid) {
+                if let Ok(process) = ObservedProcess::open(pid) {
+                    processes.push(process);
+                }
+            }
+        }
+        let progress = request(&first, "GET", &progress_path, None)?;
+        let completed = progress["completed"].as_u64().unwrap_or(0);
+        let total = progress["total"].as_u64().unwrap_or(0);
+        let alive = processes.iter().filter(|process| !process.exited()).count();
+        report["last_observed_progress"] = progress.clone();
+        report["last_observed_live_workers"] = json!(alive);
+        if progress["kind"] == "analysis"
+            && progress["state"] == "running"
+            && completed > 0
+            && completed < total
+            && alive > 0
+        {
+            anyhow::ensure!(
+                progress["errors"].as_array().is_some_and(|v| v.is_empty()),
+                "analysis errors before pause"
+            );
+            report["active_workers"] = json!(alive);
+            break progress;
+        }
+        anyhow::ensure!(progress["state"] == "running", "analysis completed before a partial-work/active-worker observation; scenario not covered");
+        anyhow::ensure!(
+            Instant::now() < deadline,
+            "active worker observation deadline exceeded; scenario not covered"
+        );
+        std::thread::sleep(Duration::from_millis(100));
+    };
+    Ok(active)
+}
+
+fn pause_and_verify(
+    host: &mut DaemonHost,
+    first: &Session,
+    daemon_handle: &ObservedProcess,
+    daemon_pid: u32,
+    processes: &[ObservedProcess],
+    report: &mut Value,
+) -> Result<()> {
+    let started = Instant::now();
+    host.pause_for_update()?;
+    report["pause_duration_ms"] = json!(started.elapsed().as_millis());
+    anyhow::ensure!(
+        daemon_handle.wait(1000),
+        "daemon process remains alive after pause"
+    );
+    for worker in processes {
+        anyhow::ensure!(
+            worker.wait(5000),
+            "analysis worker {} survived daemon pause",
+            worker.pid
+        );
+    }
+    anyhow::ensure!(
+        worker_pids(daemon_pid)?.is_empty(),
+        "new analysis children survived pause"
+    );
+    anyhow::ensure!(host.session().is_err(), "paused host exposed a session");
+    anyhow::ensure!(
+        host.supervise()?.is_none(),
+        "paused supervisor restarted daemon"
+    );
+    anyhow::ensure!(
+        first.heartbeat().is_err(),
+        "old daemon still accepts requests"
+    );
+    report["daemon_exited"] = json!(true);
+    report["workers_exited"] = json!(true);
+    Ok(())
+}
+
+fn verify_recovery(
+    host: &mut DaemonHost,
+    first: &Session,
+    directory: &Path,
+    id: i64,
+    count: u64,
+    report: &mut Value,
+) -> Result<()> {
+    let sqlite = Command::new("python")
+        .args(["-c", "import sqlite3,sys,pathlib; c=sqlite3.connect(pathlib.Path(sys.argv[1]).as_uri()+'?mode=ro',uri=True); result=c.execute('PRAGMA quick_check').fetchall(); assert result==[('ok',)], result; print('ok'); c.close()"])
+        .arg(directory.join("library.sqlite3")).creation_flags(0x08000000).output()?;
+    anyhow::ensure!(
+        sqlite.status.success() && String::from_utf8_lossy(&sqlite.stdout).trim() == "ok",
+        "SQLite read-only quick_check failed"
+    );
+    report["database_reopened_readonly"] = json!(true);
+    report["sqlite_quick_check"] = json!("ok");
+    let second = host.resume_after_update_failure()?;
+    anyhow::ensure!(
+        first.token != second.token,
+        "recovery did not rotate session token"
+    );
+    second.heartbeat()?;
+    let persisted = request(
+        &second,
+        "GET",
+        &format!("/api/v1/projects/{id}/photos"),
+        None,
+    )?;
+    let persisted = persisted
+        .as_array()
+        .context("missing restored photo records")?;
+    anyhow::ensure!(
+        persisted.len() == count as usize,
+        "photo records changed during recovery"
+    );
+    let analyzed = persisted
+        .iter()
+        .filter(|photo| !photo["analysis"].is_null())
+        .count();
+    anyhow::ensure!(analyzed > 0, "committed analysis results were lost");
+    report["restored_photo_count"] = json!(persisted.len());
+    report["persisted_analysis_count"] = json!(analyzed);
+    report["fresh_session_token"] = json!(true);
+    report["ok"] = json!(true);
+    Ok(())
+}
+
+fn run_update_workload(
+    host: &mut DaemonHost,
+    photos: &Path,
+    directory: &Path,
+    processes: &mut Vec<ObservedProcess>,
+    report: &mut Value,
+) -> Result<()> {
+    let first = host.start()?;
+    let daemon_pid = host.child.as_ref().context("daemon child absent")?.id();
+    let daemon_handle = ObservedProcess::open(daemon_pid)?;
+    let project = request(
+        &first,
+        "POST",
+        "/api/v1/projects",
+        Some(json!({"root":photos})),
+    )?;
+    let id = project["id"].as_i64().context("missing project id")?;
+    let progress_path = format!("/api/v1/projects/{id}/progress");
+    request(&first, "POST", &format!("/api/v1/projects/{id}/scan"), None)?;
+    let count = wait_for_scan(&first, &progress_path)?;
+    anyhow::ensure!(
+        (24..=64).contains(&count),
+        "expected 24..64 bounded test photos, got {count}"
+    );
+    request(
+        &first,
+        "POST",
+        &format!("/api/v1/projects/{id}/analyze"),
+        None,
+    )?;
+    let active = wait_for_active_workers(&first, &progress_path, daemon_pid, processes, report)?;
+    report["photo_count"] = json!(count);
+    report["progress_before_pause"] = active;
+    report["worker_pids"] = json!(processes
+        .iter()
+        .map(|process| process.pid)
+        .collect::<Vec<_>>());
+    pause_and_verify(host, &first, &daemon_handle, daemon_pid, processes, report)?;
+    verify_recovery(host, &first, directory, id, count, report)?;
+    Ok(())
 }

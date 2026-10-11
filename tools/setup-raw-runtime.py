@@ -21,27 +21,7 @@ def main():
     if base64.b64encode(hashlib.sha512(data).digest()).decode() != INTEGRITY:
         raise ValueError("ExifTool archive integrity mismatch")
     args.output.mkdir(parents=True, exist_ok=True)
-    payload = {}
-    with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as archive:
-        for entry in archive.getmembers():
-            parts = Path(entry.name).parts
-            if not entry.isfile():
-                continue
-            if not parts or parts[0] != "package" or ".." in parts:
-                raise ValueError("unexpected archive path")
-            relative = Path(*parts[1:]).as_posix()
-            if relative in payload or ":" in relative:
-                raise ValueError("duplicate or invalid runtime entry")
-            target = args.output.joinpath(*parts[1:])
-            content = archive.extractfile(entry).read()
-            if target.exists() and target.read_bytes() != content:
-                raise ValueError(f"refusing to overwrite changed file: {target}")
-            payload[relative] = content
-    for path in args.output.rglob("*"):
-        if path.is_symlink() or path.is_junction():
-            raise ValueError("linked entries cannot enter the RAW runtime")
-        if path.is_file() and path.relative_to(args.output).as_posix() not in payload and path != args.output / "manifest.json":
-            raise ValueError("unlisted file in RAW runtime output")
+    payload = runtime_payload(data, args.output)
     for relative, content in payload.items():
         target = args.output / relative
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -54,6 +34,35 @@ def main():
         "archive_sha512_base64": INTEGRITY, "files": files}, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({"runtime": str(args.output), "verified_archive": True, "files": len(files)}))
 
+
+
+def runtime_payload(data, output):
+    payload = {}
+    with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as archive:
+        for entry in archive.getmembers():
+            parts = Path(entry.name).parts
+            if not entry.isfile():
+                continue
+            if not parts or parts[0] != "package" or ".." in parts:
+                raise ValueError("unexpected archive path")
+            relative = Path(*parts[1:]).as_posix()
+            if relative in payload or ":" in relative:
+                raise ValueError("duplicate or invalid runtime entry")
+            target = output.joinpath(*parts[1:])
+            content = archive.extractfile(entry).read()
+            if target.exists() and target.read_bytes() != content:
+                raise ValueError(f"refusing to overwrite changed file: {target}")
+            payload[relative] = content
+    validate_existing_output(output, payload)
+    return payload
+
+
+def validate_existing_output(output, payload):
+    for path in output.rglob("*"):
+        if path.is_symlink() or path.is_junction():
+            raise ValueError("linked entries cannot enter the RAW runtime")
+        if path.is_file() and path.relative_to(output).as_posix() not in payload and path != output / "manifest.json":
+            raise ValueError("unlisted file in RAW runtime output")
 
 if __name__ == "__main__":
     main()

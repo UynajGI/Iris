@@ -97,7 +97,8 @@ impl Services {
         }
         let mut seen = HashSet::new();
         let mut changes = Vec::new();
-        for id in request.photo_ids {
+        for id in &request.photo_ids {
+            let id = *id;
             if !seen.insert(id) {
                 continue;
             }
@@ -105,36 +106,43 @@ impl Services {
             if photo.project_id != project_id {
                 bail!("photo belongs to another project");
             }
-            let action = request.decision.unwrap_or(photo.decision);
-            let rating = request.rating.unwrap_or(photo.rating);
-            let color = request.color_label.unwrap_or(photo.color_label);
-            if action != photo.decision || rating != photo.rating || color != photo.color_label {
-                changes.push((photo, action, rating, color));
+            if let Some(change) = photo_mark_change(photo, &request) {
+                changes.push(change);
             }
         }
         let id = uuid::Uuid::new_v4().to_string();
         let changed = changes.len();
         if changed > 0 {
-            let tx = self.store.conn.transaction()?;
-            tx.execute(
-                "INSERT INTO sessions(id,project_id,created_at) VALUES(?1,?2,?3)",
-                params![id, project_id, now()],
-            )?;
-            for (photo, action, rating, color) in changes {
-                if action != photo.decision {
-                    tx.execute("INSERT INTO decisions(photo_id,session_id,action,previous_action,source,created_at) VALUES(?1,?2,?3,?4,?5,?6)",params![photo.id,id,action.as_str(),photo.decision.as_str(),source,now()])?;
-                }
-                if rating != photo.rating || color != photo.color_label {
-                    tx.execute("INSERT INTO photo_marks(photo_id,session_id,rating,color_label) VALUES(?1,?2,?3,?4)",params![photo.id,id,rating,color.as_str()])?;
-                }
-            }
-            tx.commit()?;
+            self.persist_photo_marks(project_id, &id, source, changes)?;
         }
         Ok(DecisionBatch {
             id,
             changed,
             conflicts: vec![],
         })
+    }
+    fn persist_photo_marks(
+        &mut self,
+        project_id: i64,
+        id: &str,
+        source: &str,
+        changes: Vec<(Photo, Action, u8, ColorLabel)>,
+    ) -> Result<()> {
+        let tx = self.store.conn.transaction()?;
+        tx.execute(
+            "INSERT INTO sessions(id,project_id,created_at) VALUES(?1,?2,?3)",
+            params![id, project_id, now()],
+        )?;
+        for (photo, action, rating, color) in changes {
+            if action != photo.decision {
+                tx.execute("INSERT INTO decisions(photo_id,session_id,action,previous_action,source,created_at) VALUES(?1,?2,?3,?4,?5,?6)",params![photo.id,id,action.as_str(),photo.decision.as_str(),source,now()])?;
+            }
+            if rating != photo.rating || color != photo.color_label {
+                tx.execute("INSERT INTO photo_marks(photo_id,session_id,rating,color_label) VALUES(?1,?2,?3,?4)",params![photo.id,id,rating,color.as_str()])?;
+            }
+        }
+        tx.commit()?;
+        Ok(())
     }
     pub fn undo(&mut self, project_id: i64) -> Result<DecisionBatch> {
         let id:Option<String>=self.store.conn.query_row("SELECT id FROM sessions WHERE project_id=?1 AND undone_at IS NULL ORDER BY rowid DESC LIMIT 1",[project_id],|r|r.get(0)).optional()?;
@@ -175,25 +183,7 @@ impl Services {
         request: AcceptRequest,
     ) -> Result<DecisionBatch> {
         let settings = self.settings(project_id)?;
-        let candidates = if let Some(ids) = request.photo_ids {
-            let mut seen = HashSet::new();
-            let mut photos = Vec::new();
-            for id in ids {
-                if !seen.insert(id) {
-                    continue;
-                }
-                let photo = self.photo(id)?;
-                anyhow::ensure!(
-                    photo.project_id == project_id,
-                    "photo belongs to another project"
-                );
-                anyhow::ensure!(!photo.missing && !photo.quarantined, "photo is unavailable");
-                photos.push(photo);
-            }
-            photos
-        } else {
-            self.photos(project_id, PhotoFilter::default())?
-        };
+        let candidates = self.accept_candidates(project_id, request.photo_ids)?;
         let mut changes = HashMap::new();
         for p in candidates {
             if p.decision != Action::Pending {
@@ -239,5 +229,39 @@ impl Services {
             changes.insert(p.id, action);
         }
         self.apply_decisions(project_id, changes, "batch_adopt", vec![])
+    }
+    fn accept_candidates(&self, project_id: i64, ids: Option<Vec<i64>>) -> Result<Vec<Photo>> {
+        let Some(ids) = ids else {
+            return self.photos(project_id, PhotoFilter::default());
+        };
+        let mut seen = HashSet::new();
+        let mut photos = Vec::new();
+        for id in ids {
+            if !seen.insert(id) {
+                continue;
+            }
+            let photo = self.photo(id)?;
+            anyhow::ensure!(
+                photo.project_id == project_id,
+                "photo belongs to another project"
+            );
+            anyhow::ensure!(!photo.missing && !photo.quarantined, "photo is unavailable");
+            photos.push(photo);
+        }
+        Ok(photos)
+    }
+}
+
+fn photo_mark_change(
+    photo: Photo,
+    request: &MarkRequest,
+) -> Option<(Photo, Action, u8, ColorLabel)> {
+    let action = request.decision.unwrap_or(photo.decision);
+    let rating = request.rating.unwrap_or(photo.rating);
+    let color = request.color_label.unwrap_or(photo.color_label);
+    if action != photo.decision || rating != photo.rating || color != photo.color_label {
+        Some((photo, action, rating, color))
+    } else {
+        None
     }
 }

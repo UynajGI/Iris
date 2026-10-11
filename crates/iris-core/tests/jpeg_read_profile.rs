@@ -41,7 +41,18 @@ fn decode_reader<R: Read>(reader: R, max_edge: u32) -> Result<DecodedPreview> {
     }
     decoder.set_max_decoding_buffer_size(256 * 1024 * 1024);
     let pixels = decoder.decode().context("JPEG decode failed")?;
-    let image = match original.pixel_format {
+    let image = jpeg_rgb(original.pixel_format, dw, dh, pixels)?;
+    Ok(DecodedPreview {
+        image,
+        original_width: w,
+        original_height: h,
+        orientation: 1,
+        source: "jpeg_idct",
+    })
+}
+
+fn jpeg_rgb(format: PixelFormat, dw: u16, dh: u16, pixels: Vec<u8>) -> Result<RgbImage> {
+    let image = match format {
         PixelFormat::RGB24 => {
             RgbImage::from_raw(dw.into(), dh.into(), pixels).context("invalid RGB JPEG")?
         }
@@ -54,17 +65,11 @@ fn decode_reader<R: Read>(reader: R, max_edge: u32) -> Result<DecodedPreview> {
         }
         _ => bail!("Unsupported JPEG color space"),
     };
-    Ok(DecodedPreview {
-        image,
-        original_width: w,
-        original_height: h,
-        orientation: 1,
-        source: "jpeg_idct",
-    })
+    Ok(image)
 }
 
 fn decode_mode(path: &Path, mode: usize) -> Result<DecodedPreview> {
-    let mut output = match mode {
+    let output = match mode {
         0 => decode_reader(BufReader::new(File::open(path)?), 1280)?,
         1 => decode_reader(
             BufReader::with_capacity(256 * 1024, File::open(path)?),
@@ -85,6 +90,10 @@ fn decode_mode(path: &Path, mode: usize) -> Result<DecodedPreview> {
         }
         _ => unreachable!(),
     };
+    orient_preview(path, output)
+}
+
+fn orient_preview(path: &Path, mut output: DecodedPreview) -> Result<DecodedPreview> {
     // Hold EXIF I/O identical across all three modes to isolate decoder input.
     output.orientation = exif::Reader::new()
         .read_from_container(&mut BufReader::new(File::open(path)?))

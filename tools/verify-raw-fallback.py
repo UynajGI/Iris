@@ -36,24 +36,28 @@ def main():
         "corpus_manifest": str(ROOT / "artifacts/public-corpus/native/manifest.json")}
     try:
         with Daemon(args.daemon, models, args.output / "run", workers=1) as daemon:
-            project = daemon.request("POST", "/projects", {"root": str(photos.resolve())})["id"]
-            report["scan"] = daemon.job(project, "scan")
-            report["analysis"] = daemon.job(project, "analyze", expected="failed")
-            listing = daemon.request("GET", f"/projects/{project}/photos")
-            dng = next(p for p in listing if p["filename"].endswith("dng"))
-            arw = next(p for p in listing if p["filename"].endswith("arw"))
-            assert dng["analysis_status"] == "current" and dng["analysis"]["preview_source"] == "raw_developed"
-            assert arw["analysis"] is None
-            assert report["analysis"]["result"]["analyzed"] == 1 and report["analysis"]["result"]["failed"] == 1
-            assert any("24" in error or "develop" in error.lower() for error in report["analysis"]["errors"])
-            report["memory"] = daemon.memory
-            report["ok"] = True
+            verify_analysis(daemon, photos, report)
     finally:
         report["source_hashes_preserved"] = all(digest(Path(p)) == sha for p, sha in hashes.items())
         (args.output / "report.json").write_text(json.dumps(report, indent=2), "utf-8")
     assert report["source_hashes_preserved"]
     print(json.dumps(report))
 
+
+
+def verify_analysis(daemon, photos, report):
+    project = daemon.request("POST", "/projects", {"root": str(photos.resolve())})["id"]
+    report["scan"] = daemon.job(project, "scan")
+    report["analysis"] = daemon.job(project, "analyze", expected="failed")
+    listing = daemon.request("GET", f"/projects/{project}/photos")
+    dng = next(p for p in listing if p["filename"].endswith("dng"))
+    arw = next(p for p in listing if p["filename"].endswith("arw"))
+    assert dng["analysis_status"] == "current" and dng["analysis"]["preview_source"] == "raw_developed"
+    assert arw["analysis"] is None
+    assert report["analysis"]["result"]["analyzed"] == 1 and report["analysis"]["result"]["failed"] == 1
+    assert any("24" in error or "develop" in error.lower() for error in report["analysis"]["errors"])
+    report["memory"] = daemon.memory
+    report["ok"] = True
 
 if __name__ == "__main__":
     main()

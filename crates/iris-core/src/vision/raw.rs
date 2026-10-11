@@ -78,20 +78,7 @@ fn convert(path: &Path, mode: &str, limit: u64) -> Result<Vec<u8>> {
         let mut bytes = Vec::new();
         stderr.take(8192).read_to_end(&mut bytes).map(|_| bytes)
     });
-    let deadline = Instant::now() + Duration::from_secs(120);
-    let status = loop {
-        match child.try_wait() {
-            Ok(Some(status)) => break Ok(status),
-            Ok(None) if Instant::now() < deadline => std::thread::sleep(Duration::from_millis(10)),
-            outcome => {
-                let _ = child.kill();
-                let _ = child.wait();
-                break Err(anyhow::anyhow!(
-                    "RAW converter timeout or wait failure: {outcome:?}"
-                ));
-            }
-        }
-    };
+    let status = wait_for_converter(&mut child);
     #[cfg(windows)]
     process_tree.terminate();
     let bytes = reader
@@ -110,6 +97,23 @@ fn convert(path: &Path, mode: &str, limit: u64) -> Result<Vec<u8>> {
         String::from_utf8_lossy(&errors)
     );
     Ok(bytes)
+}
+
+fn wait_for_converter(child: &mut std::process::Child) -> Result<std::process::ExitStatus> {
+    let deadline = Instant::now() + Duration::from_secs(120);
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) => break Ok(status),
+            Ok(None) if Instant::now() < deadline => std::thread::sleep(Duration::from_millis(10)),
+            outcome => {
+                let _ = child.kill();
+                let _ = child.wait();
+                break Err(anyhow::anyhow!(
+                    "RAW converter timeout or wait failure: {outcome:?}"
+                ));
+            }
+        }
+    }
 }
 
 fn executable(media: Option<&Path>) -> Result<Option<PathBuf>> {
@@ -216,45 +220,8 @@ fn metadata(path: &Path, media: Option<&Path>) -> Result<(u32, u32, u32)> {
         "RAW exceeds compressed input safety limit"
     );
     if let Some(executable) = executable(media)? {
-        let bytes = extract(
-            &executable,
-            path,
-            &[
-                "-json",
-                "-n",
-                "-ImageWidth",
-                "-ImageHeight",
-                "-ExifImageWidth",
-                "-ExifImageHeight",
-                "-Orientation",
-            ],
-            64 * 1024,
-        )?;
-        let rows: Vec<serde_json::Value> = serde_json::from_slice(&bytes)?;
-        if let Some(row) = rows.first() {
-            let width = row["ExifImageWidth"]
-                .as_u64()
-                .or_else(|| row["ImageWidth"].as_u64())
-                .unwrap_or(0);
-            let height = row["ExifImageHeight"]
-                .as_u64()
-                .or_else(|| row["ImageHeight"].as_u64())
-                .unwrap_or(0);
-            if width > 0
-                && height > 0
-                && width <= 65535
-                && height <= 65535
-                && width * height <= 120_000_000
-            {
-                return Ok((
-                    width as u32,
-                    height as u32,
-                    row["Orientation"]
-                        .as_u64()
-                        .filter(|v| (1..=8).contains(v))
-                        .unwrap_or(1) as u32,
-                ));
-            }
+        if let Some(dimensions) = exif_metadata(&executable, path)? {
+            return Ok(dimensions);
         }
     }
     let header: serde_json::Value = serde_json::from_slice(&convert(path, "metadata", 64 * 1024)?)?;
@@ -276,6 +243,50 @@ fn metadata(path: &Path, media: Option<&Path>) -> Result<(u32, u32, u32)> {
             .filter(|v| (1..=8).contains(v))
             .unwrap_or(1) as u32,
     ))
+}
+
+fn exif_metadata(executable: &Path, path: &Path) -> Result<Option<(u32, u32, u32)>> {
+    let bytes = extract(
+        executable,
+        path,
+        &[
+            "-json",
+            "-n",
+            "-ImageWidth",
+            "-ImageHeight",
+            "-ExifImageWidth",
+            "-ExifImageHeight",
+            "-Orientation",
+        ],
+        64 * 1024,
+    )?;
+    let rows: Vec<serde_json::Value> = serde_json::from_slice(&bytes)?;
+    if let Some(row) = rows.first() {
+        let width = row["ExifImageWidth"]
+            .as_u64()
+            .or_else(|| row["ImageWidth"].as_u64())
+            .unwrap_or(0);
+        let height = row["ExifImageHeight"]
+            .as_u64()
+            .or_else(|| row["ImageHeight"].as_u64())
+            .unwrap_or(0);
+        if width > 0
+            && height > 0
+            && width <= 65535
+            && height <= 65535
+            && width * height <= 120_000_000
+        {
+            return Ok(Some((
+                width as u32,
+                height as u32,
+                row["Orientation"]
+                    .as_u64()
+                    .filter(|v| (1..=8).contains(v))
+                    .unwrap_or(1) as u32,
+            )));
+        }
+    }
+    Ok(None)
 }
 
 pub(super) fn dimensions(path: &Path, media: Option<&Path>) -> Result<(u32, u32)> {

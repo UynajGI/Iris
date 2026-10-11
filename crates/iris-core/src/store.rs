@@ -23,38 +23,7 @@ impl Store {
         if version > SCHEMA_VERSION {
             bail!("database version {version} is newer than supported {SCHEMA_VERSION}");
         }
-        let mut recovery_notice = None;
-        if version < SCHEMA_VERSION {
-            let has_tables: bool = conn.query_row(
-                "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table')",
-                [],
-                |r| r.get(0),
-            )?;
-            if has_tables {
-                let backup =
-                    path.with_extension(format!("v{version}.{}.bak", uuid::Uuid::new_v4()));
-                conn.backup("main", &backup, None)?;
-                recovery_notice = Some(format!(
-                    "Database upgraded; recovery backup: {}",
-                    backup.display()
-                ));
-            }
-            if version < 1 {
-                conn.execute_batch(SCHEMA)?;
-            }
-            if version < 2 {
-                conn.execute_batch(MIGRATION_2)?;
-            }
-            if version < 3 {
-                conn.execute_batch(MIGRATION_3)?;
-            }
-            if version < 4 {
-                conn.execute_batch(MIGRATION_4)?;
-            }
-            if version < 5 {
-                conn.execute_batch(MIGRATION_5)?;
-            }
-        }
+        let recovery_notice = upgrade_database(&conn, &path, version)?;
         let integrity: String = conn.query_row("PRAGMA quick_check", [], |r| r.get(0))?;
         if integrity != "ok" {
             bail!("database integrity check failed: {integrity}");
@@ -73,6 +42,47 @@ impl Store {
         Ok(())
     }
 }
+
+fn upgrade_database(conn: &Connection, path: &Path, version: i64) -> Result<Option<String>> {
+    if version >= SCHEMA_VERSION {
+        return Ok(None);
+    }
+    let recovery_notice = backup_before_upgrade(conn, path, version)?;
+    if version < 1 {
+        conn.execute_batch(SCHEMA)?;
+    }
+    if version < 2 {
+        conn.execute_batch(MIGRATION_2)?;
+    }
+    if version < 3 {
+        conn.execute_batch(MIGRATION_3)?;
+    }
+    if version < 4 {
+        conn.execute_batch(MIGRATION_4)?;
+    }
+    if version < 5 {
+        conn.execute_batch(MIGRATION_5)?;
+    }
+    Ok(recovery_notice)
+}
+
+fn backup_before_upgrade(conn: &Connection, path: &Path, version: i64) -> Result<Option<String>> {
+    let has_tables: bool = conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table')",
+        [],
+        |r| r.get(0),
+    )?;
+    if !has_tables {
+        return Ok(None);
+    }
+    let backup = path.with_extension(format!("v{version}.{}.bak", uuid::Uuid::new_v4()));
+    conn.backup("main", &backup, None)?;
+    Ok(Some(format!(
+        "Database upgraded; recovery backup: {}",
+        backup.display()
+    )))
+}
+
 const SCHEMA: &str = r#"
 BEGIN IMMEDIATE;
 CREATE TABLE IF NOT EXISTS projects(id INTEGER PRIMARY KEY,root TEXT NOT NULL UNIQUE,name TEXT NOT NULL,created_at TEXT NOT NULL,cache_root TEXT NOT NULL);

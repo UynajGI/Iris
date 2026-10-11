@@ -72,31 +72,7 @@ impl Services {
         for row in rows {
             let (id, photos, cache) = row?;
             let photos = resolve_storage_root(Path::new(&photos))?;
-            if paths_overlap(candidate, &photos) {
-                // The CLI's default .iris/cache lives inside scan('.'), but the
-                // scanner excludes this managed subtree. Do not exempt any
-                // other project or any directory containing registered photos.
-                let relative = candidate.strip_prefix(&photos).ok();
-                let managed = relative.is_some_and(|p| {
-                    p.starts_with(Path::new(".iris").join("cache")) || p.starts_with(".iris-cache")
-                });
-                anyhow::ensure!(
-                    Some(id) == managed_project && managed,
-                    "cache path overlaps a photo project"
-                );
-                let mut tracked = self
-                    .store
-                    .conn
-                    .prepare("SELECT path FROM photos WHERE project_id=?1")?;
-                for path in tracked.query_map([id], |r| r.get::<_, String>(0))? {
-                    let path = photos.join(checked_relative(&path?)?);
-                    anyhow::ensure!(
-                        !path.starts_with(candidate)
-                            && !resolve_storage_root(&path)?.starts_with(candidate),
-                        "cache path contains a registered photo"
-                    );
-                }
-            }
+            self.guard_photo_storage(candidate, id, &photos, managed_project)?;
             if Some(id) != own_cache {
                 let cache = resolve_storage_root(Path::new(&cache))?;
                 anyhow::ensure!(
@@ -104,6 +80,41 @@ impl Services {
                     "cache path overlaps a current project cache"
                 );
             }
+        }
+        Ok(())
+    }
+    fn guard_photo_storage(
+        &self,
+        candidate: &Path,
+        id: i64,
+        photos: &Path,
+        managed_project: Option<i64>,
+    ) -> Result<()> {
+        if !paths_overlap(candidate, photos) {
+            return Ok(());
+        }
+        // The CLI's default .iris/cache lives inside scan('.'), but the
+        // scanner excludes this managed subtree. Do not exempt any
+        // other project or any directory containing registered photos.
+        let relative = candidate.strip_prefix(photos).ok();
+        let managed = relative.is_some_and(|p| {
+            p.starts_with(Path::new(".iris").join("cache")) || p.starts_with(".iris-cache")
+        });
+        anyhow::ensure!(
+            Some(id) == managed_project && managed,
+            "cache path overlaps a photo project"
+        );
+        let mut tracked = self
+            .store
+            .conn
+            .prepare("SELECT path FROM photos WHERE project_id=?1")?;
+        for path in tracked.query_map([id], |r| r.get::<_, String>(0))? {
+            let path = photos.join(checked_relative(&path?)?);
+            anyhow::ensure!(
+                !path.starts_with(candidate)
+                    && !resolve_storage_root(&path)?.starts_with(candidate),
+                "cache path contains a registered photo"
+            );
         }
         Ok(())
     }
@@ -126,20 +137,7 @@ impl Services {
             fs::read_dir(&destination)?.next().is_none(),
             "cache destination must be empty"
         );
-        let mut files = Vec::new();
-        for entry in WalkDir::new(&source).follow_links(false) {
-            let entry = entry?;
-            anyhow::ensure!(!entry.file_type().is_symlink(), "cache contains a symlink");
-            if entry.file_type().is_file() {
-                files.push(CacheMigrationFile {
-                    path: relative_text(entry.path().strip_prefix(&source)?),
-                    size_bytes: entry.metadata()?.len(),
-                    sha256: digest(entry.path())?,
-                    cleaned: false,
-                });
-            }
-        }
-        files.sort_by(|a, b| a.path.cmp(&b.path));
+        let files = migration_inventory(&source)?;
         let mut migration = CacheMigration {
             id: uuid::Uuid::new_v4().to_string(),
             project_id,
@@ -151,34 +149,7 @@ impl Services {
             error: None,
         };
         self.persist_cache_migration(&migration)?;
-        let result = (|| -> Result<()> {
-            for file in &migration.files {
-                let src = source.join(checked_relative(&file.path)?);
-                anyhow::ensure!(
-                    restore_file_exists(&source, &src, &file.sha256)?,
-                    "cache source disappeared"
-                );
-                anyhow::ensure!(
-                    fs::metadata(&src)?.len() == file.size_bytes,
-                    "cache source size changed"
-                );
-                let dst = safe_destination(&destination, &file.path)?;
-                copy_new_verified(&src, &dst)?;
-                anyhow::ensure!(
-                    restore_file_exists(&destination, &dst, &file.sha256)?,
-                    "migrated cache missing"
-                );
-            }
-            let tx = self.store.conn.unchecked_transaction()?;
-            migration.state = "ready".into();
-            self.persist_cache_migration(&migration)?;
-            self.store.conn.execute(
-                "UPDATE projects SET cache_root=?1 WHERE id=?2",
-                params![migration.destination_root, project_id],
-            )?;
-            tx.commit()?;
-            Ok(())
-        })();
+        let result = self.copy_cache_migration(&mut migration, &source, &destination);
         if let Err(error) = result {
             migration.state = "copy_failed".into();
             migration.error = Some(format!("{error:#}"));
@@ -189,6 +160,39 @@ impl Services {
             )));
         }
         self.cache_status(project_id)
+    }
+    fn copy_cache_migration(
+        &self,
+        migration: &mut CacheMigration,
+        source: &Path,
+        destination: &Path,
+    ) -> Result<()> {
+        for file in &migration.files {
+            let src = source.join(checked_relative(&file.path)?);
+            anyhow::ensure!(
+                restore_file_exists(source, &src, &file.sha256)?,
+                "cache source disappeared"
+            );
+            anyhow::ensure!(
+                fs::metadata(&src)?.len() == file.size_bytes,
+                "cache source size changed"
+            );
+            let dst = safe_destination(destination, &file.path)?;
+            copy_new_verified(&src, &dst)?;
+            anyhow::ensure!(
+                restore_file_exists(destination, &dst, &file.sha256)?,
+                "migrated cache missing"
+            );
+        }
+        let tx = self.store.conn.unchecked_transaction()?;
+        migration.state = "ready".into();
+        self.persist_cache_migration(migration)?;
+        self.store.conn.execute(
+            "UPDATE projects SET cache_root=?1 WHERE id=?2",
+            params![migration.destination_root, migration.project_id],
+        )?;
+        tx.commit()?;
+        Ok(())
     }
     pub fn cache_cleanup_old(
         &mut self,
@@ -218,58 +222,7 @@ impl Services {
         migration.state = "cleanup_in_progress".into();
         migration.error = None;
         self.persist_cache_migration(&migration)?;
-        let result = (|| -> Result<()> {
-            let source = resolve_storage_root(Path::new(&migration.source_root))?;
-            let destination = resolve_storage_root(Path::new(&migration.destination_root))?;
-            anyhow::ensure!(
-                source == Path::new(&migration.source_root)
-                    && destination == Path::new(&migration.destination_root),
-                "cache migration root changed through a link"
-            );
-            anyhow::ensure!(
-                !paths_overlap(&source, &destination),
-                "cache migration roots overlap"
-            );
-            self.guard_cache_storage(&source, None, Some(project_id))?;
-            let validate = |file: &CacheMigrationFile| -> Result<Option<PathBuf>> {
-                let path = source.join(checked_relative(&file.path)?);
-                if !restore_file_exists(&source, &path, &file.sha256)? {
-                    return Ok(None);
-                }
-                anyhow::ensure!(
-                    fs::metadata(&path)?.len() == file.size_bytes,
-                    "old cache size changed"
-                );
-                let copied = destination.join(checked_relative(&file.path)?);
-                anyhow::ensure!(
-                    restore_file_exists(&destination, &copied, &file.sha256)?,
-                    "verified migrated copy is missing"
-                );
-                anyhow::ensure!(
-                    fs::metadata(&copied)?.len() == file.size_bytes,
-                    "migrated cache size changed"
-                );
-                Ok(Some(path))
-            };
-            // Known conflicts must fail before any deletion.
-            for file in migration.files.iter().filter(|file| !file.cleaned) {
-                validate(file)?;
-            }
-            for index in 0..migration.files.len() {
-                if migration.files[index].cleaned {
-                    continue;
-                }
-                if let Some(path) = validate(&migration.files[index])? {
-                    fs::remove_file(path)?;
-                }
-                migration.files[index].cleaned = true;
-                self.persist_cache_migration(&migration)?;
-            }
-            // Unlisted files and directories are deliberately never removed.
-            migration.state = "cleaned".into();
-            self.persist_cache_migration(&migration)?;
-            Ok(())
-        })();
+        let result = self.remove_old_cache_files(&mut migration);
         if let Err(error) = result {
             migration.error = Some(format!("{error:#}"));
             self.persist_cache_migration(&migration)?;
@@ -281,4 +234,85 @@ impl Services {
         tx.commit()?;
         Ok(migration)
     }
+    fn cleanup_roots(&self, migration: &CacheMigration) -> Result<(PathBuf, PathBuf)> {
+        let source = resolve_storage_root(Path::new(&migration.source_root))?;
+        let destination = resolve_storage_root(Path::new(&migration.destination_root))?;
+        anyhow::ensure!(
+            source == Path::new(&migration.source_root)
+                && destination == Path::new(&migration.destination_root),
+            "cache migration root changed through a link"
+        );
+        anyhow::ensure!(
+            !paths_overlap(&source, &destination),
+            "cache migration roots overlap"
+        );
+        self.guard_cache_storage(&source, None, Some(migration.project_id))?;
+        Ok((source, destination))
+    }
+    fn remove_old_cache_files(&self, migration: &mut CacheMigration) -> Result<()> {
+        let (source, destination) = self.cleanup_roots(migration)?;
+        // Known conflicts must fail before any deletion.
+        for file in migration.files.iter().filter(|file| !file.cleaned) {
+            validate_old_cache_file(&source, &destination, file)?;
+        }
+        for index in 0..migration.files.len() {
+            if migration.files[index].cleaned {
+                continue;
+            }
+            if let Some(path) =
+                validate_old_cache_file(&source, &destination, &migration.files[index])?
+            {
+                fs::remove_file(path)?;
+            }
+            migration.files[index].cleaned = true;
+            self.persist_cache_migration(migration)?;
+        }
+        // Unlisted files and directories are deliberately never removed.
+        migration.state = "cleaned".into();
+        self.persist_cache_migration(migration)?;
+        Ok(())
+    }
+}
+
+fn migration_inventory(source: &Path) -> Result<Vec<CacheMigrationFile>> {
+    let mut files = Vec::new();
+    for entry in WalkDir::new(source).follow_links(false) {
+        let entry = entry?;
+        anyhow::ensure!(!entry.file_type().is_symlink(), "cache contains a symlink");
+        if entry.file_type().is_file() {
+            files.push(CacheMigrationFile {
+                path: relative_text(entry.path().strip_prefix(source)?),
+                size_bytes: entry.metadata()?.len(),
+                sha256: digest(entry.path())?,
+                cleaned: false,
+            });
+        }
+    }
+    files.sort_by(|a, b| a.path.cmp(&b.path));
+    Ok(files)
+}
+
+fn validate_old_cache_file(
+    source: &Path,
+    destination: &Path,
+    file: &CacheMigrationFile,
+) -> Result<Option<PathBuf>> {
+    let path = source.join(checked_relative(&file.path)?);
+    if !restore_file_exists(source, &path, &file.sha256)? {
+        return Ok(None);
+    }
+    anyhow::ensure!(
+        fs::metadata(&path)?.len() == file.size_bytes,
+        "old cache size changed"
+    );
+    let copied = destination.join(checked_relative(&file.path)?);
+    anyhow::ensure!(
+        restore_file_exists(destination, &copied, &file.sha256)?,
+        "verified migrated copy is missing"
+    );
+    anyhow::ensure!(
+        fs::metadata(&copied)?.len() == file.size_bytes,
+        "migrated cache size changed"
+    );
+    Ok(Some(path))
 }

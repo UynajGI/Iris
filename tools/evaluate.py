@@ -138,44 +138,12 @@ def quality_scores(analysis: dict, dimension: str, face: dict | None) -> dict[st
     breakdown = analysis.get("score_breakdown")
     if not str(analysis.get("version", "")).startswith(("iris-vision-v5-", "iris-vision-v6-")) or not isinstance(breakdown, dict) or breakdown.get("method") != QUALITY_METHOD:
         return missing
-    if dimension == "sharpness":
-        components = breakdown.get("components")
-        require(isinstance(components, list), "Missing score breakdown components")
-        selected = [c for c in components if isinstance(c, dict) and c.get("id") == "sharpness"]
-        require(len(selected) == 1, "Expected one sharpness score component")
-        component = selected[0]
-        if component.get("score") is None:
-            return missing
-        full = bounded_score(component["score"], "sharpness score")
-        terms = component.get("terms")
-        require(isinstance(terms, list), "Missing sharpness terms")
-        require(all(isinstance(t, dict) for t in terms), "Invalid sharpness term")
-        require(len(terms) == 3 and {t.get("id") for t in terms} == set(ids), "Unsupported sharpness terms")
-        values = {}
-        for term in terms:
-            weight = number(term.get("weight"), "sharpness term weight")
-            require(0 <= weight <= 1, "Sharpness term weight must be in 0..1")
-            score = term.get("score")
-            require(score is not None or weight == 0, "Missing sharpness term must have zero weight")
-            values[term["id"]] = (None if score is None else bounded_score(score, "sharpness term score"), weight)
-    else:
-        quality = face.get("quality") if face is not None else None
-        if not isinstance(quality, dict):
-            return missing
-        if quality.get("method") != "preview_bbox_clipped_no_upscale_v1_lap50_exposure30_min_side128_20":
-            return missing
-        full = bounded_score(quality.get("score"), "face quality score")
-        values = {name: (bounded_score(quality.get(name + "_score"), "local " + name), weight)
-                  for name, weight in zip(ids, (0.5, 0.3, 0.2))}
-    require(abs(sum(w for _, w in values.values()) - 1.) <= 1e-9, "Quality term weights must sum to one")
-    require(abs(sum((score or 0.) * w for score, w in values.values()) - full) <= 1e-7,
-            "Quality score disagrees with stored weighted terms")
-    result = {"full": full}
-    for omitted in ids:
-        retained = [(score, w) for name, (score, w) in values.items() if name != omitted and score is not None and w > 0]
-        total = sum(w for _, w in retained)
-        result[f"without_{omitted}"] = sum(score * w for score, w in retained) / total if total else None
-    return result
+    terms = sharpness_quality_terms(breakdown, ids) if dimension == "sharpness" else face_quality_terms(face, ids)
+    if terms is None:
+        return missing
+    full, values = terms
+    return quality_ablations(full, values, ids)
+
 
 
 def evaluate_quality_preferences(records: Any, photos: dict[int, dict], truths: dict[int, list[dict]],
@@ -193,21 +161,7 @@ def evaluate_quality_preferences(records: Any, photos: dict[int, dict], truths: 
         truth = record.get("ground_truth")
         require(isinstance(truth, dict) and truth.get("preference") in ("a", "b", "tie", "ungradable"), "Quality preference requires independent a/b/tie/ungradable truth")
         preference = truth["preference"]
-        endpoints, scores = [], []
-        for side in ("a", "b"):
-            endpoint = record.get(side)
-            require(isinstance(endpoint, dict), "Quality endpoint must be an object")
-            photo_id = endpoint.get("photo_id")
-            require(isinstance(photo_id, int) and not isinstance(photo_id, bool) and photo_id in photos, "Quality endpoint references unknown photo")
-            face_index = endpoint.get("face_index")
-            if dimension == "face_quality":
-                require(isinstance(face_index, int) and not isinstance(face_index, bool) and 0 <= face_index < len(truths[photo_id]), "Quality face_index must reference a human truth face")
-                face = matched_faces[photo_id].get(face_index)
-            else:
-                require("face_index" not in endpoint, "Sharpness preference compares whole photos, not faces")
-                face = None
-            endpoints.append((photo_id, face_index if dimension == "face_quality" else -1))
-            scores.append(quality_scores(photos[photo_id]["analysis"], dimension, face))
+        endpoints, scores = quality_endpoints(record, dimension, photos, truths, matched_faces)
         require(endpoints[0] != endpoints[1], "Quality preference cannot compare an endpoint to itself")
         pair = (dimension, tuple(sorted(endpoints)))
         require(pair not in seen_pairs, "Duplicate quality preference pair, including reversed endpoints")
@@ -215,24 +169,7 @@ def evaluate_quality_preferences(records: Any, photos: dict[int, dict], truths: 
         bucket = dimensions.setdefault(dimension, {"total": 0, "gradable": 0, "ungradable": 0, "variants": {}})
         bucket["total"] += 1
         bucket["ungradable" if preference == "ungradable" else "gradable"] += 1
-        predictions, correct = {}, {}
-        for variant in scores[0]:
-            a, b = scores[0][variant], scores[1][variant]
-            prediction = None if a is None or b is None else "tie" if abs(a - b) <= PREFERENCE_TIE_EPSILON else "a" if a > b else "b"
-            correct[variant] = prediction == preference
-            predictions[variant] = {"a_score": a, "b_score": b, "preference": prediction,
-                                    "missing_reason": "Missing matched face, supported v5 measurement, or retained ablation term" if prediction is None else None}
-            stats = bucket["variants"].setdefault(variant, {"answered": 0, "correct": 0, "abstained": 0,
-                                                          "paired_with_full": 0, "full_correct_on_paired": 0, "variant_correct_on_paired": 0})
-            if preference != "ungradable":
-                stats["answered" if prediction is not None else "abstained"] += 1
-                stats["correct"] += int(correct[variant])
-        if preference != "ungradable":
-            for variant, stats in bucket["variants"].items():
-                if predictions["full"]["preference"] is not None and predictions[variant]["preference"] is not None:
-                    stats["paired_with_full"] += 1
-                    stats["full_correct_on_paired"] += int(correct["full"])
-                    stats["variant_correct_on_paired"] += int(correct[variant])
+        predictions = quality_predictions(scores, preference, bucket)
         details.append({"id": identifier, "dimension": dimension, "human_preference": preference, "variants": predictions})
     for bucket in dimensions.values():
         for stats in bucket["variants"].values():
@@ -269,33 +206,7 @@ def match_faces(predictions: list[dict], truth: list[dict], threshold: float) ->
         for t, value in enumerate(row):
             if value >= threshold:
                 weights[p][t] = size + 1 + value
-    u, v, assigned, previous = [0.0] * (size + 1), [0.0] * (size + 1), [0] * (size + 1), [0] * (size + 1)
-    for row in range(1, size + 1):
-        assigned[0] = row
-        minimum, used, column = [math.inf] * (size + 1), [False] * (size + 1), 0
-        while True:
-            used[column] = True
-            current_row, delta, next_column = assigned[column], math.inf, 0
-            for candidate in range(1, size + 1):
-                if not used[candidate]:
-                    reduced = -weights[current_row - 1][candidate - 1] - u[current_row] - v[candidate]
-                    if reduced < minimum[candidate]:
-                        minimum[candidate], previous[candidate] = reduced, column
-                    if minimum[candidate] < delta:
-                        delta, next_column = minimum[candidate], candidate
-            for candidate in range(size + 1):
-                if used[candidate]:
-                    u[assigned[candidate]] += delta
-                    v[candidate] -= delta
-                else:
-                    minimum[candidate] -= delta
-            column = next_column
-            if assigned[column] == 0:
-                break
-        while column:
-            prior_column = previous[column]
-            assigned[column] = assigned[prior_column]
-            column = prior_column
+    assigned = hungarian_assignment(weights, size)
     return [(assigned[column] - 1, column - 1, overlap[assigned[column] - 1][column - 1])
             for column in range(1, size + 1)
             if 0 < assigned[column] <= len(predictions) and column <= len(truth)
@@ -349,20 +260,7 @@ def truth_faces(record: dict) -> list[dict]:
 
 def evaluate(project_id: int, photos: list[dict], groups: list[dict], labels: dict,
              threshold: float = 0.5, require_design_gate: bool = False) -> dict:
-    threshold = number(threshold, "IoU threshold")
-    require(0 < threshold <= 1, "IoU threshold must be in (0,1]")
-    require(isinstance(labels, dict) and labels.get("schema_version") == SCHEMA_VERSION, "Unsupported annotation schema")
-    require(labels.get("project_id") == project_id, "Annotation project does not match")
-    require(labels.get("coordinate_space") == COORDINATES, "Annotation coordinate space does not match")
-    require(bool(photos), "Project has no available photos")
-    dataset_gate = design_dataset_gate(photos, groups, require_design_gate)
-    if require_design_gate:
-        require(dataset_gate["satisfied"], "Design gate requires at least 300 photos and 60 unique burst groups")
-    photo_labels, group_labels = keyed(labels.get("photos"), "photo_id", "photos"), keyed(labels.get("groups"), "group_key", "groups")
-    require(set(photo_labels) == {p["photo_id"] for p in photos}, "Missing or extra photo annotations; dataset changed")
-    current_group_keys = [group_key(group) for group in groups]
-    require(len(set(current_group_keys)) == len(current_group_keys), "Duplicate stored group membership")
-    require(set(group_labels) == set(current_group_keys), "Missing or extra group annotations; group membership changed")
+    threshold, dataset_gate, photo_labels, group_labels = validate_evaluation_inputs(project_id, photos, groups, labels, threshold, require_design_gate)
     tp = fp = fn = 0
     eyes = {key: 0 for key in ("gradable", "ungradable", "answered", "correct", "incorrect", "abstained", "missing_face_eyes", "uncertain_predictions", "unreliable_or_missing_predictions")}
     ungradable = {}
@@ -384,41 +282,7 @@ def evaluate(project_id: int, photos: list[dict], groups: list[dict], labels: di
         fp += len(predictions) - len(matches)
         fn += len(truth) - len(matches)
         details.append({"photo_id": photo["photo_id"], "tp": len(matches), "fp": len(predictions) - len(matches), "fn": len(truth) - len(matches)})
-        for truth_id, face in enumerate(truth):
-            prediction = predictions[mapping[truth_id]] if truth_id in mapping else None
-            for eye in ("left_eye", "right_eye"):
-                human = face[eye]
-                predicted_eye = prediction.get(eye) if prediction is not None else None
-                state = predicted_eye.get("state") if isinstance(predicted_eye, dict) else None
-                require(state in (None, "open", "closed", "uncertain"), "Invalid stored eye prediction")
-                if human == "ungradable":
-                    eyes["ungradable"] += 1
-                    reason = face.get(eye + "_ungradable_reason") or "unspecified"
-                    bucket = ungradable.setdefault(reason, {key: 0 for key in (
-                        "total", "matched_face_eyes", "missing_face_eyes", "determinate_predictions",
-                        "uncertain_predictions", "hidden_predictions")})
-                    bucket["total"] += 1
-                    if prediction is None:
-                        bucket["missing_face_eyes"] += 1
-                    else:
-                        bucket["matched_face_eyes"] += 1
-                        bucket["determinate_predictions" if state in ("open", "closed") else
-                               "uncertain_predictions" if state == "uncertain" else "hidden_predictions"] += 1
-                    continue
-                eyes["gradable"] += 1
-                if state in ("open", "closed"):
-                    eyes["answered"] += 1
-                    eyes["correct" if state == human else "incorrect"] += 1
-                    confusion[human][state] += 1
-                else:
-                    eyes["abstained"] += 1
-                    confusion[human]["abstain"] += 1
-                    if prediction is None:
-                        eyes["missing_face_eyes"] += 1
-                    elif state == "uncertain":
-                        eyes["uncertain_predictions"] += 1
-                    else:
-                        eyes["unreliable_or_missing_predictions"] += 1
+        accumulate_eyes(truth, predictions, mapping, eyes, confusion, ungradable)
         analysis = photo["analysis"]
         if analysis.get("elapsed_ms") is not None:
             elapsed = number(analysis["elapsed_ms"], "elapsed_ms")
@@ -430,24 +294,7 @@ def evaluate(project_id: int, photos: list[dict], groups: list[dict], labels: di
     for bucket in [ungradable_totals, *ungradable.values()]:
         bucket["determinate_rate_when_matched"] = ratio(bucket["determinate_predictions"], bucket["matched_face_eyes"])
         bucket["state_display_rate_when_matched"] = ratio(bucket["determinate_predictions"] + bucket["uncertain_predictions"], bucket["matched_face_eyes"])
-    group_successes = 0
-    group_details = []
-    for group in groups:
-        record = group_labels[group_key(group)]
-        require(record.get("annotation_complete") is True, f"Group {group['group_id']} annotation is incomplete")
-        members = group["member_photo_ids"]
-        require(isinstance(members, list) and bool(members) and len(set(members)) == len(members), "Invalid stored group members")
-        require(set(members) <= set(photo_labels), "Stored group contains unavailable photos")
-        require(group_key(record) == group_key(group), "Group membership changed; review group labels")
-        ground_truth = record.get("ground_truth")
-        require(isinstance(ground_truth, dict), "Missing group ground_truth")
-        accepted = ground_truth.get("acceptable_photo_ids")
-        require(isinstance(accepted, list), "Missing human acceptable_photo_ids")
-        require(all(isinstance(v, int) and not isinstance(v, bool) for v in accepted), "Human acceptable ids must be integers")
-        require(len(set(accepted)) == len(accepted) and set(accepted) <= set(members), "Human acceptable ids must be unique group members")
-        success = members[0] in accepted
-        group_successes += success
-        group_details.append({"group_id": group["group_id"], "top_photo_id": members[0], "success": success})
+    group_successes, group_details = evaluate_groups(groups, group_labels, photo_labels)
     return {
         "status": "evaluated_against_explicit_human_labels", "project_id": project_id,
         "photos": len(photos), "model_versions": sorted(versions),
@@ -467,6 +314,210 @@ def evaluate(project_id: int, photos: list[dict], groups: list[dict], labels: di
                                                              {p["photo_id"]: p for p in photos}, quality_truths, quality_matches),
         "limitations": "Annotation independence and correctness require human review; this tool cannot certify either or infer missing labels.",
     }
+
+
+
+def sharpness_quality_terms(breakdown, ids):
+    components = breakdown.get("components")
+    require(isinstance(components, list), "Missing score breakdown components")
+    selected = [c for c in components if isinstance(c, dict) and c.get("id") == "sharpness"]
+    require(len(selected) == 1, "Expected one sharpness score component")
+    component = selected[0]
+    if component.get("score") is None:
+        return None
+    full = bounded_score(component["score"], "sharpness score")
+    terms = component.get("terms")
+    require(isinstance(terms, list), "Missing sharpness terms")
+    require(all(isinstance(t, dict) for t in terms), "Invalid sharpness term")
+    require(len(terms) == 3 and {t.get("id") for t in terms} == set(ids), "Unsupported sharpness terms")
+    values = {}
+    for term in terms:
+        weight = number(term.get("weight"), "sharpness term weight")
+        require(0 <= weight <= 1, "Sharpness term weight must be in 0..1")
+        score = term.get("score")
+        require(score is not None or weight == 0, "Missing sharpness term must have zero weight")
+        values[term["id"]] = (None if score is None else bounded_score(score, "sharpness term score"), weight)
+    return full, values
+
+
+def face_quality_terms(face, ids):
+    quality = face.get("quality") if face is not None else None
+    if not isinstance(quality, dict):
+        return None
+    if quality.get("method") != "preview_bbox_clipped_no_upscale_v1_lap50_exposure30_min_side128_20":
+        return None
+    full = bounded_score(quality.get("score"), "face quality score")
+    values = {name: (bounded_score(quality.get(name + "_score"), "local " + name), weight)
+              for name, weight in zip(ids, (0.5, 0.3, 0.2))}
+    return full, values
+
+
+def quality_endpoints(record, dimension, photos, truths, matched_faces):
+    endpoints, scores = [], []
+    for side in ("a", "b"):
+        endpoint = record.get(side)
+        require(isinstance(endpoint, dict), "Quality endpoint must be an object")
+        photo_id = endpoint.get("photo_id")
+        require(isinstance(photo_id, int) and not isinstance(photo_id, bool) and photo_id in photos, "Quality endpoint references unknown photo")
+        face_index = endpoint.get("face_index")
+        if dimension == "face_quality":
+            require(isinstance(face_index, int) and not isinstance(face_index, bool) and 0 <= face_index < len(truths[photo_id]), "Quality face_index must reference a human truth face")
+            face = matched_faces[photo_id].get(face_index)
+        else:
+            require("face_index" not in endpoint, "Sharpness preference compares whole photos, not faces")
+            face = None
+        endpoints.append((photo_id, face_index if dimension == "face_quality" else -1))
+        scores.append(quality_scores(photos[photo_id]["analysis"], dimension, face))
+    return endpoints, scores
+
+
+def quality_predictions(scores, preference, bucket):
+    predictions, correct = {}, {}
+    for variant in scores[0]:
+        a, b = scores[0][variant], scores[1][variant]
+        prediction = None if a is None or b is None else "tie" if abs(a - b) <= PREFERENCE_TIE_EPSILON else "a" if a > b else "b"
+        correct[variant] = prediction == preference
+        predictions[variant] = {"a_score": a, "b_score": b, "preference": prediction,
+                                "missing_reason": "Missing matched face, supported v5 measurement, or retained ablation term" if prediction is None else None}
+        stats = bucket["variants"].setdefault(variant, {"answered": 0, "correct": 0, "abstained": 0,
+                                                      "paired_with_full": 0, "full_correct_on_paired": 0, "variant_correct_on_paired": 0})
+        if preference != "ungradable":
+            stats["answered" if prediction is not None else "abstained"] += 1
+            stats["correct"] += int(correct[variant])
+    if preference != "ungradable":
+        for variant, stats in bucket["variants"].items():
+            if predictions["full"]["preference"] is not None and predictions[variant]["preference"] is not None:
+                stats["paired_with_full"] += 1
+                stats["full_correct_on_paired"] += int(correct["full"])
+                stats["variant_correct_on_paired"] += int(correct[variant])
+    return predictions
+
+
+def hungarian_assignment(weights, size):
+    u, v, assigned, previous = [0.0] * (size + 1), [0.0] * (size + 1), [0] * (size + 1), [0] * (size + 1)
+    for row in range(1, size + 1):
+        assigned[0] = row
+        minimum, used, column = [math.inf] * (size + 1), [False] * (size + 1), 0
+        while True:
+            used[column] = True
+            current_row, delta, next_column = assigned[column], math.inf, 0
+            for candidate in range(1, size + 1):
+                if not used[candidate]:
+                    reduced = -weights[current_row - 1][candidate - 1] - u[current_row] - v[candidate]
+                    if reduced < minimum[candidate]:
+                        minimum[candidate], previous[candidate] = reduced, column
+                    if minimum[candidate] < delta:
+                        delta, next_column = minimum[candidate], candidate
+            for candidate in range(size + 1):
+                if used[candidate]:
+                    u[assigned[candidate]] += delta
+                    v[candidate] -= delta
+                else:
+                    minimum[candidate] -= delta
+            column = next_column
+            if assigned[column] == 0:
+                break
+        while column:
+            prior_column = previous[column]
+            assigned[column] = assigned[prior_column]
+            column = prior_column
+    return assigned
+
+
+def accumulate_eyes(truth, predictions, mapping, eyes, confusion, ungradable):
+    for truth_id, face in enumerate(truth):
+        prediction = predictions[mapping[truth_id]] if truth_id in mapping else None
+        for eye in ("left_eye", "right_eye"):
+            human = face[eye]
+            predicted_eye = prediction.get(eye) if prediction is not None else None
+            state = predicted_eye.get("state") if isinstance(predicted_eye, dict) else None
+            require(state in (None, "open", "closed", "uncertain"), "Invalid stored eye prediction")
+            if human == "ungradable":
+                accumulate_ungradable_eye(eyes, ungradable, face, eye, prediction, state)
+                continue
+            eyes["gradable"] += 1
+            if state in ("open", "closed"):
+                eyes["answered"] += 1
+                eyes["correct" if state == human else "incorrect"] += 1
+                confusion[human][state] += 1
+            else:
+                eyes["abstained"] += 1
+                confusion[human]["abstain"] += 1
+                if prediction is None:
+                    eyes["missing_face_eyes"] += 1
+                elif state == "uncertain":
+                    eyes["uncertain_predictions"] += 1
+                else:
+                    eyes["unreliable_or_missing_predictions"] += 1
+
+
+def evaluate_groups(groups, group_labels, photo_labels):
+    group_successes = 0
+    group_details = []
+    for group in groups:
+        record = group_labels[group_key(group)]
+        require(record.get("annotation_complete") is True, f"Group {group['group_id']} annotation is incomplete")
+        members = group["member_photo_ids"]
+        require(isinstance(members, list) and bool(members) and len(set(members)) == len(members), "Invalid stored group members")
+        require(set(members) <= set(photo_labels), "Stored group contains unavailable photos")
+        require(group_key(record) == group_key(group), "Group membership changed; review group labels")
+        ground_truth = record.get("ground_truth")
+        require(isinstance(ground_truth, dict), "Missing group ground_truth")
+        accepted = ground_truth.get("acceptable_photo_ids")
+        require(isinstance(accepted, list), "Missing human acceptable_photo_ids")
+        require(all(isinstance(v, int) and not isinstance(v, bool) for v in accepted), "Human acceptable ids must be integers")
+        require(len(set(accepted)) == len(accepted) and set(accepted) <= set(members), "Human acceptable ids must be unique group members")
+        success = members[0] in accepted
+        group_successes += success
+        group_details.append({"group_id": group["group_id"], "top_photo_id": members[0], "success": success})
+    return group_successes, group_details
+
+
+
+def accumulate_ungradable_eye(eyes, ungradable, face, eye, prediction, state):
+    eyes["ungradable"] += 1
+    reason = face.get(eye + "_ungradable_reason") or "unspecified"
+    bucket = ungradable.setdefault(reason, {key: 0 for key in (
+        "total", "matched_face_eyes", "missing_face_eyes", "determinate_predictions",
+        "uncertain_predictions", "hidden_predictions")})
+    bucket["total"] += 1
+    if prediction is None:
+        bucket["missing_face_eyes"] += 1
+    else:
+        bucket["matched_face_eyes"] += 1
+        bucket["determinate_predictions" if state in ("open", "closed") else
+               "uncertain_predictions" if state == "uncertain" else "hidden_predictions"] += 1
+
+
+
+def quality_ablations(full, values, ids):
+    require(abs(sum(w for _, w in values.values()) - 1.) <= 1e-9, "Quality term weights must sum to one")
+    require(abs(sum((score or 0.) * w for score, w in values.values()) - full) <= 1e-7,
+            "Quality score disagrees with stored weighted terms")
+    result = {"full": full}
+    for omitted in ids:
+        retained = [(score, w) for name, (score, w) in values.items() if name != omitted and score is not None and w > 0]
+        total = sum(w for _, w in retained)
+        result[f"without_{omitted}"] = sum(score * w for score, w in retained) / total if total else None
+    return result
+
+
+def validate_evaluation_inputs(project_id, photos, groups, labels, threshold, require_design_gate):
+    threshold = number(threshold, "IoU threshold")
+    require(0 < threshold <= 1, "IoU threshold must be in (0,1]")
+    require(isinstance(labels, dict) and labels.get("schema_version") == SCHEMA_VERSION, "Unsupported annotation schema")
+    require(labels.get("project_id") == project_id, "Annotation project does not match")
+    require(labels.get("coordinate_space") == COORDINATES, "Annotation coordinate space does not match")
+    require(bool(photos), "Project has no available photos")
+    dataset_gate = design_dataset_gate(photos, groups, require_design_gate)
+    if require_design_gate:
+        require(dataset_gate["satisfied"], "Design gate requires at least 300 photos and 60 unique burst groups")
+    photo_labels, group_labels = keyed(labels.get("photos"), "photo_id", "photos"), keyed(labels.get("groups"), "group_key", "groups")
+    require(set(photo_labels) == {p["photo_id"] for p in photos}, "Missing or extra photo annotations; dataset changed")
+    current_group_keys = [group_key(group) for group in groups]
+    require(len(set(current_group_keys)) == len(current_group_keys), "Duplicate stored group membership")
+    require(set(group_labels) == set(current_group_keys), "Missing or extra group annotations; group membership changed")
+    return threshold, dataset_gate, photo_labels, group_labels
 
 
 def write_json(path: Path, value: dict) -> None:

@@ -181,6 +181,68 @@ fn component(
 }
 
 pub(super) fn breakdown(a: &VisionAnalysis, s: &AnalysisSettings) -> ScoreBreakdown {
+    let sharp_terms = sharpness_terms(a, s);
+    let framing_terms = framing_terms(a);
+    let (eye_terms, face_terms, smile_terms) = face_observation_terms(a);
+    let count = |terms: &[ScoreTerm]| terms.iter().filter(|t| t.score.is_some()).count();
+    let mut components = vec![
+        component(
+            "eyes",
+            s.eyes_weight,
+            eye_terms.clone(),
+            count(&eye_terms),
+            a.faces.len() * 2,
+        ),
+        component(
+            "sharpness",
+            s.sharpness_weight,
+            sharp_terms.clone(),
+            count(&sharp_terms),
+            3,
+        ),
+        component(
+            "face",
+            s.face_weight,
+            face_terms.clone(),
+            count(&face_terms),
+            a.faces.len(),
+        ),
+        component(
+            "exposure",
+            s.exposure_weight,
+            framing_terms.clone(),
+            count(&framing_terms),
+            2,
+        ),
+        component(
+            "smile",
+            s.smile_weight,
+            smile_terms.clone(),
+            count(&smile_terms),
+            a.faces.len(),
+        ),
+    ];
+    let total: f64 = components
+        .iter()
+        .filter(|c| c.score.is_some())
+        .map(|c| c.configured_weight)
+        .sum();
+    for c in &mut components {
+        c.effective_weight = if c.score.is_some() && total > 0. {
+            c.configured_weight / total
+        } else {
+            0.
+        };
+        c.contribution = c.score.unwrap_or(0.) * c.effective_weight;
+    }
+    ScoreBreakdown {
+        method: METHOD.into(),
+        effective_weight_total: total,
+        components,
+    }
+}
+
+fn sharpness_terms(a: &VisionAnalysis, s: &AnalysisSettings) -> Vec<ScoreTerm> {
     let n = if s.enable_niqe {
         a.niqe.filter(|n| n.is_finite())
     } else {
@@ -192,6 +254,11 @@ pub(super) fn breakdown(a: &VisionAnalysis, s: &AnalysisSettings) -> ScoreBreakd
         term("fft", raw(&[("high_frequency_energy_ratio", a.sharpness_fft)]), a.sharpness_fft.is_finite().then(|| 100.*a.sharpness_fft.clamp(0.,1.).sqrt()), 0.25*(1.-nw), "100*sqrt(clamp(high_frequency_energy_ratio,0,1)); noise and texture can increase this score", "Non-finite FFT measurement"),
         term("niqe", a.niqe.map_or_else(Vec::new, |v| raw(&[("niqe",v)])), n.map(|n| (100.-(n-2.).max(0.)*12.5).clamp(0.,100.)), nw, "clamp(100-max(niqe-2,0)*12.5,0,100)", if s.enable_niqe {"NIQE unavailable; remaining budget allocated to Laplacian and FFT at 75:25"} else {"NIQE disabled; Laplacian and FFT use 75:25"}),
     ];
+
+    sharp_terms
+}
+
+fn framing_terms(a: &VisionAnalysis) -> Vec<ScoreTerm> {
     let has_composition = a.composition.is_some();
     let framing_terms = vec![
         term(
@@ -217,6 +284,11 @@ pub(super) fn breakdown(a: &VisionAnalysis, s: &AnalysisSettings) -> ScoreBreakd
             "No observed portrait placement",
         ),
     ];
+
+    framing_terms
+}
+
+fn face_observation_terms(a: &VisionAnalysis) -> (Vec<ScoreTerm>, Vec<ScoreTerm>, Vec<ScoreTerm>) {
     let mut eye_terms = Vec::new();
     let mut face_terms = Vec::new();
     let mut smile_terms = Vec::new();
@@ -285,62 +357,8 @@ pub(super) fn breakdown(a: &VisionAnalysis, s: &AnalysisSettings) -> ScoreBreakd
             "Smile observation absent",
         ));
     }
-    let count = |terms: &[ScoreTerm]| terms.iter().filter(|t| t.score.is_some()).count();
-    let mut components = vec![
-        component(
-            "eyes",
-            s.eyes_weight,
-            eye_terms.clone(),
-            count(&eye_terms),
-            a.faces.len() * 2,
-        ),
-        component(
-            "sharpness",
-            s.sharpness_weight,
-            sharp_terms.clone(),
-            count(&sharp_terms),
-            3,
-        ),
-        component(
-            "face",
-            s.face_weight,
-            face_terms.clone(),
-            count(&face_terms),
-            a.faces.len(),
-        ),
-        component(
-            "exposure",
-            s.exposure_weight,
-            framing_terms.clone(),
-            count(&framing_terms),
-            2,
-        ),
-        component(
-            "smile",
-            s.smile_weight,
-            smile_terms.clone(),
-            count(&smile_terms),
-            a.faces.len(),
-        ),
-    ];
-    let total: f64 = components
-        .iter()
-        .filter(|c| c.score.is_some())
-        .map(|c| c.configured_weight)
-        .sum();
-    for c in &mut components {
-        c.effective_weight = if c.score.is_some() && total > 0. {
-            c.configured_weight / total
-        } else {
-            0.
-        };
-        c.contribution = c.score.unwrap_or(0.) * c.effective_weight;
-    }
-    ScoreBreakdown {
-        method: METHOD.into(),
-        effective_weight_total: total,
-        components,
-    }
+
+    (eye_terms, face_terms, smile_terms)
 }
 
 #[cfg(test)]

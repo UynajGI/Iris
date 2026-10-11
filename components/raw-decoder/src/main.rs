@@ -41,13 +41,17 @@ fn run() -> Result<()> {
         .to_dynamic_image()
         .context("RAW development produced no image")?
         .to_rgb8();
+    write_ppm(image.width(), image.height(), image.as_raw())
+}
+
+fn write_ppm(width: u32, height: u32, pixels: &[u8]) -> Result<()> {
     anyhow::ensure!(
-        image.width() > 0 && image.height() > 0,
+        width > 0 && height > 0,
         "RAW development produced empty image"
     );
     let mut out = std::io::BufWriter::new(std::io::stdout().lock());
-    write!(out, "P6\n{} {}\n255\n", image.width(), image.height())?;
-    out.write_all(image.as_raw())?;
+    write!(out, "P6\n{} {}\n255\n", width, height)?;
+    out.write_all(pixels)?;
     out.flush()?;
     Ok(())
 }

@@ -11,28 +11,8 @@ def copy_closure(source, destination, kind):
     if destination.exists() or source.is_symlink() or source.is_junction():
         raise ValueError("destination must be new and source must not be linked")
     manifest = json.loads((source / "manifest.json").read_text("utf-8"))
-    plan = {}
-    for entry in manifest["files"]:
-        name = entry["path"]
-        parts = name.split("/")
-        if not name or any(p in {"", ".", ".."} for p in parts) or "\\" in name or ":" in name or name in plan:
-            raise ValueError("invalid or duplicate runtime path")
-        path = source
-        for part in parts:
-            path = path / part
-            if path.is_symlink() or path.is_junction():
-                raise ValueError("linked runtime entry")
-        if not path.is_file() or path.stat().st_size != entry["size"] or hashlib.sha256(path.read_bytes()).hexdigest() != entry["sha256"]:
-            raise ValueError(f"runtime checksum mismatch: {name}")
-        if path.suffix.lower() == ".onnx":
-            raise ValueError("model weights are not a runtime payload")
-        plan[name] = path
-    actual = set()
-    for path in source.rglob("*"):
-        if path.is_symlink() or path.is_junction():
-            raise ValueError("linked runtime entry")
-        if path.is_file():
-            actual.add(path.relative_to(source).as_posix())
+    plan = runtime_plan(source, manifest["files"])
+    actual = actual_runtime_files(source)
     if actual != set(plan) | {"manifest.json"}:
         raise ValueError("unlisted runtime payload")
     required = {"bin/exiftool.exe", "bin/exiftool_files/exiftool.pl"} if kind == "raw" else {"DirectML.dll", "onnxruntime.dll", "onnxruntime_providers_shared.dll"}
@@ -46,6 +26,40 @@ def copy_closure(source, destination, kind):
         if hashlib.sha256(target.read_bytes()).digest() != hashlib.sha256(path.read_bytes()).digest():
             raise ValueError("copied runtime checksum mismatch")
     return len(plan)
+
+
+def actual_runtime_files(source):
+    actual = set()
+    for path in source.rglob("*"):
+        if path.is_symlink() or path.is_junction():
+            raise ValueError("linked runtime entry")
+        if path.is_file():
+            actual.add(path.relative_to(source).as_posix())
+    return actual
+
+
+def runtime_plan(source, entries):
+    plan = {}
+    for entry in entries:
+        name = entry["path"]
+        parts = name.split("/")
+        if not name or any(p in {"", ".", ".."} for p in parts) or "\\" in name or ":" in name or name in plan:
+            raise ValueError("invalid or duplicate runtime path")
+        plan[name] = verified_runtime_entry(source, entry, parts)
+    return plan
+
+
+def verified_runtime_entry(source, entry, parts):
+    path = source
+    for part in parts:
+        path = path / part
+        if path.is_symlink() or path.is_junction():
+            raise ValueError("linked runtime entry")
+    if not path.is_file() or path.stat().st_size != entry["size"] or hashlib.sha256(path.read_bytes()).hexdigest() != entry["sha256"]:
+        raise ValueError(f"runtime checksum mismatch: {entry['path']}")
+    if path.suffix.lower() == ".onnx":
+        raise ValueError("model weights are not a runtime payload")
+    return path
 
 
 if __name__ == "__main__":

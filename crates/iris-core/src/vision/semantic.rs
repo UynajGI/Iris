@@ -207,20 +207,14 @@ pub fn group_semantic(
         candidates.sort_unstable();
         let found = candidates.into_iter().find(|g| {
             let (_, anchor, anchor_time) = &items[groups[*g][0]];
-            if !anchor_time.is_some_and(|other| time.abs_diff(other) <= 8)
-                || !super::perceptual_distance(&analysis.phash, &anchor.phash)
-                    .is_some_and(|d| d <= 16)
-            {
-                return false;
-            }
-            let ratio = (analysis.width as f64 / analysis.height as f64)
-                / (anchor.width as f64 / anchor.height as f64);
-            (2. / 3. ..=1.5).contains(&ratio)
-                && anchor
-                    .embedding
-                    .as_ref()
-                    .and_then(|other| cosine(embedding, other))
-                    .is_some_and(|value| value >= f64::from(minimum_cosine))
+            matches_semantic_anchor(
+                analysis,
+                *time,
+                embedding,
+                anchor,
+                *anchor_time,
+                minimum_cosine,
+            )
         });
         if let Some(group) = found {
             groups[group].push(i);
@@ -254,6 +248,29 @@ pub fn group_semantic(
             group.into_iter().map(|i| items[i].0.clone()).collect()
         })
         .collect()
+}
+
+fn matches_semantic_anchor(
+    analysis: &VisionAnalysis,
+    time: i64,
+    embedding: &SemanticEmbedding,
+    anchor: &VisionAnalysis,
+    anchor_time: Option<i64>,
+    minimum_cosine: f32,
+) -> bool {
+    if !anchor_time.is_some_and(|other| time.abs_diff(other) <= 8)
+        || !super::perceptual_distance(&analysis.phash, &anchor.phash).is_some_and(|d| d <= 16)
+    {
+        return false;
+    }
+    let ratio = (analysis.width as f64 / analysis.height as f64)
+        / (anchor.width as f64 / anchor.height as f64);
+    (2. / 3. ..=1.5).contains(&ratio)
+        && anchor
+            .embedding
+            .as_ref()
+            .and_then(|other| cosine(embedding, other))
+            .is_some_and(|value| value >= f64::from(minimum_cosine))
 }
 
 #[cfg(test)]

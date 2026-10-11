@@ -37,22 +37,8 @@ def validate(portable, mac):
     model_names |= {"manifest.json", "niqe_params.json", "README.md", "libonnxruntime.dylib", "libonnxruntime.so"}
     for entry in entries:
         name = entry["path"]
-        path = PurePosixPath(name)
-        if (not name or "\\" in name or ":" in name or path.is_absolute()
-                or ".." in path.parts or name != path.as_posix() or name in seen):
-            raise ValueError(f"Invalid or duplicate manifest path: {name}")
-        if "/optional/" in "/" + name.lower() or name.lower().endswith((".sqlite3", ".sqlite", ".db")):
-            raise ValueError(f"Private or optional payload is not permitted: {name}")
-        relative = name.removeprefix(prefix)
-        allowed = name in {"LICENSE", "THIRD_PARTY_NOTICES.md", "README.txt", "release.json",
-                           "Launch.command" if mac else "Launch.sh", "Iris.app/Contents/Info.plist"}
-        allowed |= name in {"sources/iris-application-source.zip", "sources/raw-decoder-source.zip", "sources/dependency-sources.zip"}
-        allowed |= relative in {"iris-shell", "iris-daemon", "iris-cli", "iris-mcp", "iris-raw-decoder"}
-        allowed |= relative.startswith("frontend/")
-        if relative.startswith("models/") and len(PurePosixPath(relative).parts) == 2:
-            model = PurePosixPath(relative).name
-            allowed |= model in model_names or (model.endswith(".txt") and ("LICENSE" in model or model.startswith("ThirdPartyNotices-")))
-        if not allowed:
+        validate_installer_path(name, seen)
+        if not allowed_installer_payload(name, prefix, mac, model_names):
             raise ValueError(f"Unapproved installer payload: {name}")
         seen.add(name)
         file = portable / name
@@ -67,6 +53,28 @@ def validate(portable, mac):
         raise ValueError("Missing required package files: " + ", ".join(sorted(required - seen)))
     # Only manifested files are staged; no recursive copy of unlisted payload.
     return entries
+
+
+def validate_installer_path(name, seen):
+    path = PurePosixPath(name)
+    if (not name or "\\" in name or ":" in name or path.is_absolute()
+            or ".." in path.parts or name != path.as_posix() or name in seen):
+        raise ValueError(f"Invalid or duplicate manifest path: {name}")
+    if "/optional/" in "/" + name.lower() or name.lower().endswith((".sqlite3", ".sqlite", ".db")):
+        raise ValueError(f"Private or optional payload is not permitted: {name}")
+
+
+def allowed_installer_payload(name, prefix, mac, model_names):
+    relative = name.removeprefix(prefix)
+    allowed = name in {"LICENSE", "THIRD_PARTY_NOTICES.md", "README.txt", "release.json",
+                       "Launch.command" if mac else "Launch.sh", "Iris.app/Contents/Info.plist"}
+    allowed |= name in {"sources/iris-application-source.zip", "sources/raw-decoder-source.zip", "sources/dependency-sources.zip"}
+    allowed |= relative in {"iris-shell", "iris-daemon", "iris-cli", "iris-mcp", "iris-raw-decoder"}
+    allowed |= relative.startswith("frontend/")
+    if relative.startswith("models/") and len(PurePosixPath(relative).parts) == 2:
+        model = PurePosixPath(relative).name
+        allowed |= model in model_names or (model.endswith(".txt") and ("LICENSE" in model or model.startswith("ThirdPartyNotices-")))
+    return allowed
 
 
 def copy_entries(portable, target, entries):
@@ -120,6 +128,70 @@ def run(*args):
     subprocess.run([str(arg) for arg in args], check=True)
 
 
+def build_macos(stage, payload, artifact, version, label):
+    app = payload / "Iris.app"
+    resources = app / "Contents/Resources"
+    resources.mkdir(parents=True, exist_ok=True)
+    for name in ("LICENSE", "THIRD_PARTY_NOTICES.md", "sources", "README.txt"):
+        shutil.move(str(payload / name), resources / name)
+    manifest(app / "Contents")
+    pkg_root = stage / "root/Applications"
+    pkg_root.mkdir(parents=True)
+    shutil.move(str(app), pkg_root / "Iris.app")
+    components = stage / "components.plist"
+    run("pkgbuild", "--analyze", "--root", pkg_root.parent, components)
+    properties = plistlib.loads(components.read_bytes())
+    for component in properties:
+        component["BundleIsRelocatable"] = False
+        component["BundleOverwriteAction"] = "upgrade"
+    components.write_bytes(plistlib.dumps(properties))
+    run("pkgbuild", "--root", pkg_root.parent, "--install-location", "/", "--identifier",
+        "local.irisvision.app", "--version", version.split("-")[0], "--component-plist", components,
+        stage / "iris-component.pkg")
+    ui = stage / "resources"
+    shutil.copytree(ROOT / "apps/shell/installer/macos", ui)
+    shutil.copy2(ROOT / "LICENSE", ui / "LICENSE.txt")
+    dist = stage / "distribution.xml"
+    dist.write_text(distribution(version, "arm64" if label.endswith("arm64") else "x86_64"), encoding="utf-8")
+    run("productbuild", "--distribution", dist, "--resources", ui, "--package-path", stage, artifact)
+    extracted = stage / "expanded"
+    run("pkgutil", "--expand-full", artifact, extracted)
+    apps = list(extracted.rglob("Iris.app"))
+    if len(apps) != 1:
+        raise ValueError("Expected exactly one extracted Iris.app")
+    run(sys.executable, ROOT / "tools/verify-unix.py", "--bundle", apps[0] / "Contents",
+        "--binary-directory", apps[0] / "Contents/MacOS")
+    # Gate the actual installer UI, not only the component payload.
+    for name in ("welcome.html", "conclusion.html", "LICENSE.txt"):
+        if not any(p.read_bytes() == (ui / name).read_bytes() for p in extracted.rglob(name)):
+            raise ValueError(f"Installer resource missing: {name}")
+
+
+def build_debian(stage, payload, artifact, version):
+    deb = stage / "deb"
+    installed = deb / "opt/iris"
+    installed.parent.mkdir(parents=True)
+    shutil.move(str(payload), installed)
+    for name in ("iris", "iris-cli", "iris-mcp"):
+        wrapper = deb / "usr/bin" / name
+        wrapper.parent.mkdir(parents=True, exist_ok=True)
+        executable = "iris-shell" if name == "iris" else name
+        wrapper.write_text(f'#!/bin/sh\nexec /opt/iris/{executable} "$@"\n', encoding="utf-8")
+        wrapper.chmod(0o755)
+    desktop = deb / "usr/share/applications/iris.desktop"
+    desktop.parent.mkdir(parents=True)
+    shutil.copy2(ROOT / "apps/shell/installer/linux/iris.desktop", desktop)
+    size = (sum(p.stat().st_size for p in deb.rglob("*") if p.is_file()) + 1023) // 1024
+    control = deb / "DEBIAN"
+    control.mkdir()
+    (control / "control").write_text(deb_control(version, size), encoding="utf-8")
+    run("dpkg-deb", "--root-owner-group", "--build", deb, artifact)
+    extracted = stage / "expanded"
+    run("dpkg-deb", "--extract", artifact, extracted)
+    run(sys.executable, ROOT / "tools/verify-unix.py", "--bundle", extracted / "opt/iris")
+    run("desktop-file-validate", extracted / "usr/share/applications/iris.desktop")
+
+
 def build(portable, output):
     system = platform.system()
     machine = platform.machine().lower()
@@ -149,65 +221,9 @@ def build(portable, output):
         run(sys.executable, ROOT / "tools/verify-unix.py", "--bundle", payload)
         artifact = stage / f"Iris-{version}-{label}.{'pkg' if mac else 'deb'}"
         if mac:
-            app = payload / "Iris.app"
-            resources = app / "Contents/Resources"
-            resources.mkdir(parents=True, exist_ok=True)
-            for name in ("LICENSE", "THIRD_PARTY_NOTICES.md", "sources", "README.txt"):
-                shutil.move(str(payload / name), resources / name)
-            manifest(app / "Contents")
-            pkg_root = stage / "root/Applications"
-            pkg_root.mkdir(parents=True)
-            shutil.move(str(app), pkg_root / "Iris.app")
-            components = stage / "components.plist"
-            run("pkgbuild", "--analyze", "--root", pkg_root.parent, components)
-            properties = plistlib.loads(components.read_bytes())
-            for component in properties:
-                component["BundleIsRelocatable"] = False
-                component["BundleOverwriteAction"] = "upgrade"
-            components.write_bytes(plistlib.dumps(properties))
-            run("pkgbuild", "--root", pkg_root.parent, "--install-location", "/", "--identifier",
-                "local.irisvision.app", "--version", version.split("-")[0], "--component-plist", components,
-                stage / "iris-component.pkg")
-            ui = stage / "resources"
-            shutil.copytree(ROOT / "apps/shell/installer/macos", ui)
-            shutil.copy2(ROOT / "LICENSE", ui / "LICENSE.txt")
-            dist = stage / "distribution.xml"
-            dist.write_text(distribution(version, "arm64" if label.endswith("arm64") else "x86_64"), encoding="utf-8")
-            run("productbuild", "--distribution", dist, "--resources", ui, "--package-path", stage, artifact)
-            extracted = stage / "expanded"
-            run("pkgutil", "--expand-full", artifact, extracted)
-            apps = list(extracted.rglob("Iris.app"))
-            if len(apps) != 1:
-                raise ValueError("Expected exactly one extracted Iris.app")
-            run(sys.executable, ROOT / "tools/verify-unix.py", "--bundle", apps[0] / "Contents",
-                "--binary-directory", apps[0] / "Contents/MacOS")
-            # Gate the actual installer UI, not only the component payload.
-            for name in ("welcome.html", "conclusion.html", "LICENSE.txt"):
-                if not any(p.read_bytes() == (ui / name).read_bytes() for p in extracted.rglob(name)):
-                    raise ValueError(f"Installer resource missing: {name}")
+            build_macos(stage, payload, artifact, version, label)
         else:
-            deb = stage / "deb"
-            installed = deb / "opt/iris"
-            installed.parent.mkdir(parents=True)
-            shutil.move(str(payload), installed)
-            for name in ("iris", "iris-cli", "iris-mcp"):
-                wrapper = deb / "usr/bin" / name
-                wrapper.parent.mkdir(parents=True, exist_ok=True)
-                executable = "iris-shell" if name == "iris" else name
-                wrapper.write_text(f'#!/bin/sh\nexec /opt/iris/{executable} "$@"\n', encoding="utf-8")
-                wrapper.chmod(0o755)
-            desktop = deb / "usr/share/applications/iris.desktop"
-            desktop.parent.mkdir(parents=True)
-            shutil.copy2(ROOT / "apps/shell/installer/linux/iris.desktop", desktop)
-            size = (sum(p.stat().st_size for p in deb.rglob("*") if p.is_file()) + 1023) // 1024
-            control = deb / "DEBIAN"
-            control.mkdir()
-            (control / "control").write_text(deb_control(version, size), encoding="utf-8")
-            run("dpkg-deb", "--root-owner-group", "--build", deb, artifact)
-            extracted = stage / "expanded"
-            run("dpkg-deb", "--extract", artifact, extracted)
-            run(sys.executable, ROOT / "tools/verify-unix.py", "--bundle", extracted / "opt/iris")
-            run("desktop-file-validate", extracted / "usr/share/applications/iris.desktop")
+            build_debian(stage, payload, artifact, version)
         # Exclusive destination, created only after native verification succeeds.
         output.mkdir(parents=True)
         shutil.copy2(artifact, output / artifact.name)

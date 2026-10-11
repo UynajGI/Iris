@@ -50,27 +50,7 @@ def acquire() -> None:
             print("Reusing verified safetensors", flush=True)
         else:
             limit = WEIGHT_BYTES if filename == "model.safetensors" else 128 * 1024
-            for attempt in range(3):
-                temporary = path.with_suffix(path.suffix + ".partial")
-                try:
-                    request = urllib.request.Request(url, headers={"User-Agent": "IrisVision-local-research/0.1"})
-                    with urllib.request.urlopen(request, timeout=45) as response, temporary.open("wb") as stream:
-                        count = 0
-                        while chunk := response.read(1024 * 1024):
-                            count += len(chunk)
-                            if count > limit:
-                                raise ValueError(f"Unexpectedly large artifact: {filename}")
-                            stream.write(chunk)
-                    if filename == "model.safetensors" and (temporary.stat().st_size != WEIGHT_BYTES or digest(temporary) != WEIGHT_SHA256):
-                        raise ValueError("FaceOcc safetensors size/SHA-256 differs from pinned publisher metadata")
-                    temporary.replace(path)
-                    break
-                except Exception:
-                    if temporary.exists():
-                        temporary.unlink()
-                    if attempt == 2:
-                        raise
-                    time.sleep(attempt + 1)
+            download_artifact(filename, url, path, limit)
         records.append({"file": filename, "url": url, "bytes": path.stat().st_size, "sha256": digest(path)})
         print(f"Acquired {filename}: {path.stat().st_size} bytes", flush=True)
     card = (OUT / "README.md").read_text(encoding="utf-8")
@@ -105,20 +85,7 @@ def verify() -> None:
     import torch
     from safetensors.torch import load_file
 
-    provenance = json.loads((OUT / "provenance.json").read_text(encoding="utf-8"))
-    if provenance["revision"] != REVISION:
-        raise ValueError("Unexpected model revision")
-    for item in provenance["files"]:
-        path = OUT / item["file"]
-        if digest(path) != item["sha256"]:
-            raise ValueError(f"Research artifact changed: {item['file']}")
-    if digest(OUT / "model.safetensors") != WEIGHT_SHA256:
-        raise ValueError("Pinned weight SHA-256 mismatch")
-    config = json.loads((OUT / "config.json").read_text(encoding="utf-8"))
-    expected = {"architecture": "Unet", "encoder": "resnet18", "in_channels": 3, "classes": 1, "input_size": [256, 256], "output": "logits", "probability_threshold": 0.5}
-    if any(config.get(key) != value for key, value in expected.items()):
-        raise ValueError("Unsupported FaceOcc inference configuration")
-
+    config = checked_configuration()
     torch.set_num_threads(1)
     torch.set_num_interop_threads(1)
     torch.manual_seed(20261006)
@@ -198,6 +165,47 @@ def verify() -> None:
     if not report["passed"]:
         raise RuntimeError("ONNX/PyTorch agreement tolerance failed; see verification.json")
 
+
+
+def download_artifact(filename, url, path, limit):
+    for attempt in range(3):
+        temporary = path.with_suffix(path.suffix + ".partial")
+        try:
+            request = urllib.request.Request(url, headers={"User-Agent": "IrisVision-local-research/0.1"})
+            with urllib.request.urlopen(request, timeout=45) as response, temporary.open("wb") as stream:
+                count = 0
+                while chunk := response.read(1024 * 1024):
+                    count += len(chunk)
+                    if count > limit:
+                        raise ValueError(f"Unexpectedly large artifact: {filename}")
+                    stream.write(chunk)
+            if filename == "model.safetensors" and (temporary.stat().st_size != WEIGHT_BYTES or digest(temporary) != WEIGHT_SHA256):
+                raise ValueError("FaceOcc safetensors size/SHA-256 differs from pinned publisher metadata")
+            temporary.replace(path)
+            break
+        except Exception:
+            if temporary.exists():
+                temporary.unlink()
+            if attempt == 2:
+                raise
+            time.sleep(attempt + 1)
+
+
+def checked_configuration():
+    provenance = json.loads((OUT / "provenance.json").read_text(encoding="utf-8"))
+    if provenance["revision"] != REVISION:
+        raise ValueError("Unexpected model revision")
+    for item in provenance["files"]:
+        path = OUT / item["file"]
+        if digest(path) != item["sha256"]:
+            raise ValueError(f"Research artifact changed: {item['file']}")
+    if digest(OUT / "model.safetensors") != WEIGHT_SHA256:
+        raise ValueError("Pinned weight SHA-256 mismatch")
+    config = json.loads((OUT / "config.json").read_text(encoding="utf-8"))
+    expected = {"architecture": "Unet", "encoder": "resnet18", "in_channels": 3, "classes": 1, "input_size": [256, 256], "output": "logits", "probability_threshold": 0.5}
+    if any(config.get(key) != value for key, value in expected.items()):
+        raise ValueError("Unsupported FaceOcc inference configuration")
+    return config
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)

@@ -45,6 +45,58 @@ def main() -> None:
         parser.error("CMake and MinGW GCC/mingw32-make must be on PATH")
     toolchain = Path(gcc).resolve().parent
     install = work / "install"
+    sources = build_sources(args, work, output, install)
+
+    for name in ["libheif.dll", "libde265.dll"]:
+        shutil.copy2(install / "bin" / name, output / name)
+    shutil.copy2(toolchain / "libwinpthread-1.dll", output / "libwinpthread-1.dll")
+    copy_runtime_licenses(toolchain, output)
+    shutil.copy2(Path(__file__), output / "sources/setup-heif-runtime.py")
+    (output / "README.txt").write_text(
+        "Offline HEIC decoder: libheif + libde265, built-in HEVC decoder only; external plugins disabled.\n"
+        "No Windows Store codec or ImageMagick runtime dependency.\n"
+        "libheif is LGPL-3.0-or-later; libde265 is LGPL-3.0-or-later. See licenses and exact sources.\n"
+        "These DLLs are dynamically loaded and may be replaced with compatible modified builds.\n"
+        "Rebuild offline using sources/setup-heif-runtime.py --source-dir sources --work-dir <build> --output <runtime>.\n"
+        "MinGW GCC runtime licensing exceptions and winpthreads notices are included in licenses.\n",
+        encoding="utf-8")
+    dependencies = runtime_dependencies(toolchain, output)
+    files = [{"path": str(path.relative_to(output)).replace("\\", "/"), "sha256": digest(path), "size": path.stat().st_size}
+             for path in sorted(output.rglob("*")) if path.is_file() and path.name != "manifest.json"]
+    manifest = {"schema": 1, "platform": "windows-x64", "hevc_decoder": "libde265", "plugins": False,
+                "sources": sources, "dependencies": dependencies, "files": files}
+    (output / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    print(f"HEIC runtime ready: {output}", flush=True)
+
+
+
+def copy_runtime_licenses(toolchain, output):
+    for component in ["libwinpthread", "winpthreads", "gcc-libs"]:
+        source = toolchain.parent / "share/licenses" / component
+        # GCC 16 split gcc-libs into a meta-package; runtime exception and GPL
+        # notices now live with gcc itself. Preserve a stable bundle layout.
+        if component == "gcc-libs" and not source.is_dir():
+            source = toolchain.parent / "share/licenses/gcc"
+        if not source.is_dir():
+            raise RuntimeError(f"runtime license missing: {source}")
+        if component == "gcc-libs" and not all((source / name).is_file() for name in ("COPYING.RUNTIME", "COPYING3")):
+            raise RuntimeError("GCC runtime exception/license files are incomplete")
+        shutil.copytree(source, output / "licenses" / component, dirs_exist_ok=True)
+
+
+def runtime_dependencies(toolchain, output):
+    dependencies = {}
+    for dll in sorted(output.glob("*.dll")):
+        listing = subprocess.check_output([str(toolchain / "objdump.exe"), "-p", str(dll)], text=True)
+        names = re.findall(r"DLL Name:\s*(\S+)", listing)
+        dependencies[dll.name] = names
+        allowed = {"kernel32.dll", "msvcrt.dll", "libde265.dll", "libwinpthread-1.dll"}
+        if any(name.lower() not in allowed for name in names):
+            raise RuntimeError(f"unexpected dependency closure: {dll.name}: {names}")
+    return dependencies
+
+
+def build_sources(args, work, output, install):
     sources = []
     for name, (version, sha256) in SOURCES.items():
         filename = f"{name}-v{version}.tar.gz"
@@ -87,44 +139,7 @@ def main() -> None:
         shutil.copy2(source / "COPYING", output / "licenses" / f"{name}-COPYING.txt")
         sources.append({"name": name, "version": version, "url": url, "sha256": sha256})
 
-    for name in ["libheif.dll", "libde265.dll"]:
-        shutil.copy2(install / "bin" / name, output / name)
-    shutil.copy2(toolchain / "libwinpthread-1.dll", output / "libwinpthread-1.dll")
-    for component in ["libwinpthread", "winpthreads", "gcc-libs"]:
-        source = toolchain.parent / "share/licenses" / component
-        # GCC 16 split gcc-libs into a meta-package; runtime exception and GPL
-        # notices now live with gcc itself. Preserve a stable bundle layout.
-        if component == "gcc-libs" and not source.is_dir():
-            source = toolchain.parent / "share/licenses/gcc"
-        if not source.is_dir():
-            raise RuntimeError(f"runtime license missing: {source}")
-        if component == "gcc-libs" and not all((source / name).is_file() for name in ("COPYING.RUNTIME", "COPYING3")):
-            raise RuntimeError("GCC runtime exception/license files are incomplete")
-        shutil.copytree(source, output / "licenses" / component, dirs_exist_ok=True)
-    shutil.copy2(Path(__file__), output / "sources/setup-heif-runtime.py")
-    (output / "README.txt").write_text(
-        "Offline HEIC decoder: libheif + libde265, built-in HEVC decoder only; external plugins disabled.\n"
-        "No Windows Store codec or ImageMagick runtime dependency.\n"
-        "libheif is LGPL-3.0-or-later; libde265 is LGPL-3.0-or-later. See licenses and exact sources.\n"
-        "These DLLs are dynamically loaded and may be replaced with compatible modified builds.\n"
-        "Rebuild offline using sources/setup-heif-runtime.py --source-dir sources --work-dir <build> --output <runtime>.\n"
-        "MinGW GCC runtime licensing exceptions and winpthreads notices are included in licenses.\n",
-        encoding="utf-8")
-    dependencies = {}
-    for dll in sorted(output.glob("*.dll")):
-        listing = subprocess.check_output([str(toolchain / "objdump.exe"), "-p", str(dll)], text=True)
-        names = re.findall(r"DLL Name:\s*(\S+)", listing)
-        dependencies[dll.name] = names
-        allowed = {"kernel32.dll", "msvcrt.dll", "libde265.dll", "libwinpthread-1.dll"}
-        if any(name.lower() not in allowed for name in names):
-            raise RuntimeError(f"unexpected dependency closure: {dll.name}: {names}")
-    files = [{"path": str(path.relative_to(output)).replace("\\", "/"), "sha256": digest(path), "size": path.stat().st_size}
-             for path in sorted(output.rglob("*")) if path.is_file() and path.name != "manifest.json"]
-    manifest = {"schema": 1, "platform": "windows-x64", "hevc_decoder": "libde265", "plugins": False,
-                "sources": sources, "dependencies": dependencies, "files": files}
-    (output / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
-    print(f"HEIC runtime ready: {output}", flush=True)
-
+    return sources
 
 if __name__ == "__main__":
     main()

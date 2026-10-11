@@ -43,6 +43,15 @@ def inspect(root: Path) -> list[str]:
                 errors.append(f"{path}: possible credential material (value omitted)")
         if path.endswith(".md"):
             documents[path] = data.decode("utf-8-sig")
+    errors.extend(inspect_document_links(root, paths, documents))
+    for required in ("LICENSE", "THIRD_PARTY_NOTICES.md", "README.md", "docs/licensing.md"):
+        if required not in paths:
+            errors.append(f"missing required public file: {required}")
+    return errors
+
+
+def inspect_document_links(root: Path, paths: set[str], documents: dict[str, str]) -> list[str]:
+    errors = []
     for path, content in documents.items():
         for target in re.findall(r"\]\(([^)]+)\)", content):
             target = target.split("#", 1)[0].split("?", 1)[0]
@@ -56,9 +65,6 @@ def inspect(root: Path) -> list[str]:
                 continue
             if relative not in paths and not any(p.startswith(relative.rstrip('/') + '/') for p in paths):
                 errors.append(f"{path}: link is not in public index: {target}")
-    for required in ("LICENSE", "THIRD_PARTY_NOTICES.md", "README.md", "docs/licensing.md"):
-        if required not in paths:
-            errors.append(f"missing required public file: {required}")
     return errors
 
 

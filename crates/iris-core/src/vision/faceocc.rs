@@ -71,23 +71,7 @@ fn inspect(dir: &Path, settings: &AnalysisSettings) -> (OcclusionModelStatus, Op
         ) {
             bail!("FaceOcc SHA-256 mismatch; actual {hash}");
         }
-        let path = crate::model_paths::checked_model_path(dir, METADATA)?;
-        if !path.exists() {
-            status.state = ModelAvailability::Missing;
-            bail!("FaceOcc metadata missing: {}", path.display());
-        }
-        let metadata: Metadata =
-            serde_json::from_slice(&super::scrfd::read_bounded(&path, 64 * 1024)?)
-                .context("invalid FaceOcc metadata JSON")?;
-        if metadata.model_id != "faceocc_visible_face_v1"
-            || !metadata.source_url.starts_with("https://")
-            || metadata.source_url.len() <= 8
-            || !metadata.license_url.starts_with("https://")
-            || metadata.license_url.len() <= 8
-            || metadata.license_note.trim().is_empty()
-        {
-            bail!("FaceOcc metadata requires model_id faceocc_visible_face_v1, HTTPS source_url/license_url and nonempty license_note; declarations are not authorization");
-        }
+        validate_metadata(dir, &mut status)?;
         Ok(bytes)
     })();
     match result {
@@ -107,6 +91,26 @@ fn inspect(dir: &Path, settings: &AnalysisSettings) -> (OcclusionModelStatus, Op
             (status, None)
         }
     }
+}
+
+fn validate_metadata(dir: &Path, status: &mut OcclusionModelStatus) -> Result<()> {
+    let path = crate::model_paths::checked_model_path(dir, METADATA)?;
+    if !path.exists() {
+        status.state = ModelAvailability::Missing;
+        bail!("FaceOcc metadata missing: {}", path.display());
+    }
+    let metadata: Metadata = serde_json::from_slice(&super::scrfd::read_bounded(&path, 64 * 1024)?)
+        .context("invalid FaceOcc metadata JSON")?;
+    if metadata.model_id != "faceocc_visible_face_v1"
+        || !metadata.source_url.starts_with("https://")
+        || metadata.source_url.len() <= 8
+        || !metadata.license_url.starts_with("https://")
+        || metadata.license_url.len() <= 8
+        || metadata.license_note.trim().is_empty()
+    {
+        bail!("FaceOcc metadata requires model_id faceocc_visible_face_v1, HTTPS source_url/license_url and nonempty license_note; declarations are not authorization");
+    }
+    Ok(())
 }
 
 pub fn occlusion_model_status(dir: &Path, settings: &AnalysisSettings) -> OcclusionModelStatus {
@@ -371,16 +375,7 @@ fn observe(
                 center[0] + sx * half_w * u[0] + sy * half_h * v[0],
                 center[1] + sx * half_w * u[1] + sy * half_h * v[1],
             ];
-            let world = crop.world(p);
-            if p.iter()
-                .any(|v| !v.is_finite() || *v < 0. || *v > SIDE as f32)
-                || world[0] < 0.
-                || world[1] < 0.
-                || world[0] > size.0 as f32 - 1.
-                || world[1] > size.1 as f32 - 1.
-            {
-                bail!("eye ROI crosses crop or image boundary");
-            }
+            validate_eye_corner(p, crop, size)?;
             polygon.push(p);
         }
     }
@@ -426,6 +421,20 @@ fn observe(
         sampled_pixels: count,
         method: METHOD.into(),
     })
+}
+
+fn validate_eye_corner(p: [f32; 2], crop: &Crop, size: (u32, u32)) -> Result<()> {
+    let world = crop.world(p);
+    if p.iter()
+        .any(|v| !v.is_finite() || *v < 0. || *v > SIDE as f32)
+        || world[0] < 0.
+        || world[1] < 0.
+        || world[0] > size.0 as f32 - 1.
+        || world[1] > size.1 as f32 - 1.
+    {
+        bail!("eye ROI crosses crop or image boundary");
+    }
+    Ok(())
 }
 
 fn apply_observation(

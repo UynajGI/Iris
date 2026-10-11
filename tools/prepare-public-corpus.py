@@ -80,24 +80,9 @@ def portraits(directory, count, width):
             for page in sorted(result.get("query", {}).get("pages", {}).values(), key=lambda p: p["pageid"]):
                 if len(selected) >= target:
                     break
-                if not page["title"].lower().endswith((".jpg", ".jpeg")):
-                    continue
-                if not page.get("imageinfo") or any(e["path"] == f"commons-{page['pageid']}.jpg" for e in selected):
-                    continue
-                info = page["imageinfo"][0]
-                meta = info["extmetadata"]
-                license_name = meta.get("LicenseShortName", {}).get("value", "")
-                if not (license_name.startswith(("CC BY", "CC0")) or license_name == "Public domain"):
-                    continue
-                if "NC" in license_name or "ND" in license_name or info["size"] > 6 * 1024 * 1024 or info["width"] * info["height"] > 20_000_000:
-                    continue
-                if max(info["width"], info["height"]) < 640:
-                    continue
-                selected.append({"path": f"commons-{page['pageid']}.jpg", "url": info.get("thumburl", info["url"]), "original_url": info["url"], "source_page": info["descriptionurl"],
-                    "title": page["title"], "license": license_name, "license_url": meta.get("LicenseUrl", {}).get("value"),
-                    "author": meta.get("Artist", {}).get("value"), "credit": meta.get("Credit", {}).get("value"),
-                    "width": info.get("thumbwidth", info["width"]), "height": info.get("thumbheight", info["height"]), "category": category,
-                    "modifications": f"Wikimedia standard {width}px thumbnail; original source URL retained"})
+                entry = eligible_portrait(page, selected, category, width)
+                if entry is not None:
+                    selected.append(entry)
             continuation = result.get("continue")
             if not continuation:
                 break
@@ -106,6 +91,28 @@ def portraits(directory, count, width):
     directory.mkdir(parents=True, exist_ok=True)
     (directory / "selection.json").write_text(json.dumps(selected, ensure_ascii=False, indent=2), "utf-8")
     finish_portraits(directory, selected, count)
+
+
+
+def eligible_portrait(page, selected, category, width):
+    if not page["title"].lower().endswith((".jpg", ".jpeg")):
+        return None
+    if not page.get("imageinfo") or any(e["path"] == f"commons-{page['pageid']}.jpg" for e in selected):
+        return None
+    info = page["imageinfo"][0]
+    meta = info["extmetadata"]
+    license_name = meta.get("LicenseShortName", {}).get("value", "")
+    if not (license_name.startswith(("CC BY", "CC0")) or license_name == "Public domain"):
+        return None
+    if "NC" in license_name or "ND" in license_name or info["size"] > 6 * 1024 * 1024 or info["width"] * info["height"] > 20_000_000:
+        return None
+    if max(info["width"], info["height"]) < 640:
+        return None
+    return {"path": f"commons-{page['pageid']}.jpg", "url": info.get("thumburl", info["url"]), "original_url": info["url"], "source_page": info["descriptionurl"],
+        "title": page["title"], "license": license_name, "license_url": meta.get("LicenseUrl", {}).get("value"),
+        "author": meta.get("Artist", {}).get("value"), "credit": meta.get("Credit", {}).get("value"),
+        "width": info.get("thumbwidth", info["width"]), "height": info.get("thumbheight", info["height"]), "category": category,
+        "modifications": f"Wikimedia standard {width}px thumbnail; original source URL retained"}
 
 
 def finish_portraits(directory, selected, count):

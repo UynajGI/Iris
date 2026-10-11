@@ -27,35 +27,49 @@ fn main() -> Result<()> {
             GraphOptimizationLevel::Level3,
         ] {
             let label = format!("fixed={fixed} level={level:?}");
-            let result = (|| -> Result<_> {
-                let mut b = Session::builder()?
-                    .with_intra_threads(1)?
-                    .with_inter_threads(1)?
-                    .with_memory_pattern(false)?
-                    .with_parallel_execution(false)?
-                    .with_optimization_level(level)?
-                    .with_execution_providers([DirectMLExecutionProvider::default()
-                        .with_device_id(0)
-                        .build()
-                        .error_on_failure()])?;
-                if fixed {
-                    for (n, v) in [("s99", 1), ("s100", 224), ("s4", 224)] {
-                        b = b.with_dimension_override(n, v)?;
-                    }
-                }
-                let model = std::env::var_os("IRIS_PROBE_DINO_MODEL")
-                    .map(std::path::PathBuf::from)
-                    .unwrap_or_else(|| root.join("models/optional/dinov3_vits16.onnx"));
-                let mut s = b.commit_from_file(model)?;
-                let o = s.run(ort::inputs![Tensor::from_array((
-                    [1usize, 3, 224, 224],
-                    vec![0f32; 3 * 224 * 224]
-                ))?])?;
-                let (_, v) = o["pooler_output"].try_extract_tensor::<f32>()?;
-                Ok((v.len(), v.iter().all(|x| x.is_finite())))
-            })();
+            let result = probe(&root, fixed, level);
             println!("{label}: {result:?}");
         }
     }
     Ok(())
+}
+
+fn probe(
+    root: &std::path::Path,
+    fixed: bool,
+    level: GraphOptimizationLevel,
+) -> Result<(usize, bool)> {
+    let b = configured_builder(fixed, level)?;
+    let model = std::env::var_os("IRIS_PROBE_DINO_MODEL")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| root.join("models/optional/dinov3_vits16.onnx"));
+    let mut s = b.commit_from_file(model)?;
+    let o = s.run(ort::inputs![Tensor::from_array((
+        [1usize, 3, 224, 224],
+        vec![0f32; 3 * 224 * 224]
+    ))?])?;
+    let (_, v) = o["pooler_output"].try_extract_tensor::<f32>()?;
+    Ok((v.len(), v.iter().all(|x| x.is_finite())))
+}
+
+fn configured_builder(
+    fixed: bool,
+    level: GraphOptimizationLevel,
+) -> Result<ort::session::builder::SessionBuilder> {
+    let mut b = Session::builder()?
+        .with_intra_threads(1)?
+        .with_inter_threads(1)?
+        .with_memory_pattern(false)?
+        .with_parallel_execution(false)?
+        .with_optimization_level(level)?
+        .with_execution_providers([DirectMLExecutionProvider::default()
+            .with_device_id(0)
+            .build()
+            .error_on_failure()])?;
+    if fixed {
+        for (n, v) in [("s99", 1), ("s100", 224), ("s4", 224)] {
+            b = b.with_dimension_override(n, v)?;
+        }
+    }
+    Ok(b)
 }

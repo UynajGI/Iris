@@ -50,6 +50,16 @@ pub(super) fn rejection_reason(
     {
         return Some("eye observation region crosses image boundary".into());
     }
+    region_rejection_reason(image, min_x, max_x, min_y, max_y)
+}
+
+fn region_rejection_reason(
+    image: &RgbImage,
+    min_x: f32,
+    max_x: f32,
+    min_y: f32,
+    max_y: f32,
+) -> Option<String> {
     let (mut count, mut sum, mut square, mut dark, mut bright) =
         (0usize, 0f64, 0f64, 0usize, 0usize);
     for y in min_y.floor() as u32..=max_y.ceil() as u32 {

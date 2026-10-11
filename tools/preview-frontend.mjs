@@ -77,6 +77,13 @@ const server = createServer(async (request, response) => {
       response.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(session ? generation : null)); return;
     }
     if (url.pathname === '/__review/invoke' && request.method === 'POST') {
+      await serveReviewInvocation(request, response); return;
+    }
+    await serveReviewAsset(request, response, url);
+  } catch { response.writeHead(500).end('Review fixture request failed'); }
+});
+
+async function serveReviewInvocation(request, response) {
       if (request.headers.origin !== 'http://localhost:1420' || request.headers['content-type'] !== 'application/json') { response.writeHead(403).end(); return; }
       let input = '';
       for await (const chunk of request) { input += chunk; if (input.length > 4096) throw new Error('Request too large'); }
@@ -87,14 +94,7 @@ const server = createServer(async (request, response) => {
         case 'select_project_folder': {
           // Review-only folder picker: an optional local fixture file selects
           // a destination for export/cache tests, never an arbitrary user path.
-          let selected = photos;
-          try {
-            const name = JSON.parse(await readFile(join(temporary, 'folder-selection.json'), 'utf8')).directory;
-            if (!['photos', 'export', 'cache-moved'].includes(name)) throw new Error('Invalid fixture directory');
-            selected = join(temporary, name);
-            await mkdir(selected, { recursive: true });
-          } catch (error) { if (error.code !== 'ENOENT') throw error; }
-          value = selected; break;
+          value = await selectReviewFolder(); break;
         }
         case 'select_export_csv': value = join(temporary, 'decisions.csv'); break;
         case 'set_app_locale': value = '伊人'; break;
@@ -103,7 +103,20 @@ const server = createServer(async (request, response) => {
         default: response.writeHead(409).end('此原生操作需要在 Tauri 中验证'); return;
       }
       response.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(value)); return;
-    }
+}
+
+async function selectReviewFolder() {
+  let selected = photos;
+  try {
+    const name = JSON.parse(await readFile(join(temporary, 'folder-selection.json'), 'utf8')).directory;
+    if (!['photos', 'export', 'cache-moved'].includes(name)) throw new Error('Invalid fixture directory');
+    selected = join(temporary, name);
+    await mkdir(selected, { recursive: true });
+  } catch (error) { if (error.code !== 'ENOENT') throw error; }
+  return selected;
+}
+
+async function serveReviewAsset(request, response, url) {
     if (request.method !== 'GET') { response.writeHead(405).end(); return; }
     if (url.pathname === '/__review/bridge.js') { response.writeHead(200, { 'Content-Type': mime['.js'] }).end(bridge); return; }
     const file = resolve(dist, '.' + decodeURIComponent(url.pathname === '/' ? '/index.html' : url.pathname));
@@ -111,8 +124,7 @@ const server = createServer(async (request, response) => {
     let body = await readFile(file);
     if (extname(file) === '.html') body = Buffer.from(body.toString().replace('<script type="module"', '<script src="/__review/bridge.js"></script><script type="module"'));
     response.writeHead(200, { 'Content-Type': mime[extname(file)] ?? 'application/octet-stream' }).end(body);
-  } catch { response.writeHead(500).end('Review fixture request failed'); }
-});
+}
 server.once('error', error => { daemon.kill(); console.error(error.message); process.exitCode = 1; });
 server.listen(1420, 'localhost', () => console.log(`Review: http://localhost:1420\nDisposable fixture: ${temporary}\nNative dialogs/events are substitutes; API operations are real.`));
 function stop() { server.close(); daemon.kill(); controls.close(); }

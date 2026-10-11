@@ -123,15 +123,23 @@ fn photo_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<Photo> {
             })
         })
         .transpose()?;
+    let rating = r.get(15)?;
+    let color_label = serde_json::from_value(Value::String(r.get(16)?)).map_err(|error| {
+        rusqlite::Error::FromSqlConversionFailure(16, rusqlite::types::Type::Text, Box::new(error))
+    })?;
+    photo_metadata_row(r, decision, analysis, rating, color_label)
+}
+
+fn photo_metadata_row(
+    r: &rusqlite::Row<'_>,
+    decision: Action,
+    analysis: Option<Value>,
+    rating: u8,
+    color_label: ColorLabel,
+) -> rusqlite::Result<Photo> {
     Ok(Photo {
-        rating: r.get(15)?,
-        color_label: serde_json::from_value(Value::String(r.get(16)?)).map_err(|error| {
-            rusqlite::Error::FromSqlConversionFailure(
-                16,
-                rusqlite::types::Type::Text,
-                Box::new(error),
-            )
-        })?,
+        rating,
+        color_label,
         id: r.get(0)?,
         project_id: r.get(1)?,
         path: r.get(2)?,

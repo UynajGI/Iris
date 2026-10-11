@@ -8,6 +8,10 @@ impl Services {
         overwrite: bool,
     ) -> Result<ExportReport> {
         let photos = self.export_selection(project_id, scope)?;
+        let planned = self.plan_xmp_destinations(photos)?;
+        self.write_xmp_sidecars(planned, overwrite)
+    }
+    fn plan_xmp_destinations(&self, photos: Vec<Photo>) -> Result<Vec<(Photo, PathBuf)>> {
         // Distinct JPEG names can share a sidecar (a.jpg and a.jpeg). Check the
         // whole selected set before writing, including when overwrite is enabled.
         let mut destinations = HashMap::<_, usize>::new();
@@ -37,6 +41,13 @@ impl Services {
             destinations.insert(key, planned.len());
             planned.push((photo, destination));
         }
+        Ok(planned)
+    }
+    fn write_xmp_sidecars(
+        &self,
+        planned: Vec<(Photo, PathBuf)>,
+        overwrite: bool,
+    ) -> Result<ExportReport> {
         let mut report = ExportReport {
             written: 0,
             skipped: 0,
@@ -58,32 +69,9 @@ impl Services {
                 report.skipped += 1;
                 continue;
             }
-            // Refuse links even in explicit overwrite mode; sidecars never modify image bytes.
-            if fs::symlink_metadata(&dest).is_ok_and(|m| m.file_type().is_symlink()) {
-                bail!("refusing symlink sidecar");
-            }
-            let temp = dest.with_extension(format!("{}.tmp", uuid::Uuid::new_v4()));
-            let mut f = OpenOptions::new()
-                .create_new(true)
-                .write(true)
-                .open(&temp)?;
-            f.write_all(body.as_bytes())?;
-            f.sync_all()?;
-            drop(f);
-            if dest.exists() && overwrite {
-                let backup = dest.with_extension(format!("xmp.{}.bak", uuid::Uuid::new_v4()));
-                fs::rename(&dest, &backup)?;
-                if let Err(e) = fs::rename(&temp, &dest) {
-                    let _ = fs::rename(&backup, &dest);
-                    return Err(e.into());
-                }
-            } else {
-                if dest.exists() {
-                    let _ = fs::remove_file(&temp);
-                    report.skipped += 1;
-                    continue;
-                }
-                fs::rename(&temp, &dest)?;
+            if !write_sidecar(&dest, &body, overwrite)? {
+                report.skipped += 1;
+                continue;
             }
             report.written += 1;
             report.paths.push(dest.to_string_lossy().into_owned());
@@ -198,4 +186,34 @@ impl Services {
         }
         self.apply_decisions(project_id, changes, "csv_import", vec![])
     }
+}
+
+fn write_sidecar(dest: &Path, body: &str, overwrite: bool) -> Result<bool> {
+    // Refuse links even in explicit overwrite mode; sidecars never modify image bytes.
+    if fs::symlink_metadata(dest).is_ok_and(|m| m.file_type().is_symlink()) {
+        bail!("refusing symlink sidecar");
+    }
+    let temp = dest.with_extension(format!("{}.tmp", uuid::Uuid::new_v4()));
+    let mut f = OpenOptions::new()
+        .create_new(true)
+        .write(true)
+        .open(&temp)?;
+    f.write_all(body.as_bytes())?;
+    f.sync_all()?;
+    drop(f);
+    if dest.exists() && overwrite {
+        let backup = dest.with_extension(format!("xmp.{}.bak", uuid::Uuid::new_v4()));
+        fs::rename(dest, &backup)?;
+        if let Err(e) = fs::rename(&temp, dest) {
+            let _ = fs::rename(&backup, dest);
+            return Err(e.into());
+        }
+    } else {
+        if dest.exists() {
+            let _ = fs::remove_file(&temp);
+            return Ok(false);
+        }
+        fs::rename(&temp, dest)?;
+    }
+    Ok(true)
 }

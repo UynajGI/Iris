@@ -12,19 +12,7 @@ pub async fn scan(
         serde_json::from_slice(&body).map_err(anyhow::Error::from)?
     };
     let selected = if request.retry_failed_only {
-        let jobs = s
-            .jobs
-            .lock()
-            .map_err(|_| anyhow::anyhow!("job lock poisoned"))?;
-        let prior = jobs
-            .get(&id)
-            .filter(|job| {
-                job.progress.kind == "scan"
-                    && !matches!(job.progress.state.as_str(), "running" | "paused")
-                    && !job.progress.failed_scan_paths.is_empty()
-            })
-            .ok_or_else(|| anyhow::anyhow!("no scan failures available to retry"))?;
-        Some(prior.progress.failed_scan_paths.clone())
+        Some(scan_retry_paths(&s, id)?)
     } else {
         None
     };
@@ -73,6 +61,22 @@ pub async fn scan(
         finish(&s, id, job.cancel.load(Ordering::Relaxed), result);
     });
     Ok(Json(initial))
+}
+
+fn scan_retry_paths(s: &AppState, id: i64) -> Result<Vec<String>, ApiError> {
+    let jobs = s
+        .jobs
+        .lock()
+        .map_err(|_| anyhow::anyhow!("job lock poisoned"))?;
+    let prior = jobs
+        .get(&id)
+        .filter(|job| {
+            job.progress.kind == "scan"
+                && !matches!(job.progress.state.as_str(), "running" | "paused")
+                && !job.progress.failed_scan_paths.is_empty()
+        })
+        .ok_or_else(|| anyhow::anyhow!("no scan failures available to retry"))?;
+    Ok(prior.progress.failed_scan_paths.clone())
 }
 
 #[derive(Default, Deserialize, ToSchema)]

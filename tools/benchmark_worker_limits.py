@@ -28,56 +28,17 @@ def monitored_run(command: list[str], log_path: Path, psutil) -> dict:
         try:
             while child.poll() is None:
                 sweep_started = time.monotonic()
-                rss = private = threads = count = 0
-                private_available = True
-                try:
-                    descendants = root.children(recursive=True)
-                except psutil.NoSuchProcess:
-                    descendants = []
-                    vanished += 1
-                except psutil.AccessDenied:
-                    descendants = []
-                    denied += 1
-                for process in descendants:
-                    try:
-                        # Own descendants only; exclude the Python test harness.
-                        if process.name().lower() not in {"iris-daemon", "iris-daemon.exe"}:
-                            continue
-                        memory = process.memory_info()
-                        rss += memory.rss
-                        committed = getattr(memory, "private", None)
-                        if committed is None:
-                            private_available = False
-                        else:
-                            private += committed
-                        threads += process.num_threads()
-                        count += 1
-                    except psutil.NoSuchProcess:
-                        vanished += 1
-                    except psutil.AccessDenied:
-                        denied += 1
-                if count:
+                sample, sweep_vanished, sweep_denied = resource_sample(root, psutil)
+                vanished += sweep_vanished
+                denied += sweep_denied
+                if sample["processes"]:
                     sample_times.append(sweep_started)
-                    samples.append({"rss": rss, "private": private if private_available else None,
-                                    "threads": threads, "processes": count})
+                    samples.append(sample)
                 time.sleep(0.2)
             if child.returncode:
                 raise subprocess.CalledProcessError(child.returncode, command)
         finally:
-            if child.poll() is None:
-                # An interrupted monitor must not orphan the daemon owned by
-                # the verification harness. Never enumerate unrelated roots.
-                try:
-                    descendants = root.children(recursive=True)
-                except (psutil.NoSuchProcess, psutil.AccessDenied):
-                    descendants = []
-                for process in reversed(descendants):
-                    try:
-                        process.terminate()
-                    except (psutil.NoSuchProcess, psutil.AccessDenied):
-                        pass
-                child.terminate()
-                child.wait(timeout=30)
+            terminate_monitor(child, root, psutil)
     assert samples, "no owned daemon process resource samples collected"
     gaps = [b - a for a, b in zip(sample_times, sample_times[1:])]
     return {"psutil_version": psutil.__version__, "sampling_sleep_seconds": 0.2,
@@ -89,6 +50,58 @@ def monitored_run(command: list[str], log_path: Path, psutil) -> dict:
             "sampled_peak_daemon_processes_including_parent": max(s["processes"] for s in samples),
             "vanished_process_observations": vanished, "access_denied_observations": denied,
             "interpretation": "Owned daemon plus workers, per-sweep sums (not atomic snapshots). Each sweep is followed by a 0.2s sleep; observed gaps include enumeration/query cost. RSS counts shared pages repeatedly; Windows private is commit, not physical USS. Peaks are sampled lower bounds. Polling overhead is included in every run; vanishing process observations can be normal shutdown races."}
+
+
+
+
+def terminate_monitor(child, root, psutil):
+    if child.poll() is None:
+        # An interrupted monitor must not orphan the daemon owned by
+        # the verification harness. Never enumerate unrelated roots.
+        try:
+            descendants = root.children(recursive=True)
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            descendants = []
+        for process in reversed(descendants):
+            try:
+                process.terminate()
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                pass
+        child.terminate()
+        child.wait(timeout=30)
+
+
+def resource_sample(root, psutil):
+    vanished = denied = 0
+    rss = private = threads = count = 0
+    private_available = True
+    try:
+        descendants = root.children(recursive=True)
+    except psutil.NoSuchProcess:
+        descendants = []
+        vanished += 1
+    except psutil.AccessDenied:
+        descendants = []
+        denied += 1
+    for process in descendants:
+        try:
+            # Own descendants only; exclude the Python test harness.
+            if process.name().lower() not in {"iris-daemon", "iris-daemon.exe"}:
+                continue
+            memory = process.memory_info()
+            rss += memory.rss
+            committed = getattr(memory, "private", None)
+            if committed is None:
+                private_available = False
+            else:
+                private += committed
+            threads += process.num_threads()
+            count += 1
+        except psutil.NoSuchProcess:
+            vanished += 1
+        except psutil.AccessDenied:
+            denied += 1
+    return {"rss": rss, "private": private if private_available else None, "threads": threads, "processes": count}, vanished, denied
 
 
 def main() -> None:
@@ -111,6 +124,21 @@ def main() -> None:
     args.output_dir.mkdir(parents=True)
     checksum = digest(args.daemon)
     order = args.limits + list(reversed(args.limits))
+    baseline, rows = worker_limit_runs(args, psutil, checksum, order)
+    report = {"passed": True, "daemon_sha256": checksum, "order": order,
+              "unique_sources": len(baseline), "photos_per_run": len(baseline) * (args.scale_repeat or 1),
+              "full_non_timing_predictions_unchanged": True,
+              "cpu_logical_count": os.cpu_count(), "rayon_num_threads": os.environ.get("RAYON_NUM_THREADS"),
+              "runs": rows, "median_analysis_seconds": {
+                  str(limit): statistics.median(r["seconds"] for r in rows if r["worker_limit"] == limit)
+                  for limit in args.limits},
+              "limitations": "Two runs per limit, balanced order, same 100 source photos. Repeated hardlinks add no scene diversity. No accuracy claim; resource peaks are sampled. Test flags do not change default policy."}
+    (args.output_dir / "verification.json").write_text(json.dumps(report, indent=2), "utf-8")
+    print(json.dumps(report["median_analysis_seconds"]), flush=True)
+
+
+
+def worker_limit_runs(args, psutil, checksum, order):
     baseline = None
     rows = []
     for index, limit in enumerate(order):
@@ -141,17 +169,7 @@ def main() -> None:
             row.update({k:r[k] for k in ["first_scan_and_analysis_seconds", "incremental_scan_and_analysis_seconds", "analysis_photos_per_second", "source_hashes_preserved"]})
         rows.append(row)
         print(json.dumps(row), flush=True)
-    report = {"passed": True, "daemon_sha256": checksum, "order": order,
-              "unique_sources": len(baseline), "photos_per_run": len(baseline) * (args.scale_repeat or 1),
-              "full_non_timing_predictions_unchanged": True,
-              "cpu_logical_count": os.cpu_count(), "rayon_num_threads": os.environ.get("RAYON_NUM_THREADS"),
-              "runs": rows, "median_analysis_seconds": {
-                  str(limit): statistics.median(r["seconds"] for r in rows if r["worker_limit"] == limit)
-                  for limit in args.limits},
-              "limitations": "Two runs per limit, balanced order, same 100 source photos. Repeated hardlinks add no scene diversity. No accuracy claim; resource peaks are sampled. Test flags do not change default policy."}
-    (args.output_dir / "verification.json").write_text(json.dumps(report, indent=2), "utf-8")
-    print(json.dumps(report["median_analysis_seconds"]), flush=True)
-
+    return baseline, rows
 
 if __name__ == "__main__":
     main()

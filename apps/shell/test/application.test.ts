@@ -26,22 +26,34 @@ function fixture(count = 3) {
     const path = url.pathname.replace('/api/v1', '');
     const body = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>;
     requests.push({ path, method: init?.method ?? 'GET', body });
+    const result = projectRoutes(path, url, init, body);
+    return Response.json(result);
+  };
+
+  function projectRoutes(path: string, url: URL, init: RequestInit | undefined, body: Record<string, unknown>): unknown {
     let result: unknown = {};
     if (path === '/bootstrap') result = { version: '0.1.0', capabilities: ['jpeg'] };
     else if (path === '/projects' && init?.method === 'GET') result = [];
     else if (path === '/projects') result = { id: 1, root: body.root, name: 'test', created_at: '', cache_root: 'cache', groups_dirty: groupsDirty, pending_analysis: 3, hidden: false, last_opened_at: '' };
     else if (path === '/projects/1') result = { id: 1, root: 'C:/photos', name: 'test', created_at: '', cache_root: 'cache', groups_dirty: groupsDirty, pending_analysis: 3, hidden: false, last_opened_at: '' };
-    else if (path === '/settings') { assert.equal(url.searchParams.get('project_id'), '1'); if (init?.method === 'PUT') { groupsDirty = true; projectSettings = body as Settings; } result = projectSettings; }
+    else result = configurationRoutes(path, url, init, body);
+    return result;
+  }
+  function configurationRoutes(path: string, url: URL, init: RequestInit | undefined, body: Record<string, unknown>): unknown {
+    let result: unknown = {};
+    if (path === '/settings') { assert.equal(url.searchParams.get('project_id'), '1'); if (init?.method === 'PUT') { groupsDirty = true; projectSettings = body as Settings; } result = projectSettings; }
     else if (path === '/models') { assert.ok(url.searchParams.has('project_id')); result = modelStatus(projectSettings.face_detector, projectSettings.occlusion_provider); }
     else if (path === '/profiles' && init?.method === 'POST') { profiles.push(body as typeof profiles[number]); result = body; }
     else if (path === '/profiles') result = profiles;
     else if (path.endsWith('/apply')) { assert.equal(body.project_id, 1); groupsDirty = true; projectSettings = { ...settings, sharpness_weight: 0.7 }; result = projectSettings; }
     else if (path.startsWith('/profiles/') && init?.method === 'DELETE') { profiles = []; }
-    else if (path.endsWith('/photos')) {
-      let matching = photos.filter(p => !url.searchParams.has('decision') || p.decision === url.searchParams.get('decision'));
-      if (url.searchParams.get('descending') === 'true') matching.reverse();
-      const offset = Number(url.searchParams.get('offset') ?? 0);
-      result = matching.slice(offset, offset + Number(url.searchParams.get('limit') ?? 200));
+    else result = workspaceRoutes(path, url, body);
+    return result;
+  }
+  function workspaceRoutes(path: string, url: URL, body: Record<string, unknown>): unknown {
+    let result: unknown = {};
+    if (path.endsWith('/photos')) {
+      result = matchingPhotos(url);
     }
     else if (path.endsWith('/groups')) result = groupsDirty ? [] : [{ id: 'g', project_id: 1, kind: 'burst', member_photo_ids: [1, 2] }];
     else if (path.endsWith('/quarantine')) result = [{ id: 'previous-manifest', project_id: 1, state: 'interrupted', items: [] }];
@@ -54,8 +66,14 @@ function fixture(count = 3) {
     else if (path.endsWith('/quarantine/preview')) result = { id: 'manifest', project_id: 1, state: 'preview', items: [] };
     else if (path.endsWith('/quarantine/commit')) result = { id: 'manifest', project_id: 1, state: 'committed', items: [] };
     else if (path.includes('/export/')) result = { written: 1, skipped: 0, paths: ['test'] };
-    return Response.json(result);
-  };
+    return result;
+  }
+  function matchingPhotos(url: URL): Photo[] {
+      let matching = photos.filter(p => !url.searchParams.has('decision') || p.decision === url.searchParams.get('decision'));
+      if (url.searchParams.get('descending') === 'true') matching.reverse();
+      const offset = Number(url.searchParams.get('offset') ?? 0);
+      return matching.slice(offset, offset + Number(url.searchParams.get('limit') ?? 200));
+  }
   const client = new IrisClient(new Transport(session, fetcher));
   return { client, store: new IrisStore(client), requests };
 }

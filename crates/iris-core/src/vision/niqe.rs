@@ -91,6 +91,10 @@ impl NiqeModel {
                 gray = downsample(&gray, w, h);
             }
         }
+        self.feature_distance(&features)
+    }
+
+    fn feature_distance(&self, features: &[[f64; 36]]) -> Result<f64> {
         let mut mean = [0.; 36];
         for j in 0..36 {
             let values: Vec<_> = features

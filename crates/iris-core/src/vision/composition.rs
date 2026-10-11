@@ -18,24 +18,7 @@ pub(super) fn measure(faces: &[Face], width: u32, height: u32) -> Option<Composi
         {
             continue;
         }
-        let landmark_point = if face
-            .landmark_confidence
-            .is_some_and(|c| c >= 0.8 && c.is_finite())
-        {
-            face.landmarks
-                .get(33)
-                .zip(face.landmarks.get(263))
-                .map(|(a, b)| [(a[0] + b[0]) / 2., (a[1] + b[1]) / 2.])
-                .filter(|p| {
-                    p.iter().all(|v| v.is_finite())
-                        && p[0] >= 0.
-                        && p[0] <= width as f32
-                        && p[1] >= 0.
-                        && p[1] <= height as f32
-                })
-        } else {
-            None
-        };
+        let landmark_point = landmark_point(face, width, height);
         let point = landmark_point.unwrap_or([bx + bw / 2., by + bh / 2.]);
         let normalized = [point[0] / width as f32, point[1] / height as f32];
         if normalized.iter().any(|v| !(0.0..=1.0).contains(v)) {
@@ -80,4 +63,25 @@ pub(super) fn measure(faces: &[Face], width: u32, height: u32) -> Option<Composi
         score,
         method: method.into(),
     })
+}
+
+fn landmark_point(face: &Face, width: u32, height: u32) -> Option<[f32; 2]> {
+    if face
+        .landmark_confidence
+        .is_some_and(|c| c >= 0.8 && c.is_finite())
+    {
+        face.landmarks
+            .get(33)
+            .zip(face.landmarks.get(263))
+            .map(|(a, b)| [(a[0] + b[0]) / 2., (a[1] + b[1]) / 2.])
+            .filter(|p| {
+                p.iter().all(|v| v.is_finite())
+                    && p[0] >= 0.
+                    && p[0] <= width as f32
+                    && p[1] >= 0.
+                    && p[1] <= height as f32
+            })
+    } else {
+        None
+    }
 }

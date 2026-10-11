@@ -74,12 +74,7 @@ def main() -> None:
     manifest = json.loads((fixtures / "manifest.json").read_text("utf-8"))
     entries = manifest["files"]
     assert len(entries) == 100 and manifest["count"] == 100
-    sources = []
-    for entry in entries:
-        source = (fixtures / entry["path"]).resolve(strict=True)
-        assert source.is_relative_to(fixtures) and source.suffix.lower() in {".jpg", ".jpeg"}
-        assert digest(source) == entry["sha256"]
-        sources.append(source)
+    sources = verify_sources(fixtures, entries)
     count = len(sources) * args.repeat
     report = {
         "workload": "repeated hard links to 100 private JPGs; no new scene diversity",
@@ -95,14 +90,7 @@ def main() -> None:
         assert work.is_relative_to((fixtures.parent / "artifacts").resolve())
         photos = work / "photos"
         photos.mkdir()
-        expected_paths = {}
-        for repeat in range(args.repeat):
-            batch = photos / f"batch-{repeat:03d}"
-            batch.mkdir()
-            for index, source in enumerate(sources):
-                target = batch / f"{index:03d}-{source.name}"
-                os.link(source, target)
-                expected_paths[target.relative_to(photos).as_posix()] = index
+        expected_paths = link_repeated_inputs(photos, sources, args.repeat)
         process = None
         try:
             with (work / "daemon-stderr.log").open("w", encoding="utf-8") as stderr:
@@ -163,22 +151,48 @@ def main() -> None:
             report["error"] = str(error)
             raise
         finally:
-            if process is not None:
-                if process.poll() is None:
-                    try:
-                        process.stdin.write("shutdown\n")
-                        process.stdin.flush()
-                        process.wait(timeout=15)
-                    except (BrokenPipeError, subprocess.TimeoutExpired):
-                        process.kill()
-                        process.wait(timeout=15)
-                process.stdin.close()
-                process.stdout.close()
+            shutdown_process(process)
             report["source_hashes_preserved"] = all(digest(source) == entry["sha256"] for source, entry in zip(sources, entries))
             args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2), "utf-8")
     assert report["source_hashes_preserved"]
     print(json.dumps({k: report[k] for k in ["photo_count", "first_scan_and_analysis_seconds", "incremental_scan_and_analysis_seconds", "analysis_photos_per_second", "source_hashes_preserved"]}))
 
+
+
+def verify_sources(fixtures, entries):
+    sources = []
+    for entry in entries:
+        source = (fixtures / entry["path"]).resolve(strict=True)
+        assert source.is_relative_to(fixtures) and source.suffix.lower() in {".jpg", ".jpeg"}
+        assert digest(source) == entry["sha256"]
+        sources.append(source)
+    return sources
+
+
+def link_repeated_inputs(photos, sources, repeats):
+    expected_paths = {}
+    for repeat in range(repeats):
+        batch = photos / f"batch-{repeat:03d}"
+        batch.mkdir()
+        for index, source in enumerate(sources):
+            target = batch / f"{index:03d}-{source.name}"
+            os.link(source, target)
+            expected_paths[target.relative_to(photos).as_posix()] = index
+    return expected_paths
+
+
+def shutdown_process(process):
+    if process is not None:
+        if process.poll() is None:
+            try:
+                process.stdin.write("shutdown\n")
+                process.stdin.flush()
+                process.wait(timeout=15)
+            except (BrokenPipeError, subprocess.TimeoutExpired):
+                process.kill()
+                process.wait(timeout=15)
+        process.stdin.close()
+        process.stdout.close()
 
 if __name__ == "__main__":
     main()

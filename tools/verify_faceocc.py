@@ -60,26 +60,7 @@ def main() -> None:
     out = args.output_dir.resolve()
     with tempfile.TemporaryDirectory(prefix="iris-faceocc-models-") as temporary:
         model_dir = Path(temporary)
-        manifest = json.loads((args.models / "manifest.json").read_text("utf-8"))
-        # Explicit artifact allowlist: never inherit another optional provider.
-        expected = {row["file"]: row["sha256"] for row in manifest["models"]}
-        expected[manifest["niqe"]["file"]] = manifest["niqe"]["sha256"]
-        expected["onnxruntime.dll"] = manifest["runtime"]["sha256"]
-        for filename, checksum in expected.items():
-            assert Path(filename).name == filename
-            assert digest(args.models / filename) == checksum
-            shutil.copy2(args.models / filename, model_dir / filename)
-        shutil.copy2(args.models / "manifest.json", model_dir / "manifest.json")
-        optional = model_dir / "optional"
-        optional.mkdir()
-        shutil.copy2(args.onnx, optional / "faceocc.onnx")
-        metadata = {
-            "model_id": "faceocc_visible_face_v1",
-            "source_url": f"https://huggingface.co/mertakin/FaceOcc/tree/{REVISION}",
-            "license_url": f"https://huggingface.co/mertakin/FaceOcc/blob/{REVISION}/LICENSE",
-            "license_note": "Local technical integration test only. MIT declarations do not supersede third-party training resource terms. Not distribution clearance.",
-        }
-        (optional / "faceocc.metadata.json").write_text(json.dumps(metadata, indent=2), "utf-8")
+        metadata = prepare_model_directory(args, model_dir)
         settings = {"occlusion_provider": "faceocc", "occlusion_model_sha256": ONNX_SHA256,
                     "occlusion_min_visible_fraction": args.threshold}
         settings_file = out / "settings.json"
@@ -98,26 +79,7 @@ def main() -> None:
         if historical is not None:
             assert default == historical, "default deterministic predictions changed"
         assert default.keys() == masked.keys()
-        transitions = {}
-        measurements = 0
-        newly_hidden = 0
-        for path, before in default.items():
-            after = masked[path]
-            assert len(before["faces"]) == len(after["faces"])
-            for b, a in zip(before["faces"], after["faces"]):
-                for side in ("left_eye", "right_eye"):
-                    old, new = b.get(side), a.get(side)
-                    old_state = old["state"] if old else "hidden"
-                    new_state = new["state"] if new else "hidden"
-                    key = old_state + " -> " + new_state
-                    transitions[key] = transitions.get(key, 0) + 1
-                    if old is None:
-                        assert new is None, "mask resurrected an eye suppressed by existing quality gates"
-                    if new is not None:
-                        assert new == old, "mask changed an eye measurement rather than gating it"
-                    newly_hidden += old is not None and new is None
-                    measurements += a.get(side + "_visibility") is not None
-        assert measurements > 0, "optional path produced no eye visibility measurements"
+        transitions, measurements, newly_hidden = compare_mask_predictions(default, masked)
         reports = {name: json.loads((out / f"{name}.json").read_text("utf-8")) for name in ("default", "faceocc")}
         report = {
             "passed": True, "default_predictions_unchanged": True if historical is not None else None, "photos": len(default),
@@ -133,6 +95,54 @@ def main() -> None:
         (out / "verification.json").write_text(json.dumps(report, indent=2), "utf-8")
         print(json.dumps(report, indent=2))
 
+
+
+def compare_mask_predictions(default, masked):
+    transitions = {}
+    measurements = 0
+    newly_hidden = 0
+    for path, before in default.items():
+        after = masked[path]
+        assert len(before["faces"]) == len(after["faces"])
+        for b, a in zip(before["faces"], after["faces"]):
+            for side in ("left_eye", "right_eye"):
+                old, new = b.get(side), a.get(side)
+                old_state = old["state"] if old else "hidden"
+                new_state = new["state"] if new else "hidden"
+                key = old_state + " -> " + new_state
+                transitions[key] = transitions.get(key, 0) + 1
+                if old is None:
+                    assert new is None, "mask resurrected an eye suppressed by existing quality gates"
+                if new is not None:
+                    assert new == old, "mask changed an eye measurement rather than gating it"
+                newly_hidden += old is not None and new is None
+                measurements += a.get(side + "_visibility") is not None
+    assert measurements > 0, "optional path produced no eye visibility measurements"
+    return transitions, measurements, newly_hidden
+
+
+def prepare_model_directory(args, model_dir):
+    manifest = json.loads((args.models / "manifest.json").read_text("utf-8"))
+    # Explicit artifact allowlist: never inherit another optional provider.
+    expected = {row["file"]: row["sha256"] for row in manifest["models"]}
+    expected[manifest["niqe"]["file"]] = manifest["niqe"]["sha256"]
+    expected["onnxruntime.dll"] = manifest["runtime"]["sha256"]
+    for filename, checksum in expected.items():
+        assert Path(filename).name == filename
+        assert digest(args.models / filename) == checksum
+        shutil.copy2(args.models / filename, model_dir / filename)
+    shutil.copy2(args.models / "manifest.json", model_dir / "manifest.json")
+    optional = model_dir / "optional"
+    optional.mkdir()
+    shutil.copy2(args.onnx, optional / "faceocc.onnx")
+    metadata = {
+        "model_id": "faceocc_visible_face_v1",
+        "source_url": f"https://huggingface.co/mertakin/FaceOcc/tree/{REVISION}",
+        "license_url": f"https://huggingface.co/mertakin/FaceOcc/blob/{REVISION}/LICENSE",
+        "license_note": "Local technical integration test only. MIT declarations do not supersede third-party training resource terms. Not distribution clearance.",
+    }
+    (optional / "faceocc.metadata.json").write_text(json.dumps(metadata, indent=2), "utf-8")
+    return metadata
 
 if __name__ == "__main__":
     main()

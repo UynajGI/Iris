@@ -88,13 +88,7 @@ impl Services {
         self.set_settings(project_id, profile.settings)
     }
     pub fn estimate_profile(&self, project_id: i64, name: &str) -> Result<Value> {
-        let mut profile = self
-            .profiles()?
-            .into_iter()
-            .find(|p| p.name == name)
-            .context("profile not found")?;
-        let normalized: crate::vision::AnalysisSettings = serde_json::from_value(profile.settings)?;
-        profile.settings = serde_json::to_value(normalized)?;
+        let profile = self.normalized_profile(name)?;
         let current = self.settings(project_id)?;
         let keys: Vec<_> = current
             .as_object()
@@ -108,21 +102,9 @@ impl Services {
             .collect();
         let target: crate::vision::AnalysisSettings = serde_json::from_value(profile.settings)?;
         let old: crate::vision::AnalysisSettings = serde_json::from_value(current.clone())?;
-        let requires_inference = keys.iter().any(|k| {
-            matches!(
-                k.as_str(),
-                "face_confidence"
-                    | "execution_provider"
-                    | "directml_device_id"
-                    | "max_faces"
-                    | "enable_niqe"
-                    | "face_detector"
-                    | "scrfd_model_sha256"
-                    | "occlusion_provider"
-                    | "occlusion_model_sha256"
-                    | "occlusion_min_visible_fraction"
-            )
-        });
+        let requires_inference = keys
+            .iter()
+            .any(|k| DETECTION_SETTINGS.contains(&k.as_str()));
         let mut before = HashMap::<String, usize>::new();
         let mut after = HashMap::<String, usize>::new();
         let mut changed = 0;
@@ -163,6 +145,16 @@ impl Services {
         Ok(
             json!({"changed_keys":keys,"photos_requiring_refresh":if keys.is_empty(){unavailable}else{photos.len()},"requires_analysis":requires_inference || unavailable > 0,"estimated_photos":photos.len()-unavailable,"unavailable_photos":unavailable,"verdict_changes":changed,"before":before,"after":after}),
         )
+    }
+    fn normalized_profile(&self, name: &str) -> Result<Profile> {
+        let mut profile = self
+            .profiles()?
+            .into_iter()
+            .find(|p| p.name == name)
+            .context("profile not found")?;
+        let normalized: crate::vision::AnalysisSettings = serde_json::from_value(profile.settings)?;
+        profile.settings = serde_json::to_value(normalized)?;
+        Ok(profile)
     }
 }
 

@@ -209,16 +209,7 @@ fn publish_verified(
     update(installer, |progress| progress.state = "installing".into());
     let optional = checked_model_path(model_dir, "optional")?;
     fs::create_dir_all(&optional)?;
-    // Reject unsafe destinations before publishing either artifact.
-    for name in ["LICENSE-DINOv3.md", MODEL] {
-        let target = checked_model_path(model_dir, &format!("optional/{name}"))?;
-        if target.exists() {
-            ensure!(
-                fs::metadata(target)?.is_file(),
-                "model installation target is not a file"
-            );
-        }
-    }
+    validate_publish_targets(model_dir)?;
     let stage_name = format!("optional/.install-{}", uuid::Uuid::new_v4());
     let stage = Staging(checked_model_path(model_dir, &stage_name)?);
     fs::create_dir(&stage.0)?;
@@ -230,7 +221,35 @@ fn publish_verified(
         )?;
     }
     check_cancel(installer)?;
-    for (name, expected) in [("LICENSE-DINOv3.md", license), (MODEL, model)] {
+    publish_staged(
+        stage,
+        model_dir,
+        &stage_name,
+        [("LICENSE-DINOv3.md", license), (MODEL, model)],
+    )
+}
+
+fn validate_publish_targets(model_dir: &FsPath) -> anyhow::Result<()> {
+    // Reject unsafe destinations before publishing either artifact.
+    for name in ["LICENSE-DINOv3.md", MODEL] {
+        let target = checked_model_path(model_dir, &format!("optional/{name}"))?;
+        if target.exists() {
+            ensure!(
+                fs::metadata(target)?.is_file(),
+                "model installation target is not a file"
+            );
+        }
+    }
+    Ok(())
+}
+
+fn publish_staged(
+    stage: Staging,
+    model_dir: &FsPath,
+    stage_name: &str,
+    artifacts: [(&str, &[u8]); 2],
+) -> anyhow::Result<()> {
+    for (name, expected) in artifacts {
         let target = checked_model_path(model_dir, &format!("optional/{name}"))?;
         let previous = checked_model_path(model_dir, &format!("{stage_name}/{name}.previous"))?;
         let staged = checked_model_path(model_dir, &format!("{stage_name}/{name}"))?;

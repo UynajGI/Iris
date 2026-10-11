@@ -76,44 +76,14 @@ impl Services {
         let root = Path::new(&project.root).canonicalize()?;
         // Validate every file and current decision before the first move.
         for item in &plan.items {
-            let p = self.photo(item.photo_id)?;
-            if p.decision != Action::Reject || p.quarantined {
-                bail!("preview is stale: photo decision changed");
-            }
-            let src = self.photo_path(item.photo_id)?;
-            if src != Path::new(&item.source)
-                || fs::metadata(&src)?.len() != item.size_bytes
-                || digest(&src)? != item.sha256
-            {
-                bail!("preview is stale: source changed");
-            }
-            let expected = root
-                .join(".iris-quarantine")
-                .join(&plan.id)
-                .join(checked_relative(&p.path)?);
-            if expected != Path::new(&item.destination) || expected.exists() {
-                bail!("invalid quarantine destination");
-            }
-            safe_destination(&root, &relative_text(expected.strip_prefix(&root)?))?;
+            self.validate_quarantine_item(&root, &plan.id, item)?;
         }
         plan.state = "moving".into();
         self.persist_plan(&plan)?;
         for i in 0..plan.items.len() {
             plan.items[i].state = "moving".into();
             self.persist_plan(&plan)?;
-            let result = (|| -> Result<()> {
-                let item = &plan.items[i];
-                move_verified(
-                    Path::new(&item.source),
-                    Path::new(&item.destination),
-                    &item.sha256,
-                )?;
-                self.store.conn.execute(
-                    "UPDATE photos SET quarantined=1 WHERE id=?1",
-                    [item.photo_id],
-                )?;
-                Ok(())
-            })();
+            let result = self.move_quarantine_item(&plan.items[i]);
             if let Err(e) = result {
                 plan.state = "interrupted".into();
                 self.persist_plan(&plan)?;
@@ -125,6 +95,40 @@ impl Services {
         plan.state = "committed".into();
         self.persist_plan(&plan)?;
         Ok(plan)
+    }
+    fn validate_quarantine_item(
+        &self,
+        root: &Path,
+        plan_id: &str,
+        item: &QuarantineItem,
+    ) -> Result<()> {
+        let p = self.photo(item.photo_id)?;
+        if p.decision != Action::Reject || p.quarantined {
+            bail!("preview is stale: photo decision changed");
+        }
+        let src = self.photo_path(item.photo_id)?;
+        validate_quarantine_source(&src, item)?;
+        let expected = root
+            .join(".iris-quarantine")
+            .join(plan_id)
+            .join(checked_relative(&p.path)?);
+        if expected != Path::new(&item.destination) || expected.exists() {
+            bail!("invalid quarantine destination");
+        }
+        safe_destination(root, &relative_text(expected.strip_prefix(root)?))?;
+        Ok(())
+    }
+    fn move_quarantine_item(&self, item: &QuarantineItem) -> Result<()> {
+        move_verified(
+            Path::new(&item.source),
+            Path::new(&item.destination),
+            &item.sha256,
+        )?;
+        self.store.conn.execute(
+            "UPDATE photos SET quarantined=1 WHERE id=?1",
+            [item.photo_id],
+        )?;
+        Ok(())
     }
     pub(super) fn persist_restore_journal(&self, journal: &RestoreJournal) -> Result<()> {
         self.store.conn.execute(
@@ -192,28 +196,7 @@ impl Services {
         {
             let current = self.inspect_restore_item(root, &journal.plan, step.index)?;
             let item = &journal.plan.items[step.index];
-            let source = Path::new(&item.source);
-            let quarantined = Path::new(&item.destination);
-            if step.quarantine_existed && !current.quarantine_existed {
-                // Create and verify the original quarantine copy before removing
-                // any restored source. This is idempotent across interrupted moves.
-                copy_new_verified(source, quarantined)?;
-            } else if !step.quarantine_existed && current.quarantine_existed {
-                bail!("unexpected quarantine file during restore compensation");
-            }
-            if !step.source_existed && current.source_existed {
-                anyhow::ensure!(
-                    restore_file_exists(root, quarantined, &item.sha256)?,
-                    "rollback quarantine copy missing"
-                );
-                anyhow::ensure!(
-                    restore_file_exists(root, source, &item.sha256)?,
-                    "rollback source missing"
-                );
-                fs::remove_file(source)?;
-            } else if step.source_existed && !current.source_existed {
-                bail!("original source missing during restore compensation");
-            }
+            compensate_restore_files(root, item, step, &current)?;
             self.store.conn.execute(
                 "UPDATE photos SET quarantined=?1,missing=?2 WHERE id=?3",
                 params![step.quarantined, step.missing, item.photo_id],
@@ -256,18 +239,7 @@ impl Services {
         }
         let project = self.project(journal.plan.project_id)?;
         let root = Path::new(&project.root).canonicalize()?;
-        if journal.restore_rollback.is_some() {
-            if let Err(error) = self.compensate_restore(&root, &mut journal) {
-                journal.plan.state = "restore_rollback_failed".into();
-                let _ = self.persist_restore_journal(&journal);
-                return Err(error.context(format!(
-                    "restore compensation incomplete; retry plan {}",
-                    id
-                )));
-            }
-        } else if journal.plan.state.starts_with("restore_rollback") {
-            bail!("restore compensation journal missing");
-        }
+        self.resume_restore_compensation(&root, &mut journal, id)?;
         // Discover every known conflict before restoring any file or changing flags.
         for index in 0..journal.plan.items.len() {
             self.inspect_restore_item(&root, &journal.plan, index)?;
@@ -278,43 +250,7 @@ impl Services {
         });
         journal.plan.state = "restoring".into();
         self.persist_restore_journal(&journal)?;
-        let result = (|| -> Result<()> {
-            for index in (0..journal.plan.items.len()).rev() {
-                let step = self.inspect_restore_item(&root, &journal.plan, index)?;
-                journal.restore_rollback.as_mut().unwrap().steps.push(step);
-                // Write-ahead state includes the currently executing item, even
-                // if a file move or its subsequent database update fails.
-                self.persist_restore_journal(&journal)?;
-                let item = &journal.plan.items[index];
-                let source = Path::new(&item.source);
-                let quarantined = Path::new(&item.destination);
-                if quarantined.exists() {
-                    if source.exists() {
-                        anyhow::ensure!(
-                            restore_file_exists(&root, source, &item.sha256)?,
-                            "restore source disappeared"
-                        );
-                        anyhow::ensure!(
-                            restore_file_exists(&root, quarantined, &item.sha256)?,
-                            "quarantine source disappeared"
-                        );
-                        fs::remove_file(quarantined)?;
-                    } else {
-                        move_verified(quarantined, source, &item.sha256)?;
-                    }
-                }
-                self.store.conn.execute(
-                    "UPDATE photos SET quarantined=0,missing=0 WHERE id=?1",
-                    [item.photo_id],
-                )?;
-                journal.plan.items[index].state = "restored".into();
-                self.persist_restore_journal(&journal)?;
-            }
-            // Commit the public plan and remove the rollback journal together.
-            journal.plan.state = "restored".into();
-            self.persist_plan(&journal.plan)?;
-            Ok(())
-        })();
+        let result = self.restore_quarantine_items(&root, &mut journal);
         if let Err(error) = result {
             if let Err(compensation) = self.compensate_restore(&root, &mut journal) {
                 journal.plan.state = "restore_rollback_failed".into();
@@ -327,4 +263,107 @@ impl Services {
         }
         Ok(journal.plan)
     }
+    fn resume_restore_compensation(
+        &self,
+        root: &Path,
+        journal: &mut RestoreJournal,
+        id: &str,
+    ) -> Result<()> {
+        if journal.restore_rollback.is_some() {
+            if let Err(error) = self.compensate_restore(root, journal) {
+                journal.plan.state = "restore_rollback_failed".into();
+                let _ = self.persist_restore_journal(journal);
+                return Err(error.context(format!(
+                    "restore compensation incomplete; retry plan {}",
+                    id
+                )));
+            }
+        } else if journal.plan.state.starts_with("restore_rollback") {
+            bail!("restore compensation journal missing");
+        }
+        Ok(())
+    }
+    fn restore_quarantine_items(&self, root: &Path, journal: &mut RestoreJournal) -> Result<()> {
+        for index in (0..journal.plan.items.len()).rev() {
+            let step = self.inspect_restore_item(root, &journal.plan, index)?;
+            journal.restore_rollback.as_mut().unwrap().steps.push(step);
+            // Write-ahead state includes the currently executing item, even
+            // if a file move or its subsequent database update fails.
+            self.persist_restore_journal(journal)?;
+            let item = &journal.plan.items[index];
+            restore_quarantine_file(root, item)?;
+            self.store.conn.execute(
+                "UPDATE photos SET quarantined=0,missing=0 WHERE id=?1",
+                [item.photo_id],
+            )?;
+            journal.plan.items[index].state = "restored".into();
+            self.persist_restore_journal(journal)?;
+        }
+        // Commit the public plan and remove the rollback journal together.
+        journal.plan.state = "restored".into();
+        self.persist_plan(&journal.plan)?;
+        Ok(())
+    }
+}
+
+fn validate_quarantine_source(src: &Path, item: &QuarantineItem) -> Result<()> {
+    if src != Path::new(&item.source)
+        || fs::metadata(src)?.len() != item.size_bytes
+        || digest(src)? != item.sha256
+    {
+        bail!("preview is stale: source changed");
+    }
+    Ok(())
+}
+
+fn compensate_restore_files(
+    root: &Path,
+    item: &QuarantineItem,
+    step: &RestoreStep,
+    current: &RestoreStep,
+) -> Result<()> {
+    let source = Path::new(&item.source);
+    let quarantined = Path::new(&item.destination);
+    if step.quarantine_existed && !current.quarantine_existed {
+        // Create and verify the original quarantine copy before removing
+        // any restored source. This is idempotent across interrupted moves.
+        copy_new_verified(source, quarantined)?;
+    } else if !step.quarantine_existed && current.quarantine_existed {
+        bail!("unexpected quarantine file during restore compensation");
+    }
+    if !step.source_existed && current.source_existed {
+        anyhow::ensure!(
+            restore_file_exists(root, quarantined, &item.sha256)?,
+            "rollback quarantine copy missing"
+        );
+        anyhow::ensure!(
+            restore_file_exists(root, source, &item.sha256)?,
+            "rollback source missing"
+        );
+        fs::remove_file(source)?;
+    } else if step.source_existed && !current.source_existed {
+        bail!("original source missing during restore compensation");
+    }
+    Ok(())
+}
+
+fn restore_quarantine_file(root: &Path, item: &QuarantineItem) -> Result<()> {
+    let source = Path::new(&item.source);
+    let quarantined = Path::new(&item.destination);
+    if quarantined.exists() {
+        if source.exists() {
+            anyhow::ensure!(
+                restore_file_exists(root, source, &item.sha256)?,
+                "restore source disappeared"
+            );
+            anyhow::ensure!(
+                restore_file_exists(root, quarantined, &item.sha256)?,
+                "quarantine source disappeared"
+            );
+            fs::remove_file(quarantined)?;
+        } else {
+            move_verified(quarantined, source, &item.sha256)?;
+        }
+    }
+    Ok(())
 }

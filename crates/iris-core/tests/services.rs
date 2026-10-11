@@ -911,7 +911,7 @@ fn detector_provider_and_hash_changes_invalidate_features_and_profile_estimates(
         svc.estimate_profile(id, "scrfd").unwrap()["requires_analysis"],
         true
     );
-    for hash in ['a', 'b'] {
+    for hash in ["a", "b"] {
         settings["scrfd_model_sha256"] = json!(hash.to_string().repeat(64));
         svc.set_settings(id, settings.clone()).unwrap();
         assert!(svc.photo(p.id).unwrap().analysis.is_none());

@@ -1,5 +1,23 @@
 use super::*;
 
+fn matches_photo_filter(p: &Photo, filter: &PhotoFilter) -> bool {
+    (filter.include_missing.unwrap_or(false) || (!p.missing && !p.quarantined))
+        && filter.decision.is_none_or(|d| d == p.decision)
+        && filter.rating.is_none_or(|rating| rating == p.rating)
+        && filter
+            .color_label
+            .is_none_or(|color| color == p.color_label)
+        && filter.format.as_ref().is_none_or(|f| f == &p.format)
+        && filter.verdict.as_ref().is_none_or(|v| {
+            p.analysis_status == AnalysisStatus::Current
+                && p.analysis
+                    .as_ref()
+                    .and_then(|a| a.get("verdict"))
+                    .and_then(Value::as_str)
+                    == Some(v)
+        })
+}
+
 impl Services {
     pub fn photos(&self, project_id: i64, filter: PhotoFilter) -> Result<Vec<Photo>> {
         if filter.rating.is_some_and(|rating| rating > 5) {
@@ -17,23 +35,7 @@ impl Services {
         for photo in &mut photos {
             photo.analysis_status = analysis_status(photo.analysis.as_ref(), &settings);
         }
-        photos.retain(|p| {
-            (filter.include_missing.unwrap_or(false) || (!p.missing && !p.quarantined))
-                && filter.decision.is_none_or(|d| d == p.decision)
-                && filter.rating.is_none_or(|rating| rating == p.rating)
-                && filter
-                    .color_label
-                    .is_none_or(|color| color == p.color_label)
-                && filter.format.as_ref().is_none_or(|f| f == &p.format)
-                && filter.verdict.as_ref().is_none_or(|v| {
-                    p.analysis_status == AnalysisStatus::Current
-                        && p.analysis
-                            .as_ref()
-                            .and_then(|a| a.get("verdict"))
-                            .and_then(Value::as_str)
-                            == Some(v)
-                })
-        });
+        photos.retain(|p| matches_photo_filter(p, &filter));
         match filter.sort.as_deref().unwrap_or("name") {
             "score" | "suggestion" => {
                 photos.sort_by(|a, b| score(b).total_cmp(&score(a)).then(a.id.cmp(&b.id)))

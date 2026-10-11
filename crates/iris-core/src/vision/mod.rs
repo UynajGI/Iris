@@ -408,26 +408,7 @@ impl VisionEngine {
         timings.metrics_ms = finish_stage(&mut clock);
         let mut warnings =
             vec!["Smile score is experimental; eye thresholds require labeled evaluation".into()];
-        let niqe = if settings.enable_niqe {
-            match &self.niqe {
-                Some(model) => match model.score(im) {
-                    Ok(value) => Some(value),
-                    Err(e) => {
-                        warnings.push(format!("NIQE unavailable for this image: {e}"));
-                        None
-                    }
-                },
-                None => {
-                    warnings.push(format!(
-                        "NIQE unavailable: {}",
-                        self.niqe_error.as_deref().unwrap_or("missing statistics")
-                    ));
-                    None
-                }
-            }
-        } else {
-            None
-        };
+        let niqe = self.score_niqe(im, settings.enable_niqe, &mut warnings);
         timings.niqe_ms = finish_stage(&mut clock);
         let mut faces = self.models.faces(im, settings, &mut warnings)?;
         for face in &mut faces {
@@ -489,6 +470,33 @@ impl VisionEngine {
         timings.phash_rescore_ms = finish_stage(&mut clock);
         Ok((analysis, timings))
     }
+    fn score_niqe(
+        &self,
+        im: &image::RgbImage,
+        enabled: bool,
+        warnings: &mut Vec<String>,
+    ) -> Option<f64> {
+        if enabled {
+            match &self.niqe {
+                Some(model) => match model.score(im) {
+                    Ok(value) => Some(value),
+                    Err(e) => {
+                        warnings.push(format!("NIQE unavailable for this image: {e}"));
+                        None
+                    }
+                },
+                None => {
+                    warnings.push(format!(
+                        "NIQE unavailable: {}",
+                        self.niqe_error.as_deref().unwrap_or("missing statistics")
+                    ));
+                    None
+                }
+            }
+        } else {
+            None
+        }
+    }
 }
 
 /// Withheld eye measurements do not earn an eyes score; missing factors are omitted.
@@ -499,16 +507,7 @@ pub fn rescore(analysis: &VisionAnalysis, settings: &AnalysisSettings) -> Vision
     // Old records may contain definite EAR-only states. Rescoring must not turn
     // those into recommendations while their stale inference awaits a refresh.
     // Preserve measured EAR; withheld observations remain absent.
-    for face in &mut a.faces {
-        for eye in [&mut face.left_eye, &mut face.right_eye]
-            .into_iter()
-            .flatten()
-        {
-            if !eye.blink_score.is_some_and(|score| score.is_finite()) {
-                eye.state = EyeState::Uncertain;
-            }
-        }
-    }
+    sanitize_eye_observations(&mut a.faces);
     a.composition = composition::measure(&a.faces, a.width, a.height);
     let eyes: Vec<_> = a
         .faces
@@ -543,6 +542,19 @@ pub fn rescore(analysis: &VisionAnalysis, settings: &AnalysisSettings) -> Vision
         Verdict::Review
     };
     a
+}
+
+fn sanitize_eye_observations(faces: &mut [Face]) {
+    for face in faces {
+        for eye in [&mut face.left_eye, &mut face.right_eye]
+            .into_iter()
+            .flatten()
+        {
+            if !eye.blink_score.is_some_and(|score| score.is_finite()) {
+                eye.state = EyeState::Uncertain;
+            }
+        }
+    }
 }
 
 /// Blink is an uncalibrated blendshape coefficient. EAR alone cannot decide.
@@ -586,22 +598,7 @@ pub fn group_similar(items: &[(String, VisionAnalysis, Option<i64>)]) -> Vec<Vec
         let found = candidates.into_iter().find(|group| {
             let g = &groups[*group];
             let (_, b, bt) = &items[g[0]];
-            let close_time = matches!((time,bt),(Some(t),Some(u))if t.abs_diff(*u)<=8);
-            if !close_time || !perceptual_distance(&a.phash, &b.phash).is_some_and(|d| d <= 8) {
-                return false;
-            }
-            let aspect_a = a.width as f64 / a.height.max(1) as f64;
-            let aspect_b = b.width as f64 / b.height.max(1) as f64;
-            let structure = a.structure.len() == 64
-                && b.structure.len() == 64
-                && a.structure
-                    .iter()
-                    .zip(&b.structure)
-                    .map(|(x, y)| (x - y).abs())
-                    .sum::<f32>()
-                    / 64.
-                    < 0.10;
-            (aspect_a - aspect_b).abs() < 0.05 && structure
+            matches_similar_anchor(a, time, b, bt)
         });
         if let Some(g) = found {
             groups[g].push(i);
@@ -636,6 +633,30 @@ pub fn group_similar(items: &[(String, VisionAnalysis, Option<i64>)]) -> Vec<Vec
             g.into_iter().map(|i| items[i].0.clone()).collect()
         })
         .collect()
+}
+
+fn matches_similar_anchor(
+    a: &VisionAnalysis,
+    time: &Option<i64>,
+    b: &VisionAnalysis,
+    bt: &Option<i64>,
+) -> bool {
+    let close_time = matches!((time,bt),(Some(t),Some(u))if t.abs_diff(*u)<=8);
+    if !close_time || !perceptual_distance(&a.phash, &b.phash).is_some_and(|d| d <= 8) {
+        return false;
+    }
+    let aspect_a = a.width as f64 / a.height.max(1) as f64;
+    let aspect_b = b.width as f64 / b.height.max(1) as f64;
+    let structure = a.structure.len() == 64
+        && b.structure.len() == 64
+        && a.structure
+            .iter()
+            .zip(&b.structure)
+            .map(|(x, y)| (x - y).abs())
+            .sum::<f32>()
+            / 64.
+            < 0.10;
+    (aspect_a - aspect_b).abs() < 0.05 && structure
 }
 
 /// Near-duplicate candidates independent of capture time. This is perceptual

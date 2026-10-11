@@ -90,25 +90,9 @@ impl DinoV3 {
         };
         let session = super::runtime::session(session_bytes, "dinov3")
             .context("DINOv3 ONNX load failed; no fallback")?;
-        if session.inputs.len() != 1
-            || session.inputs[0].name != "pixel_values"
-            || session.outputs.len() != 2
-            || session.outputs[0].name != "last_hidden_state"
-            || session.outputs[1].name != "pooler_output"
-        {
-            bail!("DINOv3 requires pixel_values input and last_hidden_state/pooler_output outputs");
-        }
-        if !matches!(&session.inputs[0].input_type, ValueType::Tensor { ty: TensorElementType::Float32, shape, .. }
-            if shape.len() == 4 && shape[1] == 3 && (shape[0] == -1 || shape[0] == 1)
-                && (shape[2] == -1 || shape[2] == SIDE as i64) && (shape[3] == -1 || shape[3] == SIDE as i64))
-        {
-            bail!("DINOv3 requires float32 NCHW RGB compatible with [1,3,224,224]");
-        }
-        if !matches!(&session.outputs[1].output_type, ValueType::Tensor { ty: TensorElementType::Float32, shape, .. }
-            if shape.len() == 2 && (shape[0] == -1 || shape[0] == 1) && shape[1] == EMBEDDING_DIM as i64)
-        {
-            bail!("DINOv3 pooler_output must be float32 [batch,384]");
-        }
+        validate_session_names(&session)?;
+        validate_input_type(&session.inputs[0].input_type)?;
+        validate_output_type(&session.outputs[1].output_type)?;
         let mut model = Self { session };
         if let Err(error) = model.run(vec![0.; 3 * SIDE * SIDE]) {
             if !super::runtime::directml_active() {
@@ -147,6 +131,37 @@ impl DinoV3 {
         }
         normalize(values)
     }
+}
+
+fn validate_session_names(session: &Session) -> Result<()> {
+    if session.inputs.len() != 1
+        || session.inputs[0].name != "pixel_values"
+        || session.outputs.len() != 2
+        || session.outputs[0].name != "last_hidden_state"
+        || session.outputs[1].name != "pooler_output"
+    {
+        bail!("DINOv3 requires pixel_values input and last_hidden_state/pooler_output outputs");
+    }
+    Ok(())
+}
+
+fn validate_input_type(input: &ValueType) -> Result<()> {
+    if !matches!(input, ValueType::Tensor { ty: TensorElementType::Float32, shape, .. }
+        if shape.len() == 4 && shape[1] == 3 && (shape[0] == -1 || shape[0] == 1)
+            && (shape[2] == -1 || shape[2] == SIDE as i64) && (shape[3] == -1 || shape[3] == SIDE as i64))
+    {
+        bail!("DINOv3 requires float32 NCHW RGB compatible with [1,3,224,224]");
+    }
+    Ok(())
+}
+
+fn validate_output_type(output: &ValueType) -> Result<()> {
+    if !matches!(output, ValueType::Tensor { ty: TensorElementType::Float32, shape, .. }
+        if shape.len() == 2 && (shape[0] == -1 || shape[0] == 1) && shape[1] == EMBEDDING_DIM as i64)
+    {
+        bail!("DINOv3 pooler_output must be float32 [batch,384]");
+    }
+    Ok(())
 }
 
 fn preprocess(image: &RgbImage) -> Result<Vec<f32>> {

@@ -244,48 +244,12 @@ fn decode_inner(
 ) -> Result<DecodedPreview> {
     let mut opened = Opened::open(path, directory)?;
     let (original_width, original_height) = opened.dimensions()?;
-    // Select the smallest adequate native thumbnail. Never upscale a tiny
-    // thumbnail for quality inference, and reject aspect-ratio mismatches.
-    let mut best: Option<(*mut c_void, u32)> = None;
-    unsafe {
-        let count = (opened.api.thumbnail_count)(opened.handle);
-        if prefer_thumbnail && (1..=1024).contains(&count) {
-            let mut ids = vec![0; count as usize];
-            let actual = (opened.api.thumbnail_ids)(opened.handle, ids.as_mut_ptr(), count);
-            for id in ids.into_iter().take(actual.max(0).min(count) as usize) {
-                let mut handle = ptr::null_mut();
-                if (opened.api.thumbnail)(opened.handle, id, &mut handle)
-                    .check()
-                    .is_err()
-                    || handle.is_null()
-                {
-                    continue;
-                }
-                let w = (opened.api.width)(handle);
-                let h = (opened.api.height)(handle);
-                let ratio =
-                    (w as f64 / h as f64) / (original_width as f64 / original_height as f64);
-                let edge = w.max(h).max(0) as u32;
-                if w > 0
-                    && h > 0
-                    && edge >= max_edge
-                    && edge < original_width.max(original_height)
-                    && (0.99..=1.01).contains(&ratio)
-                    && best.is_none_or(|(_, old)| edge < old)
-                {
-                    if let Some((old, _)) = best.replace((handle, edge)) {
-                        (opened.api.release_handle)(old);
-                    }
-                } else {
-                    (opened.api.release_handle)(handle);
-                }
-            }
-        }
-        if let Some((handle, _)) = best {
-            (opened.api.release_handle)(opened.handle);
-            opened.handle = handle;
-        }
-    }
+    let best = select_thumbnail(
+        &mut opened,
+        max_edge,
+        (original_width, original_height),
+        prefer_thumbnail,
+    );
     let (width, height) = opened.dimensions()?;
     struct ImageGuard<'a> {
         pointer: *mut c_void,
@@ -353,4 +317,68 @@ fn decode_inner(
             orientation: 1,
         })
     }
+}
+
+fn select_thumbnail(
+    opened: &mut Opened,
+    max_edge: u32,
+    dimensions: (u32, u32),
+    prefer_thumbnail: bool,
+) -> Option<(*mut c_void, u32)> {
+    let (original_width, original_height) = dimensions;
+    // Select the smallest adequate native thumbnail. Never upscale a tiny
+    // thumbnail for quality inference, and reject aspect-ratio mismatches.
+    let mut best: Option<(*mut c_void, u32)> = None;
+    unsafe {
+        let count = (opened.api.thumbnail_count)(opened.handle);
+        if prefer_thumbnail && (1..=1024).contains(&count) {
+            let mut ids = vec![0; count as usize];
+            let actual = (opened.api.thumbnail_ids)(opened.handle, ids.as_mut_ptr(), count);
+            for id in ids.into_iter().take(actual.max(0).min(count) as usize) {
+                let mut handle = ptr::null_mut();
+                if (opened.api.thumbnail)(opened.handle, id, &mut handle)
+                    .check()
+                    .is_err()
+                    || handle.is_null()
+                {
+                    continue;
+                }
+                let w = (opened.api.width)(handle);
+                let h = (opened.api.height)(handle);
+                let ratio =
+                    (w as f64 / h as f64) / (original_width as f64 / original_height as f64);
+                let edge = w.max(h).max(0) as u32;
+                if thumbnail_is_adequate(w, h, edge, max_edge, dimensions, ratio, best) {
+                    if let Some((old, _)) = best.replace((handle, edge)) {
+                        (opened.api.release_handle)(old);
+                    }
+                } else {
+                    (opened.api.release_handle)(handle);
+                }
+            }
+        }
+        if let Some((handle, _)) = best {
+            (opened.api.release_handle)(opened.handle);
+            opened.handle = handle;
+        }
+    }
+    best
+}
+
+fn thumbnail_is_adequate(
+    w: i32,
+    h: i32,
+    edge: u32,
+    max_edge: u32,
+    dimensions: (u32, u32),
+    ratio: f64,
+    best: Option<(*mut c_void, u32)>,
+) -> bool {
+    let (original_width, original_height) = dimensions;
+    w > 0
+        && h > 0
+        && edge >= max_edge
+        && edge < original_width.max(original_height)
+        && (0.99..=1.01).contains(&ratio)
+        && best.is_none_or(|(_, old)| edge < old)
 }

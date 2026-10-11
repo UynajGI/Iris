@@ -108,24 +108,9 @@ def preflight(source, include_directml=False):
     license_size, license_hash = SETUP.SOURCES["LICENSE.md"]
     if license_path.stat().st_size != license_size or digest(license_path) != license_hash:
         raise ValueError("Pinned DINOv3 license missing or modified")
-    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-    if metadata.get("sha256") != SETUP.SHA256 or metadata.get("bytes") != SETUP.SIZE or metadata.get("source_revision") != SETUP.REVISION or metadata.get("source_repository") != SETUP.REPOSITORY or metadata.get("base_model") != "facebook/dinov3-vits16-pretrain-lvd1689m":
-        raise ValueError("DINOv3 provenance does not match the pinned model")
-    for name, (size, sha256) in SETUP.SOURCES.items():
-        entry = metadata.get("sources", {}).get(name, {})
-        if entry.get("sha256") != sha256 or entry.get("bytes") != size:
-            raise ValueError(f"DINOv3 provenance mismatch: {name}")
+    validate_provenance(metadata_path)
     if include_directml:
-        graph = source / GPU.FILE
-        provenance = graph.with_suffix(".metadata.json")
-        if any(not p.is_file() or p.is_symlink() for p in [graph, provenance]):
-            raise ValueError("DirectML graph and provenance must be regular files")
-        if graph.stat().st_size != GPU.SIZE or digest(graph) != GPU.SHA256:
-            raise ValueError("DirectML artifact mismatch")
-        info = json.loads(provenance.read_text("utf-8"))
-        if info.get("sha256") != GPU.SHA256 or info.get("bytes") != GPU.SIZE or info.get("original_sha256") != SETUP.SHA256:
-            raise ValueError("DirectML provenance mismatch")
-        files.extend([graph, provenance])
+        files.extend(directml_payload(source))
     return files
 
 
@@ -163,6 +148,29 @@ def main():
     args = parser.parse_args()
     print(json.dumps(package(args.source, args.output, not args.no_zip, args.include_directml)))
 
+
+
+def directml_payload(source):
+    graph = source / GPU.FILE
+    provenance = graph.with_suffix(".metadata.json")
+    if any(not p.is_file() or p.is_symlink() for p in [graph, provenance]):
+        raise ValueError("DirectML graph and provenance must be regular files")
+    if graph.stat().st_size != GPU.SIZE or digest(graph) != GPU.SHA256:
+        raise ValueError("DirectML artifact mismatch")
+    info = json.loads(provenance.read_text("utf-8"))
+    if info.get("sha256") != GPU.SHA256 or info.get("bytes") != GPU.SIZE or info.get("original_sha256") != SETUP.SHA256:
+        raise ValueError("DirectML provenance mismatch")
+    return [graph, provenance]
+
+
+def validate_provenance(metadata_path):
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    if metadata.get("sha256") != SETUP.SHA256 or metadata.get("bytes") != SETUP.SIZE or metadata.get("source_revision") != SETUP.REVISION or metadata.get("source_repository") != SETUP.REPOSITORY or metadata.get("base_model") != "facebook/dinov3-vits16-pretrain-lvd1689m":
+        raise ValueError("DINOv3 provenance does not match the pinned model")
+    for name, (size, sha256) in SETUP.SOURCES.items():
+        entry = metadata.get("sources", {}).get(name, {})
+        if entry.get("sha256") != sha256 or entry.get("bytes") != size:
+            raise ValueError(f"DINOv3 provenance mismatch: {name}")
 
 if __name__ == "__main__":
     main()

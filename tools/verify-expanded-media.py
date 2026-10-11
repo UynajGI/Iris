@@ -35,6 +35,44 @@ def main():
         parser.error("output must be new")
     photos = args.output / "photos"
     photos.mkdir(parents=True)
+    entries, source_hashes, native_entries, available = prepare_public_media(args, photos)
+    expected = prepare_synthetic_media(photos, entries)
+    original = {p.name: digest(p) for p in photos.iterdir()}
+    (args.output / "fixture-manifest.json").write_text(json.dumps({"files": entries, "hashes": original, "intentional_failures": 6}, indent=2), "utf-8")
+    report = {"ok": False, "daemon_sha256": digest(args.daemon), "native_files": len(native_entries), "unique_public_portrait_sources": len(available),
+              "derived_formats_are_not_independent_scenes": True, "accuracy_evaluated": False, "orientation_checks": {}}
+    try:
+        with Daemon(args.daemon, args.models, args.output / "run", workers=2) as daemon:
+            project = daemon.request("POST", "/projects", {"root": str(photos.resolve())})["id"]
+            report["scan"] = daemon.job(project, "scan", expected="failed")
+            listing = daemon.request("GET", f"/projects/{project}/photos")
+            assert len(listing) == len(entries), report["scan"]
+            assert len(report["scan"]["errors"]) == 6, report["scan"]
+            verify_media_routes(daemon, listing, original, expected, report)
+            report["analysis"] = daemon.job(project, "analyze")
+            assert report["analysis"]["result"]["analyzed"] == len(entries)
+            listing = daemon.request("GET", f"/projects/{project}/photos")
+            report["preview_sources"] = Counter(p["analysis"].get("preview_source", "primary") for p in listing)
+            thumb = next(p for p in listing if p["filename"] == "embedded-thumbnail.heic")
+            assert thumb["analysis"]["preview_source"] == "heic_thumbnail", thumb
+            report["incremental"] = daemon.job(project, "analyze")
+            assert report["incremental"]["result"]["reused"] == len(entries)
+            report["formats"] = Counter(p["format"] for p in listing)
+            report["photo_count"] = len(listing)
+            report["memory"] = daemon.memory
+            report["ok"] = True
+    except Exception as error:
+        report["error"] = repr(error)
+        raise
+    finally:
+        report["source_hashes_preserved"] = all(digest(Path(p)) == h for p, h in source_hashes.items())
+        report["fixture_hashes_preserved"] = all(digest(photos / p) == h for p, h in original.items())
+        (args.output / "report.json").write_text(json.dumps(report, indent=2), "utf-8")
+    print(json.dumps(report))
+
+
+
+def prepare_public_media(args, photos):
     entries = []
     source_hashes = {}
     native_manifest = json.loads((args.corpus / "native/manifest.json").read_text("utf-8"))
@@ -60,6 +98,10 @@ def main():
             name = f"portrait-{index:02}.{extension}"
             im.save(photos / name, quality=90)
             entries.append({"path": name, "kind": "public_portrait_conversion", "source": str(source), "provenance": portrait_entries[source.name], "modifications": "EXIF transpose, RGB conversion and format encoding"})
+    return entries, source_hashes, native_entries, available
+
+
+def prepare_synthetic_media(photos, entries):
     base = Image.new("RGB", (640, 400), "red")
     draw = ImageDraw.Draw(base)
     draw.rectangle((320, 0, 639, 199), fill="green")
@@ -86,53 +128,25 @@ def main():
     oversized[16:24] = struct.pack(">II", 10000, 6100)
     oversized[29:33] = struct.pack(">I", zlib.crc32(oversized[12:29]))
     (photos / "oversized.png").write_bytes(oversized)
-    original = {p.name: digest(p) for p in photos.iterdir()}
-    (args.output / "fixture-manifest.json").write_text(json.dumps({"files": entries, "hashes": original, "intentional_failures": 6}, indent=2), "utf-8")
-    report = {"ok": False, "daemon_sha256": digest(args.daemon), "native_files": len(native_entries), "unique_public_portrait_sources": len(available),
-              "derived_formats_are_not_independent_scenes": True, "accuracy_evaluated": False, "orientation_checks": {}}
-    try:
-        with Daemon(args.daemon, args.models, args.output / "run", workers=2) as daemon:
-            project = daemon.request("POST", "/projects", {"root": str(photos.resolve())})["id"]
-            report["scan"] = daemon.job(project, "scan", expected="failed")
-            listing = daemon.request("GET", f"/projects/{project}/photos")
-            assert len(listing) == len(entries), report["scan"]
-            assert len(report["scan"]["errors"]) == 6, report["scan"]
-            mime = {"jpeg": "image/jpeg", "png": "image/png", "webp": "image/webp", "heic": "image/heic", "raw": "application/octet-stream"}
-            for photo in listing:
-                name = photo["filename"]
-                content_type, data = daemon.request("GET", f"/photos/{photo['id']}/original", raw=True)
-                assert content_type == mime[photo["format"]] and hashlib.sha256(data).hexdigest() == original[name]
-                for route in ["thumb", "preview"]:
-                    content_type, data = daemon.request("GET", f"/photos/{photo['id']}/{route}", raw=True)
-                    decoded = Image.open(io.BytesIO(data)).convert("RGB")
-                    assert content_type == "image/jpeg" and max(decoded.size) <= (320 if route == "thumb" else 2560)
-                    if name in expected:
-                        reference = expected[name].resize(decoded.size, Image.Resampling.BILINEAR)
-                        error = float(np.abs(np.asarray(decoded).astype(float) - np.asarray(reference).astype(float)).mean())
-                        assert error < 6, (name, route, error)
-                        assert (decoded.width > decoded.height) == (expected[name].width > expected[name].height)
-                        report["orientation_checks"][name + "/" + route] = error
-            report["analysis"] = daemon.job(project, "analyze")
-            assert report["analysis"]["result"]["analyzed"] == len(entries)
-            listing = daemon.request("GET", f"/projects/{project}/photos")
-            report["preview_sources"] = Counter(p["analysis"].get("preview_source", "primary") for p in listing)
-            thumb = next(p for p in listing if p["filename"] == "embedded-thumbnail.heic")
-            assert thumb["analysis"]["preview_source"] == "heic_thumbnail", thumb
-            report["incremental"] = daemon.job(project, "analyze")
-            assert report["incremental"]["result"]["reused"] == len(entries)
-            report["formats"] = Counter(p["format"] for p in listing)
-            report["photo_count"] = len(listing)
-            report["memory"] = daemon.memory
-            report["ok"] = True
-    except Exception as error:
-        report["error"] = repr(error)
-        raise
-    finally:
-        report["source_hashes_preserved"] = all(digest(Path(p)) == h for p, h in source_hashes.items())
-        report["fixture_hashes_preserved"] = all(digest(photos / p) == h for p, h in original.items())
-        (args.output / "report.json").write_text(json.dumps(report, indent=2), "utf-8")
-    print(json.dumps(report))
+    return expected
 
+
+def verify_media_routes(daemon, listing, original, expected, report):
+    mime = {"jpeg": "image/jpeg", "png": "image/png", "webp": "image/webp", "heic": "image/heic", "raw": "application/octet-stream"}
+    for photo in listing:
+        name = photo["filename"]
+        content_type, data = daemon.request("GET", f"/photos/{photo['id']}/original", raw=True)
+        assert content_type == mime[photo["format"]] and hashlib.sha256(data).hexdigest() == original[name]
+        for route in ["thumb", "preview"]:
+            content_type, data = daemon.request("GET", f"/photos/{photo['id']}/{route}", raw=True)
+            decoded = Image.open(io.BytesIO(data)).convert("RGB")
+            assert content_type == "image/jpeg" and max(decoded.size) <= (320 if route == "thumb" else 2560)
+            if name in expected:
+                reference = expected[name].resize(decoded.size, Image.Resampling.BILINEAR)
+                error = float(np.abs(np.asarray(decoded).astype(float) - np.asarray(reference).astype(float)).mean())
+                assert error < 6, (name, route, error)
+                assert (decoded.width > decoded.height) == (expected[name].width > expected[name].height)
+                report["orientation_checks"][name + "/" + route] = error
 
 if __name__ == "__main__":
     main()
