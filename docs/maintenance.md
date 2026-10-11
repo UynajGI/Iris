@@ -35,17 +35,31 @@ Lefthook 在提交期间暂时隐藏部分暂存文件中的未暂存改动，�
 
 Verify 在 Windows/Linux/macOS 验证维护工具，继续在 Windows 验证 Rust、前端及媒体集成。Rust 测试/构建使用 `--locked`，npm 使用 `npm ci`；远端 API 步骤比较结果，不再只生成 JSON。独立安全作业扫描历史，并运行两份 npm 锁、Python 维护依赖锁和三个 Cargo 锁的漏洞审计。网络/解析/工具失败同样阻断，无 `continue-on-error`，未引入漏洞忽略编号或密钥白名单。
 
-所有外部 Actions 固定完整提交 SHA，包括 Release；Rust 工具链仍沿用项目的 stable 策略，Action 固定不代表编译器版本也冻结。Dependabot 提议更新 Action 和依赖，合并仍需审核。GitHub 分支保护/Rulesets 必须由维护者把所需 Verify 检查设为必需检查；仓库配置本身不能阻止有权限的人绕过门禁。
+所有外部 Actions 固定完整提交 SHA，包括 Release；Rust 工具链仍沿用项目的 stable 策略，Action 固定不代表编译器版本也冻结。Dependabot 提议更新 Action 和依赖，低风险更新按下述规则自动合并，其他更新仍需审核。GitHub 分支保护/Rulesets 必须由维护者把所需 Verify 检查设为必需检查；仓库配置本身不能阻止有权限的人绕过门禁。
 
 Verify 的 push 入口只检查 `main`；分支改动通过 `pull_request` 检查，保留手动与可复用工作流入口。这样同一 PR 不会再同时触发分支 push 和 PR 两套 Verify 作业。尚未建立 PR 的非主分支可先运行本地门禁，或手动触发 Verify。
 
-Dependabot 按生态把普通 minor/patch 更新分组，每个更新配置最多保留 2 个普通版本更新 PR；安全更新单独分组，不受普通版本 PR 数量限制。重大升级继续单独评审。Cargo 的 `ort`、`nalgebra`、`base64`、`tower-http` 不进入普通 minor/patch 组，避免预发布或 0.x API 迁移混入批量更新。没有禁用安全更新、忽略漏洞或开启自动合并。该策略已随 `6dc9b20` 推送，不会追溯关闭已有 PR；现有 14 个 PR 依用户授权在专门集成分支保留原提交并解决兼容冲突。
+Dependabot 按生态把普通 minor/patch 更新分组，每个更新配置最多保留 2 个普通版本更新 PR；安全更新单独分组，不受普通版本 PR 数量限制。重大升级继续单独评审。Cargo 的 `ort`、`nalgebra`、`base64`、`tower-http` 不进入普通 minor/patch 组，避免预发布或 0.x API 迁移混入批量更新。没有禁用安全更新或忽略漏洞。现有 PR #1–#14 已通过[集成 PR #15](https://github.com/UynajGI/Iris/pull/15) 保留原提交合并，相关分支已删除；不通过关闭 PR 冒充合并。
+
+### Dependabot 自动合并
+
+[自动合并工作流](../.github/workflows/dependabot-automerge.yml) 在 PR 的 Verify 成功后触发，只运行默认分支的[策略脚本](../tools/dependabot-automerge.py)，不执行 PR 代码、不下载 PR 产物，也不使用 `pull_request_target`。普通开发 PR、外部 fork、草稿及非 `main` 目标不在范围内。
+
+- 全部提交必须由 `dependabot[bot]` 创建且签名验证成功；版本类型来自签名提交中的结构化元数据，不信任标题或标签。
+- 仅接受稳定的 ≥1.0 版本 minor/patch；主版本、0.x、预发布、未知版本，以及 `ort` / `ort-sys`、glib / `glib-sys`、`nalgebra`、`base64`、`tower-http` 保留人工处理。任一分组成员不符合即整组不合并。
+- 文件改动仅允许现有依赖清单、锁文件或 Actions 工作流的修改，新增、删除、重命名和业务源码改动不自动合并。
+- 当前头提交的最新 Verify 与 CodeQL 运行必须全部成功，并包含预期的 7 个 Verify、4 个 CodeQL 作业；缺失、失败、取消或跳过均不算通过。最多等待 CodeQL 30 分钟，超时不合并。
+- PR 不能有开放 CodeQL 告警；合并前再次核对头提交、已测试的主分支基线与原生合并状态，使用 GitHub 原子 SHA 校验进行 squash 合并。仍受原有 Rulesets 约束，不审批 PR、不使用管理员绕过、不削弱必需检查。
+
+此处是在完整 CI 后直接合并，不是提前给 PR 设置持久的 auto-merge 标记，因此无需启用仓库的原生 auto-merge 开关。全仓库串行合并避免并发修改主分支；旧基线需要 Dependabot 更新后重新测试。默认 CodeQL 的工作流路径为 `dynamic/github-code-scanning/codeql`；更换扫描配置或 CI 作业名称时，要同步策略常量与回归测试，否则策略会拒绝合并。运行/API 权限错误可在 Actions 中查看，重新运行对应 Verify 可重试。
+
+自动化只使用最小权限的 `GITHUB_TOKEN`，不需要 PAT。GitHub 为防递归不会因该 token 的合并再触发普通 push 工作流；被合并的同一头提交已经通过上述 PR 检查。需要主分支独立复验时，可手动运行 Verify。CI 不是功能绝对不变的证明，原生安装、真实 GPU 和人工交互验收边界不变。
 
 浏览器回归中的选择器通过 CDP `Runtime.callFunctionOn.arguments` 作为数据传递，不再把 JSON 字符串拼入可执行代码。复杂度控制台日志中的 CCN/NLOC 只接受显式整数值，不输出非数值内容。这些工具修复分别对应 CodeQL 的 `js/bad-code-sanitization` 和 `py/clear-text-logging-sensitive-data` 命中；本地测试不能替代 GitHub CodeQL 复扫。`make test-tools` 包含参数隔离、错误清理、两种数字日志和依赖/工作流策略回归。
 
 ## 依赖集成（2026-10-11）
 
-当前集成现有 PR #1–#14，保持应用版本 `0.1.0-beta2`，不打 Tag、不发布安装包。合并方式保留各 PR 原提交，使合入主分支后 GitHub 可识别间接合并；以集成 PR 的统一验证为准，不绕过必需检查。
+PR #1–#14 已通过集成 PR #15 合并，保持应用版本 `0.1.0-beta2`，不打 Tag、不发布安装包。合并方式保留各 PR 原提交，GitHub 已识别为间接合并；以集成 PR 的统一验证为准，不绕过必需检查。用户授权开启 merge commit，squash 仍保留，分支保护未修改。
 
 - 前端采用 TypeScript 7，并显式声明 Node/React 类型；API 生成器 `openapi-typescript` 7 仍依赖 TypeScript 5 的编译器 API，因此与该编译器一起归根目录维护包管理，不使用强制 peer dependency 安装。两份锁都由 `make setup` 安装，CI 的 API 检查也安装根目录工具。
 - `ort` rc.13 使用 `api-22` 保持已校验的 ONNX Runtime 1.22 资源及模型不变；迁移 session/outlet、DirectML 和可恢复 builder 错误 API，保留线程数、设备选择及 CPU 回退。移除只适用于 rc.10 的 macOS 手动退出释放。Windows 在 [CI 38125408318](https://github.com/UynajGI/Iris/actions/runs/38125408318) 出现推理通过后退出崩溃；在进程内固定保留一个环境 `Arc`，避免 TLS detach 阶段触发原生释放，交由进程回收。会话、张量和模型缓冲仍正常释放，不按模型/请求累积环境引用；跟踪 [ort #609](https://github.com/pykeio/ort/issues/609) / [#610](https://github.com/pykeio/ort/pull/610)，此兼容策略不是上游问题已经修复的声明。
@@ -53,6 +67,8 @@ Dependabot 按生态把普通 minor/patch 更新分组，每个更新配置最�
 - glib 按用户要求暂缓，不升级、vendor、添加忽略项或关闭告警。其余审计和完整门禁保持启用。
 
 集成代码 `3f037b5` 已通过真实 Lefthook 提交与完整推送门禁、`cargo check --workspace --all-targets --locked`、`make test`、API 比较、复杂度及工作流检查、TypeScript 7 类型检查和前端构建；默认模型真实 `bundled_onnx_tensor_smoke` 显式通过，无头浏览器 19 组回归通过。忽略和跳过项不计为通过。Dependabot 刷新后的 14 个 PR 头提交也已纳入历史，合并前后源码树逐字相同；不是重新执行旧的原生安装器、Unix 推理或 GPU 验收。
+
+最终集成提交 `97b02d1` 的 [Verify 38126815679](https://github.com/UynajGI/Iris/actions/runs/38126815679) 全部 7 个作业与 [CodeQL 38126813195](https://github.com/UynajGI/Iris/actions/runs/38126813195) 全部 4 个分析作业通过，随后合并为 `e944c1b`。这包含本次升级后的 Windows MSVC 默认模型和持久 worker 真实测试，不再以本机 GNU 结果替代该证据。
 
 ## 有意保留的边界
 
