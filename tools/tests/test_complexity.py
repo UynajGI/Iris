@@ -16,9 +16,15 @@ with patch.dict("sys.modules", {"lizard": SimpleNamespace()}):
 
 
 class ComplexityTests(unittest.TestCase):
-    def run_summary(self, threshold=100, count=101):
+    def run_summary(self, threshold=100, count=101, ccn_threshold=15, ccn_count=1):
         args = SimpleNamespace(
-            scope="repo", ccn=15, nloc=threshold, baseline=None, top=1, json=None, fail=False
+            scope="repo",
+            ccn=ccn_threshold,
+            nloc=threshold,
+            baseline=None,
+            top=1,
+            json=None,
+            fail=False,
         )
         current = {
             "files": 1,
@@ -26,7 +32,13 @@ class ComplexityTests(unittest.TestCase):
             "warning_count": 1,
             "warnings_by_area": {"tools-and-tests": 1},
             "warnings": [
-                {"path": "tools/example.py", "line": 1, "name": "example", "ccn": 1, "nloc": count}
+                {
+                    "path": "tools/example.py",
+                    "line": 1,
+                    "name": "example",
+                    "ccn": ccn_count,
+                    "nloc": count,
+                }
             ],
         }
         with (
@@ -63,6 +75,15 @@ class ComplexityTests(unittest.TestCase):
             "tools/report.json",
         ]:
             self.assertFalse(complexity.source_path(path))
+
+    def test_ccn_logs_reject_non_numeric_data(self):
+        injected = "16\nprivate-value"
+        for metrics in [{"ccn_threshold": injected}, {"ccn_count": injected}]:
+            with self.subTest(metrics=metrics):
+                output = io.StringIO()
+                with redirect_stdout(output), self.assertRaises(ValueError):
+                    self.run_summary(**metrics)
+                self.assertNotIn("private-value", output.getvalue())
 
     def test_scope_classification(self):
         self.assertEqual(complexity.area("apps/shell/src/ui/App.tsx"), "frontend")

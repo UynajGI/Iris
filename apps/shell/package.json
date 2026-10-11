@@ -21,7 +21,6 @@
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.3.0",
     "esbuild": "^0.28.2",
-    "openapi-typescript": "^7.10.1",
     "tsx": "^4.20.0",
     "typescript": "^7.0.2"
   }

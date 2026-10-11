@@ -22,7 +22,8 @@ ort = { version = "=2.0.0-rc.13", default-features = false, features = [
   "std",
   "ndarray",
   "load-dynamic",
-  "api-22"
+  "api-22",
+  "directml"
 ] }
 sha2 = "0.10"
 csv = "1"

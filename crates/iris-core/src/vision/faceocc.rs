@@ -7,8 +7,7 @@ use anyhow::{bail, Context, Result};
 use image::RgbImage;
 use ort::{
     session::Session,
-    tensor::TensorElementType,
-    value::{Tensor, ValueType},
+    value::{Tensor, TensorElementType, ValueType},
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -139,16 +138,16 @@ impl FaceOcc {
         })?;
         let session = super::runtime::session(&bytes, "faceocc")
             .context("FaceOcc load failed; no fallback")?;
-        if session.inputs.len() != 1
-            || session.outputs.len() != 1
-            || session.inputs[0].name != "rgb_0_1"
-            || session.outputs[0].name != "visible_face_logits"
+        if session.inputs().len() != 1
+            || session.outputs().len() != 1
+            || session.inputs()[0].name() != "rgb_0_1"
+            || session.outputs()[0].name() != "visible_face_logits"
         {
             bail!("FaceOcc requires rgb_0_1 input and visible_face_logits output; no fallback");
         }
         for (dtype, expected) in [
-            (&session.inputs[0].input_type, [1, 3, 256, 256]),
-            (&session.outputs[0].output_type, [1, 1, 256, 256]),
+            (session.inputs()[0].dtype(), [1, 3, 256, 256]),
+            (session.outputs()[0].dtype(), [1, 1, 256, 256]),
         ] {
             if !matches!(dtype, ValueType::Tensor { ty: TensorElementType::Float32, shape, .. } if &shape[..] == expected)
             {
@@ -691,7 +690,7 @@ mod tests {
     fn research_faceocc_onnx_tensor_smoke() -> Result<()> {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
         #[cfg(windows)]
-        ort::init_from(root.join("models/onnxruntime.dll").to_string_lossy()).commit()?;
+        ort::init_from(root.join("models/onnxruntime.dll"))?.commit();
         let dir = tempfile::tempdir()?;
         std::fs::create_dir(dir.path().join("optional"))?;
         std::fs::copy(

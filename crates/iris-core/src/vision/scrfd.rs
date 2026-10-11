@@ -176,14 +176,14 @@ impl ScrfdDetector {
         // Load precisely the bytes that were hashed, not a path reopened after verification.
         let session = super::runtime::session(&bytes, "scrfd")
             .context("SCRFD ONNX load failed; no fallback")?;
-        if session.inputs.len() != 1 || session.outputs.len() != 9 {
+        if session.inputs().len() != 1 || session.outputs().len() != 9 {
             bail!("SCRFD requires one input and nine KPS outputs; no fallback");
         }
         validate_output_names(
             &session
-                .outputs
+                .outputs()
                 .iter()
-                .map(|output| output.name.as_str())
+                .map(|output| output.name())
                 .collect::<Vec<_>>(),
         )?;
         let mut detector = Self { session };
@@ -507,7 +507,7 @@ mod tests {
     fn research_official_scrfd_onnx_and_optional_geometry_capture() -> Result<()> {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
         #[cfg(windows)]
-        ort::init_from(root.join("models/onnxruntime.dll").to_string_lossy()).commit()?;
+        ort::init_from(root.join("models/onnxruntime.dll"))?.commit();
         let selected = AnalysisSettings {
             face_detector: FaceDetectorProvider::Scrfd500m,
             scrfd_model_sha256: Some(

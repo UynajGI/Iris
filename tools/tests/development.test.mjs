@@ -101,3 +101,17 @@ test('Development instructions expose only Make commands', () => {
     assert.match(section, /make setup/);
   }
 });
+test('API generation owns its compiler independently of the application', () => {
+  const tooling = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8'));
+  const application = JSON.parse(readFileSync(resolve(root, 'apps/shell/package.json'), 'utf8'));
+  assert.ok(tooling.devDependencies['openapi-typescript']);
+  assert.ok(tooling.devDependencies.typescript);
+  assert.equal(application.devDependencies['openapi-typescript'], undefined);
+  assert.ok(application.devDependencies.typescript);
+  const generator = readFileSync(resolve(root, 'tools/generate-client.mjs'), 'utf8');
+  assert.match(generator, /createRequire\(new URL\('\.\.\/package\.json'/);
+  const workflow = readFileSync(resolve(root, '.github/workflows/verify.yml'), 'utf8');
+  const rustJob = workflow.split('\n  rust:')[1].split('\n  local-media:')[0];
+  assert.match(rustJob, /run: npm ci/);
+  assert.ok(rustJob.indexOf('run: npm ci') < rustJob.indexOf('tools/api.mjs --check'));
+});

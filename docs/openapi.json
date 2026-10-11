@@ -16,7 +16,6 @@
         "operationId": "bootstrap",
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -34,7 +33,6 @@
         "operationId": "gpu_devices",
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -68,7 +66,6 @@
         ],
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -88,7 +85,6 @@
         "operationId": "status",
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -116,7 +112,6 @@
         },
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -136,7 +131,6 @@
         "operationId": "cancel_model_install",
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -156,7 +150,6 @@
         "operationId": "catalog",
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -188,7 +181,6 @@
         ],
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -356,7 +348,6 @@
         "operationId": "profiles",
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -387,7 +378,6 @@
         },
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -417,7 +407,6 @@
         ],
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "text/plain": {
                 "schema": {
@@ -457,7 +446,6 @@
         },
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -475,7 +463,6 @@
         "operationId": "projects",
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -504,7 +491,6 @@
         },
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -533,7 +519,6 @@
         ],
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -566,10 +551,10 @@
               "schema": {
                 "oneOf": [
                   {
-                    "type": "null"
+                    "$ref": "#/components/schemas/AcceptRequest"
                   },
                   {
-                    "$ref": "#/components/schemas/AcceptRequest"
+                    "type": "null"
                   }
                 ]
               }
@@ -578,7 +563,6 @@
         },
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -613,10 +597,10 @@
               "schema": {
                 "oneOf": [
                   {
-                    "type": "null"
+                    "$ref": "#/components/schemas/AnalyzeRequest"
                   },
                   {
-                    "$ref": "#/components/schemas/AnalyzeRequest"
+                    "type": "null"
                   }
                 ]
               }
@@ -625,7 +609,6 @@
         },
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -656,7 +639,6 @@
         ],
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -687,7 +669,6 @@
         ],
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -728,7 +709,6 @@
         },
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -759,7 +739,6 @@
         ],
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -801,7 +780,6 @@
         ],
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -830,7 +808,6 @@
         ],
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -869,7 +846,6 @@
         },
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -910,7 +886,6 @@
         },
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -951,7 +926,6 @@
         },
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -992,7 +966,6 @@
         },
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -1021,7 +994,6 @@
         ],
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -1053,7 +1025,6 @@
         ],
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -1094,7 +1065,6 @@
         },
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -1133,7 +1103,6 @@
         },
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -1162,7 +1131,6 @@
         ],
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -1191,7 +1159,6 @@
         ],
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -1304,7 +1271,6 @@
         ],
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -1346,7 +1312,6 @@
         ],
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {}
@@ -1373,7 +1338,6 @@
         ],
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -1404,7 +1368,6 @@
         ],
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -1448,7 +1411,6 @@
         },
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -1479,7 +1441,6 @@
         ],
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -1520,7 +1481,6 @@
         },
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -1549,7 +1509,6 @@
         ],
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -1584,10 +1543,10 @@
               "schema": {
                 "oneOf": [
                   {
-                    "type": "null"
+                    "$ref": "#/components/schemas/ScanRequest"
                   },
                   {
-                    "$ref": "#/components/schemas/ScanRequest"
+                    "type": "null"
                   }
                 ]
               }
@@ -1596,7 +1555,6 @@
         },
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -1625,7 +1583,6 @@
         ],
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -1656,7 +1613,6 @@
         ],
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -1695,7 +1651,6 @@
         },
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -1722,11 +1677,7 @@
         "type": "object",
         "properties": {
           "category": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/AcceptCategory"
-              }
-            ],
+            "$ref": "#/components/schemas/AcceptCategory",
             "default": "all"
           },
           "photo_ids": {
@@ -1773,11 +1724,7 @@
             "default": null
           },
           "embedding_provider": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/EmbeddingProvider"
-              }
-            ],
+            "$ref": "#/components/schemas/EmbeddingProvider",
             "default": "none"
           },
           "enable_niqe": {
@@ -1785,11 +1732,7 @@
             "default": true
           },
           "execution_provider": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/ExecutionProvider"
-              }
-            ],
+            "$ref": "#/components/schemas/ExecutionProvider",
             "default": "cpu"
           },
           "exposure_weight": {
@@ -1808,11 +1751,7 @@
             "default": 0.550000011920929
           },
           "face_detector": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/FaceDetectorProvider"
-              }
-            ],
+            "$ref": "#/components/schemas/FaceDetectorProvider",
             "default": "yunet"
           },
           "face_weight": {
@@ -1846,11 +1785,7 @@
             "default": null
           },
           "occlusion_provider": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/OcclusionProvider"
-              }
-            ],
+            "$ref": "#/components/schemas/OcclusionProvider",
             "default": "none"
           },
           "recommend_threshold": {
@@ -2437,10 +2372,10 @@
           "head_pose": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/HeadPose"
               },
               {
-                "$ref": "#/components/schemas/HeadPose"
+                "type": "null"
               }
             ]
           },
@@ -2468,10 +2403,10 @@
           "left_eye": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/Eye"
               },
               {
-                "$ref": "#/components/schemas/Eye"
+                "type": "null"
               }
             ]
           },
@@ -2484,20 +2419,20 @@
           "left_eye_visibility": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/EyeVisibility"
               },
               {
-                "$ref": "#/components/schemas/EyeVisibility"
+                "type": "null"
               }
             ]
           },
           "quality": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/FaceQuality"
               },
               {
-                "$ref": "#/components/schemas/FaceQuality"
+                "type": "null"
               }
             ]
           },
@@ -2510,10 +2445,10 @@
           "right_eye": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/Eye"
               },
               {
-                "$ref": "#/components/schemas/Eye"
+                "type": "null"
               }
             ]
           },
@@ -2526,10 +2461,10 @@
           "right_eye_visibility": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/EyeVisibility"
               },
               {
-                "$ref": "#/components/schemas/EyeVisibility"
+                "type": "null"
               }
             ]
           },
@@ -2891,21 +2826,21 @@
           "color_label": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/ColorLabel"
               },
               {
-                "$ref": "#/components/schemas/ColorLabel"
+                "type": "null"
               }
             ]
           },
           "decision": {
             "oneOf": [
               {
-                "type": "null"
-              },
-              {
                 "$ref": "#/components/schemas/Action",
                 "description": "Omitted fields remain unchanged. Use pending, zero, or none to clear."
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -3068,10 +3003,10 @@
           "analysis": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/VisionAnalysis"
               },
               {
-                "$ref": "#/components/schemas/VisionAnalysis"
+                "type": "null"
               }
             ]
           },
@@ -3152,20 +3087,20 @@
           "color_label": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/ColorLabel"
               },
               {
-                "$ref": "#/components/schemas/ColorLabel"
+                "type": "null"
               }
             ]
           },
           "decision": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/Action"
               },
               {
-                "$ref": "#/components/schemas/Action"
+                "type": "null"
               }
             ]
           },
@@ -3581,20 +3516,20 @@
           "composition": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/Composition"
               },
               {
-                "$ref": "#/components/schemas/Composition"
+                "type": "null"
               }
             ]
           },
           "embedding": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/SemanticEmbedding"
               },
               {
-                "$ref": "#/components/schemas/SemanticEmbedding"
+                "type": "null"
               }
             ]
           },
@@ -3646,10 +3581,10 @@
           "score_breakdown": {
             "oneOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/ScoreBreakdown"
               },
               {
-                "$ref": "#/components/schemas/ScoreBreakdown"
+                "type": "null"
               }
             ]
           },

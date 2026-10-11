@@ -45,6 +45,7 @@ make verify
 
 `make env` 仅准备内部环境；`make deps` 安装两份 npm 锁定依赖；`make hooks` 安装
 本地 Lefthook 和提交模板。`make setup` 按这三个步骤执行，首次不下载模型。
+根目录 npm 锁拥有 API 生成器及其 TypeScript 5 编译器 API；前端 npm 锁拥有应用的 TypeScript 7 编译器，避免不兼容的 peer dependency。运行 API 生成/比较前须安装两份锁，`make setup` 已包含这一步。
 `make env-validation` 安装可选媒体验证依赖；`make env-models` 安装可选 ONNX 转换依赖。
 
 `make codegraph` 将固定版本安装到忽略目录 `.tools/codegraph/`，不修改全局 Agent 配置。
