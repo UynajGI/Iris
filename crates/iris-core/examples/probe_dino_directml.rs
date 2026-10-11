@@ -1,7 +1,7 @@
 //! Diagnostic only: same approved model, varying session options, no application changes.
 use anyhow::Result;
 use ort::{
-    execution_providers::DirectMLExecutionProvider,
+    ep::DirectML,
     session::{builder::GraphOptimizationLevel, Session},
     value::Tensor,
 };
@@ -18,7 +18,7 @@ fn main() -> Result<()> {
             .into_raw();
         }
     }
-    ort::init_from(gpu.join("onnxruntime.dll").to_string_lossy()).commit()?;
+    ort::init_from(gpu.join("onnxruntime.dll"))?.commit();
     for fixed in [false, true] {
         for level in [
             GraphOptimizationLevel::Disable,
@@ -39,7 +39,7 @@ fn probe(
     fixed: bool,
     level: GraphOptimizationLevel,
 ) -> Result<(usize, bool)> {
-    let b = configured_builder(fixed, level)?;
+    let mut b = configured_builder(fixed, level)?;
     let model = std::env::var_os("IRIS_PROBE_DINO_MODEL")
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|| root.join("models/optional/dinov3_vits16.onnx"));
@@ -57,18 +57,26 @@ fn configured_builder(
     level: GraphOptimizationLevel,
 ) -> Result<ort::session::builder::SessionBuilder> {
     let mut b = Session::builder()?
-        .with_intra_threads(1)?
-        .with_inter_threads(1)?
-        .with_memory_pattern(false)?
-        .with_parallel_execution(false)?
-        .with_optimization_level(level)?
-        .with_execution_providers([DirectMLExecutionProvider::default()
+        .with_intra_threads(1)
+        .map_err(ort::Error::<()>::from)?
+        .with_inter_threads(1)
+        .map_err(ort::Error::<()>::from)?
+        .with_memory_pattern(false)
+        .map_err(ort::Error::<()>::from)?
+        .with_parallel_execution(false)
+        .map_err(ort::Error::<()>::from)?
+        .with_optimization_level(level)
+        .map_err(ort::Error::<()>::from)?
+        .with_execution_providers([DirectML::default()
             .with_device_id(0)
             .build()
-            .error_on_failure()])?;
+            .error_on_failure()])
+        .map_err(ort::Error::<()>::from)?;
     if fixed {
         for (n, v) in [("s99", 1), ("s100", 224), ("s4", 224)] {
-            b = b.with_dimension_override(n, v)?;
+            b = b
+                .with_dimension_override(n, v)
+                .map_err(ort::Error::<()>::from)?;
         }
     }
     Ok(b)

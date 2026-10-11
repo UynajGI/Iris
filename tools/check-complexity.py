@@ -135,13 +135,13 @@ def main():
         )
     print(
         f"Lizard {LIZARD_VERSION}: {current['files']} files, {current['functions']} functions; "
-        f"{current['warning_count']} warnings (CCN > {args.ccn} or NLOC > {int(args.nloc)})"
+        f"{current['warning_count']} warnings (CCN > {int(args.ccn)} or NLOC > {int(args.nloc)})"
     )
     print(f"By area: {current['warnings_by_area']}")
     for function in current["warnings"][: args.top]:
         print(
             f"{function['path']}:{function['line']} {function['name']} "
-            f"CCN={function['ccn']} NLOC={int(function['nloc'])}"
+            f"CCN={int(function['ccn'])} NLOC={int(function['nloc'])}"
         )
     if args.json:
         save_report(args.json, report)

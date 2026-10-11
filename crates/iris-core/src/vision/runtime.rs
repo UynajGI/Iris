@@ -1,7 +1,7 @@
 //! Per-worker ONNX execution policy. GPU failures are observable CPU fallbacks.
 use anyhow::{Context, Result};
 use ort::{
-    execution_providers::DirectMLExecutionProvider,
+    ep::DirectML,
     session::{builder::SessionBuilder, Session},
 };
 use sha2::{Digest, Sha256};
@@ -17,30 +17,18 @@ static CPU_ONLY: AtomicBool = AtomicBool::new(false);
 static WARNINGS: OnceLock<Mutex<Vec<String>>> = OnceLock::new();
 static SEQUENCE: AtomicUsize = AtomicUsize::new(0);
 
-// ort rc.10 keeps its environment in a Rust static, which is never dropped.
-// On macOS the native runtime then destroys its logger mutex before its leaked
-// environment, aborting at process exit (pykeio/ort#441). Register cleanup after
-// runtime initialization so it runs before the dylib's C++ exit destructors.
-// This is specific to the pinned rc.10 lifetime model; remove when upgrading to
-// ort's reference-counted environment implementation (upstream 317be20).
-#[cfg(target_os = "macos")]
-fn register_environment_cleanup() -> Result<()> {
-    use ort::AsPointer;
-    static REGISTERED: OnceLock<bool> = OnceLock::new();
-    unsafe extern "C" {
-        fn atexit(callback: extern "C" fn()) -> std::ffi::c_int;
+#[cfg(windows)]
+fn retain_process_environment() -> Result<()> {
+    // ort rc.13 releases its global environment from a Windows TLS detach
+    // callback, after the dynamically loaded runtime's CRT has shut down.
+    // MSVC then aborts even after successful inference (CI 38125408318).
+    // Retain ONE environment reference until process reclamation, as in rc.10;
+    // sessions, tensors and model buffers still drop normally. Never manually
+    // ReleaseEnv: ort also owns the pointer. Revisit with upstream ort#609/#610.
+    static ENVIRONMENT: OnceLock<std::sync::Arc<ort::environment::Environment>> = OnceLock::new();
+    if ENVIRONMENT.get().is_none() {
+        let _ = ENVIRONMENT.set(ort::environment::Environment::current()?);
     }
-    extern "C" fn release_environment() {
-        // Initialization completed before registration. No Rust static Drop
-        // will release this pointer again; sessions are dropped before exit.
-        if let Ok(environment) = ort::environment::get_environment() {
-            unsafe { (ort::api().ReleaseEnv)(environment.ptr().cast_mut()) };
-        }
-    }
-    anyhow::ensure!(
-        *REGISTERED.get_or_init(|| unsafe { atexit(release_environment) == 0 }),
-        "Could not register ONNX environment shutdown"
-    );
     Ok(())
 }
 
@@ -96,7 +84,7 @@ fn initialize_windows(dir: &Path) -> Result<()> {
             "ONNX Runtime DLL SHA-256 mismatch"
         );
     }
-    ort::init_from(runtime.to_string_lossy()).commit()?;
+    ort::init_from(&runtime)?.commit();
     let _ = INITIALIZED.set(());
     Ok(())
 }
@@ -194,29 +182,34 @@ fn initialize_unix(dir: &Path) -> Result<()> {
             "ONNX Runtime library SHA-256 mismatch"
         );
     }
-    ort::init_from(runtime.to_string_lossy()).commit()?;
-    #[cfg(target_os = "macos")]
-    register_environment_cleanup()?;
+    ort::init_from(&runtime)?.commit();
     let _ = INITIALIZED.set(());
     Ok(())
 }
 
 fn builder(gpu: bool, name: &str) -> Result<SessionBuilder> {
+    #[cfg(windows)]
+    retain_process_environment()?;
     let mut builder = Session::builder()?
-        .with_intra_threads(1)?
-        .with_inter_threads(1)?;
+        .with_intra_threads(1)
+        .map_err(ort::Error::<()>::from)?
+        .with_inter_threads(1)
+        .map_err(ort::Error::<()>::from)?;
     if gpu {
         let device = std::env::var("IRIS_WORKER_DIRECTML_DEVICE")
             .unwrap_or_else(|_| "0".into())
             .parse::<i32>()?;
         anyhow::ensure!(device >= 0, "DirectML device index must be nonnegative");
         builder = builder
-            .with_memory_pattern(false)?
-            .with_parallel_execution(false)?
-            .with_execution_providers([DirectMLExecutionProvider::default()
+            .with_memory_pattern(false)
+            .map_err(ort::Error::<()>::from)?
+            .with_parallel_execution(false)
+            .map_err(ort::Error::<()>::from)?
+            .with_execution_providers([DirectML::default()
                 .with_device_id(device)
                 .build()
-                .error_on_failure()])?;
+                .error_on_failure()])
+            .map_err(ort::Error::<()>::from)?;
     }
     if let Some(directory) = std::env::var_os("IRIS_ORT_PROFILE_DIR") {
         std::fs::create_dir_all(&directory)?;
@@ -226,14 +219,17 @@ fn builder(gpu: bool, name: &str) -> Result<SessionBuilder> {
             name,
             SEQUENCE.fetch_add(1, Ordering::Relaxed)
         ));
-        builder = builder.with_profiling(path)?;
+        builder = builder
+            .with_profiling(path)
+            .map_err(ort::Error::<()>::from)?;
     }
     Ok(builder)
 }
 
 pub(super) fn session(bytes: &[u8], name: &str) -> Result<Session> {
     if directml_active() {
-        match builder(true, name).and_then(|b| b.commit_from_memory(bytes).map_err(Into::into)) {
+        match builder(true, name).and_then(|mut b| b.commit_from_memory(bytes).map_err(Into::into))
+        {
             Ok(session) => {
                 note(format!(
                     "DirectML registered for {name}; unsupported operators may execute on CPU"

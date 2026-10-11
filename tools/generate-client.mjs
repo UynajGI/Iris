@@ -4,8 +4,8 @@ import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 
-// Keep generator dependencies scoped to the frontend package.
-const require = createRequire(new URL('../apps/shell/package.json', import.meta.url));
+// Isolate the generator's supported compiler API from the application's compiler.
+const require = createRequire(new URL('../package.json', import.meta.url));
 const { default: openapiTS, astToString } = require('openapi-typescript');
 const source = process.argv[2];
 const check = process.argv[3] === '--check';

@@ -45,7 +45,7 @@ Unix 报告的 `installer_executed` 为 false（执行的是解包后载荷）�
 
 同次运行的应用检查、Windows MSVC Rust/宿主检查及媒体专项通过。Python runner 运行 72 项，11 项 Git hooks 测试因缺少根目录 npm 工具跳过；本机 72 项全部通过。原生桌面人工走查仍需测试者反馈。
 
-先前[运行 37937701293](https://github.com/UynajGI/Iris/actions/runs/37937701293) 失败，保留作为回归证据：两个 Mac 架构在推理后因 ort rc.10 环境释放顺序崩溃，现已增加 macOS 退出清理；Windows 因下载许可证的 LF/CRLF 表象差异被源码导出检查拦下，现改为检查 Git 规范化后的真实差异，并继续拒绝未提交内容与未跟踪文件。成功结果不覆盖这些失败记录。
+先前[运行 37937701293](https://github.com/UynajGI/Iris/actions/runs/37937701293) 失败，保留作为回归证据：两个 Mac 架构在推理后因 ort rc.10 环境释放顺序崩溃，当时增加了 macOS 退出清理；后续 ort rc.13 已使用引用计数环境并移除这段旧版手动释放，不能重复释放由库管理的环境。Windows 因下载许可证的 LF/CRLF 表象差异被源码导出检查拦下，随后改为检查 Git 规范化后的真实差异，并继续拒绝未提交内容与未跟踪文件。成功结果不覆盖这些失败记录，旧安装包验证也不能替代依赖升级后的平台验收。
 
 Unix 发行包自检包含文件哈希、仓库外宿主/daemon 启动及合成 PNG 分析；不覆盖原生目录对话框和桌面视觉交互。Windows 本机 Beta 包自检已通过，其源码包的三个 Rust 工作区可离线解析锁定依赖；离线解析不是完整重新编译。Tag 发布会重新构建对应版本；最终附件与发布作业见 [Release](https://github.com/UynajGI/Iris/releases/tag/v0.1.0-beta)。
 

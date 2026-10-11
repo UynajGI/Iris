@@ -68,7 +68,7 @@ Lizard 的 TSX 解析可能合并 JSX/函数，结果用于定位风险，不替
 
 ## 全部警告清零任务
 
-任务要求保功能、保版本并解决全部盘点警告。用户最新选择为仅本地验证和提交，不推送、不打 Tag、不发布安装包；本机结果不代表远端 CI 已执行。
+任务要求保功能、保版本并解决全部盘点警告。此节记录当时仅本地验证和提交的检查点；后续推送、依赖集成及 CI 状态见[维护检查](maintenance.md)，不将旧结果当成新版本验收。
 
 从 `ed5b390` 的 85 项开始，本批已清零：233 文件、2453 函数，使用 Lizard 1.24.1 的 `--fail` 盘点通过（CCN > 15 或 NLOC > 100）。扫描阈值和源码范围不变；84 个历史门禁条目全部移除，`legacy` 为空，没有放宽上限。最终本地验收结果如下，提交记录以 Git 为准。
 
@@ -94,4 +94,4 @@ Lizard 的 TSX 解析可能合并 JSX/函数，结果用于定位风险，不替
 
 实际执行 `node node_modules/lefthook/bin/index.js run pre-push` 返回 0，底层完整 `make pre-push` 通过，使用默认并行测试：Rust workspace 与原生宿主合计 202 项通过、24 项忽略；Python 107 项通过；Node 工具 11 项通过；前端 88 项通过、1 项 live API 跳过。忽略、跳过和未运行的平台/模型检查不计为通过。三份 Rust 格式检查、Rust/TypeScript 检查、API 比较、Ruff、actionlint、复杂度门禁、公开暂存树及 Git 历史密钥扫描通过。提交保留实际 `pre-commit` 和 `commit-msg` 钩子，不使用跳过参数。
 
-以上仅为本机验证；依用户最新授权只做本地提交，不推送、不触发远端 CI，保持 `0.1.0-beta2`，不打 Tag、不发布安装包。本机 GNU Rust 结果不替代 Windows MSVC、macOS/Linux、原生安装或物理 GPU 验收。
+以上为该重构检查点的本机验证；当时只做本地提交。后续授权已允许推送和合并依赖 PR，仍保持 `0.1.0-beta2`，不打 Tag、不发布安装包。本机 GNU Rust 结果不替代 Windows MSVC、macOS/Linux、原生安装或物理 GPU 验收。

@@ -39,9 +39,20 @@ Verify 在 Windows/Linux/macOS 验证维护工具，继续在 Windows 验证 Rus
 
 Verify 的 push 入口只检查 `main`；分支改动通过 `pull_request` 检查，保留手动与可复用工作流入口。这样同一 PR 不会再同时触发分支 push 和 PR 两套 Verify 作业。尚未建立 PR 的非主分支可先运行本地门禁，或手动触发 Verify。
 
-Dependabot 按生态把普通 minor/patch 更新分组，每个更新配置最多保留 2 个普通版本更新 PR；安全更新单独分组，不受普通版本 PR 数量限制。重大升级继续单独评审。Cargo 的 `ort`、`nalgebra`、`base64`、`tower-http` 不进入普通 minor/patch 组，避免预发布或 0.x API 迁移混入批量更新。没有禁用安全更新、忽略漏洞或自动合并。配置生效需要推送；本地修改不会自动合并或关闭现有 PR。
+Dependabot 按生态把普通 minor/patch 更新分组，每个更新配置最多保留 2 个普通版本更新 PR；安全更新单独分组，不受普通版本 PR 数量限制。重大升级继续单独评审。Cargo 的 `ort`、`nalgebra`、`base64`、`tower-http` 不进入普通 minor/patch 组，避免预发布或 0.x API 迁移混入批量更新。没有禁用安全更新、忽略漏洞或开启自动合并。该策略已随 `6dc9b20` 推送，不会追溯关闭已有 PR；现有 14 个 PR 依用户授权在专门集成分支保留原提交并解决兼容冲突。
 
-浏览器回归中的选择器通过 CDP `Runtime.callFunctionOn.arguments` 作为数据传递，不再把 JSON 字符串拼入可执行代码。复杂度控制台日志中的 NLOC 只接受显式整数值，不输出非数值内容。这些工具修复分别对应 CodeQL 的 `js/bad-code-sanitization` 和 `py/clear-text-logging-sensitive-data` 命中；本地测试不能替代推送后的 GitHub CodeQL 复扫，也不能据此宣称远端告警已关闭。`make test-tools` 包含参数隔离、错误清理、数字日志和依赖/工作流策略回归。
+浏览器回归中的选择器通过 CDP `Runtime.callFunctionOn.arguments` 作为数据传递，不再把 JSON 字符串拼入可执行代码。复杂度控制台日志中的 CCN/NLOC 只接受显式整数值，不输出非数值内容。这些工具修复分别对应 CodeQL 的 `js/bad-code-sanitization` 和 `py/clear-text-logging-sensitive-data` 命中；本地测试不能替代 GitHub CodeQL 复扫。`make test-tools` 包含参数隔离、错误清理、两种数字日志和依赖/工作流策略回归。
+
+## 依赖集成（2026-10-11）
+
+当前集成现有 PR #1–#14，保持应用版本 `0.1.0-beta2`，不打 Tag、不发布安装包。合并方式保留各 PR 原提交，使合入主分支后 GitHub 可识别间接合并；以集成 PR 的统一验证为准，不绕过必需检查。
+
+- 前端采用 TypeScript 7，并显式声明 Node/React 类型；API 生成器 `openapi-typescript` 7 仍依赖 TypeScript 5 的编译器 API，因此与该编译器一起归根目录维护包管理，不使用强制 peer dependency 安装。两份锁都由 `make setup` 安装，CI 的 API 检查也安装根目录工具。
+- `ort` rc.13 使用 `api-22` 保持已校验的 ONNX Runtime 1.22 资源及模型不变；迁移 session/outlet、DirectML 和可恢复 builder 错误 API，保留线程数、设备选择及 CPU 回退。移除只适用于 rc.10 的 macOS 手动退出释放。Windows 在 [CI 38125408318](https://github.com/UynajGI/Iris/actions/runs/38125408318) 出现推理通过后退出崩溃；在进程内固定保留一个环境 `Arc`，避免 TLS detach 阶段触发原生释放，交由进程回收。会话、张量和模型缓冲仍正常释放，不按模型/请求累积环境引用；跟踪 [ort #609](https://github.com/pykeio/ort/issues/609) / [#610](https://github.com/pykeio/ort/pull/610)，此兼容策略不是上游问题已经修复的声明。
+- utoipa 6 重新生成 OpenAPI 和前端声明：可空联合顺序变化、单项 `oneOf` 简化为 `$ref`。导出边界为原本为空的响应描述补充非空默认值，避免上游省略 OpenAPI 必需字段；已有描述保留，序列化与 HTTP 导出有回归测试。接口字段和运行时请求行为不变。
+- glib 按用户要求暂缓，不升级、vendor、添加忽略项或关闭告警。其余审计和完整门禁保持启用。
+
+集成代码 `3f037b5` 已通过真实 Lefthook 提交与完整推送门禁、`cargo check --workspace --all-targets --locked`、`make test`、API 比较、复杂度及工作流检查、TypeScript 7 类型检查和前端构建；默认模型真实 `bundled_onnx_tensor_smoke` 显式通过，无头浏览器 19 组回归通过。忽略和跳过项不计为通过。Dependabot 刷新后的 14 个 PR 头提交也已纳入历史，合并前后源码树逐字相同；不是重新执行旧的原生安装器、Unix 推理或 GPU 验收。
 
 ## 有意保留的边界
 
@@ -61,22 +72,22 @@ Python 审计覆盖维护环境的锁定依赖；显式准备的 ONNX、媒体�
 
 保留工具下载摘要校验、暂存隔离与自动格式化顺序、失败即阻断的安全作业与完整 Action SHA。按新项目实际使用的语言保留检查器；独立 RAW/Tauri workspace、媒体作业和 OpenAPI 比较都是 Iris 专有配置。升级 actionlint/Gitleaks 时一起审核上游发行版本、各平台官方校验和及安装回归测试；升级 Python 工具时更新锁并重新运行门禁。
 
-## 2026-10-11 本地接入证据
+## 本地接入检查点（历史记录）
 
 自动格式化接入后的复核：Rust/原生宿主 202 项通过、24 项忽略；Python 工具 111 项通过（包含 21 个真实提交钩子用例）、Node 工具 11 项通过；前端 88 项通过、1 项 live API 跳过；浏览器回归 19 组通过。`make fmt-check`、Ruff、actionlint、类型检查、API 契约比较与暂存候选的安全/质量/公开树检查通过。默认复杂度盘点为 236 个文件、2538 个函数，CCN ≤15 / NLOC ≤100 时 0 条超限，历史豁免仍为空。模型参数维持原有摘要；部分暂存格式化的恢复冲突会中止提交并恢复原始索引和工作文件。此处是本机验证，远端 CI 尚未触发。
 
 重构清零前的维护层接入检查点：完整 `make pre-push` 通过。维护工具测试通过：93 项 Python 测试，无跳过，包含实际 Git 提交、部分暂存隔离、工作流错误、复杂度回退和下载摘要失败用例。Rust 格式/编译、TypeScript 类型检查、API 差异比较、Ruff、actionlint 与复杂度门禁通过；前端测试 88 项通过、1 项 live API 跳过，Node 工具测试 11 项通过。默认并行 Rust workspace 和原生宿主测试合计 202 项通过、24 项忽略，外部模型/媒体条件对应的忽略项仍未运行。当时复杂度门禁检查 2243 个函数，配置保留 84 个历史超限条目；删除了该轮修复的四个条目，没有放宽上限。
 
-重构完成后的当前复杂度复核：233 个文件、2453 个函数，CCN ≤15 / NLOC ≤100 的 `make complexity ARGS="--fail"` 为 0 条超限；CCN ≤15 / NLOC ≤120 的 `make complexity-check` 同样通过。`legacy` 已为空。完整重构验收记录见[复杂度检查](complexity.md)；本次复核仅重跑复杂度检查，不把此前测试记录表述为本次重跑结果。
+重构完成时的复杂度复核：233 个文件、2453 个函数，CCN ≤15 / NLOC ≤100 的 `make complexity ARGS="--fail"` 为 0 条超限；CCN ≤15 / NLOC ≤120 的 `make complexity-check` 同样通过。`legacy` 已为空。完整重构验收记录见[复杂度检查](complexity.md)，不把此前测试记录表述为本轮依赖集成重跑结果。
 
 上述接入检查点采用只读提交检查。随后按用户要求启用自动格式化与重新暂存；当前提交行为以本页 Git 流程和 [lefthook.yml](../lefthook.yml) 为准。
 
 两份 npm 锁、Python 维护锁和三个 Cargo 锁已实际审计。Gitleaks 历史扫描通过。Cargo 审计没有阻断级漏洞，但默认保留了以下非阻断告警，未通过 ignore 列表隐藏；这不等于依赖零风险：
 
-| 编号                                                                  | 依赖                                  | 后续处理                                  |
-| --------------------------------------------------------------------- | ------------------------------------- | ----------------------------------------- |
-| [RUSTSEC-2024-0436](https://rustsec.org/advisories/RUSTSEC-2024-0436) | paste 1.0.15 停止维护                 | 跟踪上游依赖替代                          |
-| [RUSTSEC-2024-0370](https://rustsec.org/advisories/RUSTSEC-2024-0370) | proc-macro-error 1.0.4 停止维护       | 跟踪原生依赖升级                          |
-| [RUSTSEC-2024-0429](https://rustsec.org/advisories/RUSTSEC-2024-0429) | glib 0.18.5 VariantStrIter 健全性告警 | 单独评估 Tauri/GTK 依赖链升级和受影响 API |
+| 编号                                                                  | 依赖                                  | 后续处理                             |
+| --------------------------------------------------------------------- | ------------------------------------- | ------------------------------------ |
+| [RUSTSEC-2024-0436](https://rustsec.org/advisories/RUSTSEC-2024-0436) | paste 1.0.15 停止维护                 | 跟踪上游依赖替代                     |
+| [RUSTSEC-2024-0370](https://rustsec.org/advisories/RUSTSEC-2024-0370) | proc-macro-error 1.0.4 停止维护       | 跟踪原生依赖升级                     |
+| [RUSTSEC-2024-0429](https://rustsec.org/advisories/RUSTSEC-2024-0429) | glib 0.18.5 VariantStrIter 健全性告警 | 用户于 2026-10-11 明确暂缓，保留可见 |
 
-远端工作流尚未由本次变更触发；本机 GNU Rust 结果不能替代 Windows MSVC 或 macOS/Linux CI。未修改 GitHub 分支保护、未发布或推送。
+以上是各接入阶段的历史证据。`6dc9b20` 已通过真实推送门禁并推送，后续依赖集成以对应 PR/Actions 实时结果为准。本机 GNU Rust 结果不能替代 Windows MSVC 或 macOS/Linux CI；未修改 GitHub 分支保护，未创建新版本或安装包。

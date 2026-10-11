@@ -1,5 +1,5 @@
 // Generated from iris-daemon OpenAPI. Do not edit.
-// Contract SHA-256: ae9db2bbf009f0d29e2f8d797979111bb5ed47e9ea82d2e1df4293d486abb8b9
+// Contract SHA-256: 4c7bd94328f6542320464aa49a4b261105f2c39fa96d5c9fca1e0389d60cc015
 export interface paths {
     "/api/v1/bootstrap": {
         parameters: {
@@ -945,19 +945,19 @@ export interface components {
             bbox: number[];
             /** Format: float */
             confidence: number;
-            head_pose?: null | components["schemas"]["HeadPose"];
+            head_pose?: components["schemas"]["HeadPose"] | null;
             index: number;
             /** Format: float */
             landmark_confidence?: number | null;
             landmarks: number[][];
-            left_eye?: null | components["schemas"]["Eye"];
+            left_eye?: components["schemas"]["Eye"] | null;
             left_eye_unreliable_reason?: string | null;
-            left_eye_visibility?: null | components["schemas"]["EyeVisibility"];
-            quality?: null | components["schemas"]["FaceQuality"];
+            left_eye_visibility?: components["schemas"]["EyeVisibility"] | null;
+            quality?: components["schemas"]["FaceQuality"] | null;
             quality_unavailable_reason?: string | null;
-            right_eye?: null | components["schemas"]["Eye"];
+            right_eye?: components["schemas"]["Eye"] | null;
             right_eye_unreliable_reason?: string | null;
-            right_eye_visibility?: null | components["schemas"]["EyeVisibility"];
+            right_eye_visibility?: components["schemas"]["EyeVisibility"] | null;
             /** Format: float */
             smile_score?: number | null;
             unreliable_reason?: string | null;
@@ -1065,8 +1065,8 @@ export interface components {
             manifest_id: string;
         };
         MarkRequest: {
-            color_label?: null | components["schemas"]["ColorLabel"];
-            decision?: null | components["schemas"]["Action"];
+            color_label?: components["schemas"]["ColorLabel"] | null;
+            decision?: components["schemas"]["Action"] | null;
             photo_ids: number[];
             /** Format: int32 */
             rating?: number | null;
@@ -1100,7 +1100,7 @@ export interface components {
             title: string;
         };
         Photo: {
-            analysis?: null | components["schemas"]["VisionAnalysis"];
+            analysis?: components["schemas"]["VisionAnalysis"] | null;
             /** @description Cache compatibility with the engine/settings and the last scanned source metadata. */
             analysis_status: components["schemas"]["AnalysisStatus"];
             capture_variant_id?: string | null;
@@ -1128,8 +1128,8 @@ export interface components {
             width: number;
         };
         PhotoFilter: {
-            color_label?: null | components["schemas"]["ColorLabel"];
-            decision?: null | components["schemas"]["Action"];
+            color_label?: components["schemas"]["ColorLabel"] | null;
+            decision?: components["schemas"]["Action"] | null;
             descending?: boolean | null;
             format?: string | null;
             include_missing?: boolean | null;
@@ -1246,8 +1246,8 @@ export interface components {
         VisionAnalysis: {
             /** Format: double */
             composite_score: number;
-            composition?: null | components["schemas"]["Composition"];
-            embedding?: null | components["schemas"]["SemanticEmbedding"];
+            composition?: components["schemas"]["Composition"] | null;
+            embedding?: components["schemas"]["SemanticEmbedding"] | null;
             exposure: components["schemas"]["Exposure"];
             faces: components["schemas"]["Face"][];
             /** Format: int32 */
@@ -1262,7 +1262,7 @@ export interface components {
             original_width: number;
             phash: string;
             preview_source?: string | null;
-            score_breakdown?: null | components["schemas"]["ScoreBreakdown"];
+            score_breakdown?: components["schemas"]["ScoreBreakdown"] | null;
             /** Format: double */
             sharpness_fft: number;
             /** Format: double */
@@ -1292,6 +1292,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1311,6 +1312,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1339,6 +1341,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1358,6 +1361,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1381,6 +1385,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1400,6 +1405,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1419,6 +1425,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1440,6 +1447,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1529,6 +1537,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1552,6 +1561,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1573,6 +1583,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1598,6 +1609,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1617,6 +1629,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1640,6 +1653,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1661,6 +1675,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1682,10 +1697,11 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": null | components["schemas"]["AcceptRequest"];
+                "application/json": components["schemas"]["AcceptRequest"] | null;
             };
         };
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1707,10 +1723,11 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": null | components["schemas"]["AnalyzeRequest"];
+                "application/json": components["schemas"]["AnalyzeRequest"] | null;
             };
         };
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1732,6 +1749,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1753,6 +1771,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1778,6 +1797,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1799,6 +1819,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1821,6 +1842,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1842,6 +1864,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1867,6 +1890,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1892,6 +1916,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1917,6 +1942,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1942,6 +1968,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1963,6 +1990,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1984,6 +2012,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2009,6 +2038,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2034,6 +2064,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2055,6 +2086,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2076,6 +2108,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2108,6 +2141,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2130,6 +2164,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2151,6 +2186,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2172,6 +2208,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2197,6 +2234,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2218,6 +2256,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2243,6 +2282,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2264,6 +2304,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2285,10 +2326,11 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": null | components["schemas"]["ScanRequest"];
+                "application/json": components["schemas"]["ScanRequest"] | null;
             };
         };
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2310,6 +2352,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2331,6 +2374,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2356,6 +2400,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Response */
             200: {
                 headers: {
                     [name: string]: unknown;

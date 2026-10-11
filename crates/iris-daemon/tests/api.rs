@@ -282,3 +282,42 @@ fn openapi_exposes_service_contract_and_auth() {
         assert!(schema["paths"].get(path).is_some(), "{path}");
     }
 }
+
+#[tokio::test]
+async fn openapi_response_descriptions_survive_serialization_and_http_export() {
+    let schema = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let mut responses = 0;
+    for (path, item) in schema["paths"].as_object().unwrap() {
+        for (method, operation) in item.as_object().unwrap() {
+            if let Some(values) = operation.get("responses").and_then(Value::as_object) {
+                for (status, response) in values {
+                    if response.get("$ref").is_none() {
+                        assert!(
+                            response["description"].is_string(),
+                            "{method} {path} {status}"
+                        );
+                        responses += 1;
+                    }
+                }
+            }
+        }
+    }
+    assert!(responses >= 40, "all documented responses must be checked");
+    assert_eq!(
+        schema["paths"]["/api/v1/devices/gpu"]["get"]["responses"]["401"]["description"],
+        "Session token required"
+    );
+    let temp = tempfile::tempdir().unwrap();
+    let state = AppState::new(&temp.path().join("db.sqlite3"), temp.path().into()).unwrap();
+    let token = state.token.clone();
+    let (status, exported) = call(
+        &router(state),
+        Some(&token),
+        "GET",
+        "/api/v1/openapi.json",
+        Value::Null,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(exported, schema);
+}

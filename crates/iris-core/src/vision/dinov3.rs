@@ -4,8 +4,7 @@ use anyhow::{bail, Context, Result};
 use image::{imageops::FilterType, RgbImage};
 use ort::{
     session::Session,
-    tensor::TensorElementType,
-    value::{Tensor, ValueType},
+    value::{Tensor, TensorElementType, ValueType},
 };
 use sha2::{Digest, Sha256};
 use std::path::Path;
@@ -91,8 +90,8 @@ impl DinoV3 {
         let session = super::runtime::session(session_bytes, "dinov3")
             .context("DINOv3 ONNX load failed; no fallback")?;
         validate_session_names(&session)?;
-        validate_input_type(&session.inputs[0].input_type)?;
-        validate_output_type(&session.outputs[1].output_type)?;
+        validate_input_type(session.inputs()[0].dtype())?;
+        validate_output_type(session.outputs()[1].dtype())?;
         let mut model = Self { session };
         if let Err(error) = model.run(vec![0.; 3 * SIDE * SIDE]) {
             if !super::runtime::directml_active() {
@@ -134,11 +133,11 @@ impl DinoV3 {
 }
 
 fn validate_session_names(session: &Session) -> Result<()> {
-    if session.inputs.len() != 1
-        || session.inputs[0].name != "pixel_values"
-        || session.outputs.len() != 2
-        || session.outputs[0].name != "last_hidden_state"
-        || session.outputs[1].name != "pooler_output"
+    if session.inputs().len() != 1
+        || session.inputs()[0].name() != "pixel_values"
+        || session.outputs().len() != 2
+        || session.outputs()[0].name() != "last_hidden_state"
+        || session.outputs()[1].name() != "pooler_output"
     {
         bail!("DINOv3 requires pixel_values input and last_hidden_state/pooler_output outputs");
     }
@@ -248,9 +247,9 @@ mod tests {
     fn real_dinov3_cpu_embedding() {
         let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../models");
         #[cfg(windows)]
-        ort::init_from(dir.join("onnxruntime.dll").to_string_lossy())
-            .commit()
-            .unwrap();
+        ort::init_from(dir.join("onnxruntime.dll"))
+            .unwrap()
+            .commit();
         let mut model = DinoV3::load(&dir, MODEL_SHA256).unwrap();
         let image = RgbImage::from_pixel(320, 180, image::Rgb([64, 120, 180]));
         let a = model.embed(&image).unwrap();

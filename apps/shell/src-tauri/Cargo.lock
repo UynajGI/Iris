@@ -1565,7 +1565,7 @@ name = "iris-shell"
 version = "0.1.0-beta2"
 dependencies = [
  "anyhow",
- "base64 0.22.1",
+ "base64 0.23.1",
  "minisign",
  "minisign-verify",
  "serde",
