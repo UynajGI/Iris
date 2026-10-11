@@ -15,13 +15,19 @@
 
 `test-workbench.mjs` 是工作台真实浏览器回归，使用 Node.js 22 内置 WebSocket 驱动本机 Chrome，不新增 npm 依赖。
 先在 `apps/shell` 运行 `npm run build`，再从仓库根目录启动 `node tools/preview-frontend.mjs`，另开终端运行
-`node tools/test-workbench.mjs`。预览需要已构建的 Windows debug daemon、默认模型和授权 `test-photos/`；
+`node tools/test-workbench.mjs`。预览需要已构建的 Windows debug daemon、默认模型，以及明确配置的数据集图片目录：
+`IRIS_REVIEW_DATASET=ppr10k` 或 `piq23`，`IRIS_REVIEW_PHOTOS` 指向至少包含 12 张 JPEG/PNG/WebP 的目录。
+不再默认使用个人 `test-photos/`，未配置时直接报错；默认不自动下载、转换或复制图片来凑足数量。
+比较交互回归可以显式设置 `IRIS_REVIEW_DUPLICATES=1`，使用 4 张源图各 3 份临时副本；该模式只验证 UI 和重复图片管线，不构成真实连拍或准确率证据。
+PPR10K/PIQ23 均限非商业研究，不将图片打包分发；数据到位后需核对场景和人脸覆盖，旧个人照片回归不能算作数据集验收。
 脚本校验临时目录后才扫描、分析和标记，不改源照片，不做导出或隔离。Chrome 使用独立临时 profile，
 测试结束只关闭本次启动的浏览器。`IRIS_TEST_CHROME` 可指定 Chromium 可执行文件，
 `IRIS_TEST_OUTPUT` 可指定本地报告目录（默认 `.qwen/tmp/workbench-review`，禁止提交其中的照片截图）；
 `IRIS_TEST_CAPTURE=0` 只运行断言、不刷新截图。覆盖桌面/800×560、大字号/宽松密度、减弱动态效果、
 Tab、面板/对话框隔离、缩放拖动、全屏、组刷新、星级/人脸框、草稿离开保护及损坏图像回退。
 真实目录选择、CSV 保存、原生关闭与托管生命周期不由此脚本验收。
+
+`prepare-public-fixtures.py` 下载 PIQ23 官方仓库的 50 张场景示例；加 `--raw` 额外下载 6 种格式的 CC0 RAW 样本（每张不超过 40MB）。保存到忽略的 `reference/test-data/`，校验 Git blob / 官方 SHA256 并保存逐文件来源清单，不下载整套数据集。`verify-public-fixtures.py` 只读取这份清单，用临时副本执行真实 debug daemon 的扫描、预览、分析及增量复用，并复核源文件哈希；报告位于忽略的 `artifacts/`。研究素材不随产品分发，场景示例没有被当作带评分的质量基准。
 
 `tools/` 是内部环境、模型准备、媒体、验证、评估和打包的实现层。公开开发入口统一为
 根目录 Makefile；任务组合、顺序和失败传播由 Make 管理：

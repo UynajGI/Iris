@@ -12,11 +12,14 @@
 - 前端已按用户授权重构为 v2 选片工作台：保留主题紫、状态色和中性照片底，新增双侧面板、胶片栏、预览直方图、缩放/拖动/全屏和当前分析人脸标注。现行规则见 [DESIGN.md](../DESIGN.md)，不是对 beta2 已发布安装包的验收声明。浏览器回归入口与临时照片要求见[工具说明](../tools/README.md)。
 - 2026-10-11 补齐即时标记、画册/单图动效、默认 YRGB 叠加及单面板波形切换，精简起始页和完成任务提示。随后按 Lizard 保行为拆分，盘点警告已清零，阈值和扫描范围不变、历史豁免为空。历史测试及交互边界见[桌面实现](frontend-implementation.md)与[复杂度检查](complexity.md)，本轮依赖集成状态见[维护检查](maintenance.md)。
 - MCP 使用官方 Rust SDK，复用 daemon/core；不打开桌面、不监听 TCP，包含 44 个工具、目录范围限制、写入审计、请求去重和数据库互斥。
-- 分析版本为 `iris-vision-v6-local-pipeline-2026-10-07`。数据库迁移以源码为准，旧笔记中的 schema 数字不是当前契约。
+- 2026-10-11 完成五项选片升级：组内技术比较与接近候选、按人脸区域查看原图、结构化判断依据、亮暗风格中立评分、相邻预览预取与共享缓存。实施及验收边界见[选片升级计划](selection-upgrade-plan.md)。保留可选 DINOv3 视觉嵌入，本轮不增加图文模型或向量数据库。
+- 分析版本为 `iris-vision-v7-selection-evidence-2026-10-11`；评分语义已变更，旧分析保留历史记录并按既有规则标为过期。数据库迁移以源码为准，旧笔记中的 schema 数字不是当前契约。
 - 独立 RAW 转换器继续保留；开源不要求重新合并已验证的进程边界。
 - beta2 已通过四平台完整安装器 CI 并公开发布 Windows EXE、macOS arm64/x64 PKG、Linux x64 DEB、四份便携包、对应源码和 SHA256；所有附件 digest 已核对。安装界面源码在 `apps/shell/installer/`，实际运行和边界见[CI 验证](ci-verification.md)。git-cliff 自动生成变更日志，手动入口可在验证后创建新 Tag 和草稿，详见[发布流程](releasing.md)。
 
 ## 下一步
+
+用户已要求停止使用个人照片进行演示和测试。已在忽略目录 `reference/test-data/` 下载 50 张 PIQ23 官方场景示例及 6 张 raw.pixls.us CC0 RAW 样本；前端四组定向检查已使用公开数据临时副本完成，具体结果见[选片升级计划](selection-upgrade-plan.md)。预览入口必须明确指定数据集与目录，不回退 `test-photos/`。完整带评分 PIQ23 需申请，PPR10K 未下载；场景示例和复制分组测试不是准确率金标。
 
 现有 14 个依赖 PR 已通过集成 PR #15 合并，CI 与 CodeQL 全绿，相关分支已清理；不再受此前“仅本地验证”检查点限制。低风险 Dependabot PR 的自动合并条件、故障处理和 CI 证据集中记录在[维护检查](maintenance.md#dependabot-自动合并)，普通开发 PR 不自动合并。保留 `0.1.0-beta2`，不打 Tag、不发布安装包；glib 告警按用户要求暂缓，不升级、不隐藏。实时状态以 GitHub 为准。
 

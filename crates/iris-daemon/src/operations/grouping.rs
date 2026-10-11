@@ -49,6 +49,7 @@ pub(super) fn build_groups(
                 project_id,
                 kind: kind.into(),
                 member_photo_ids: ids,
+                assessment: None,
             })
         })
         .collect()

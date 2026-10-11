@@ -1922,6 +1922,16 @@
           "member_photo_ids"
         ],
         "properties": {
+          "assessment": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/GroupAssessment"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "id": {
             "type": "string"
           },
@@ -2706,6 +2716,75 @@
           "unavailable",
           "unsupported"
         ]
+      },
+      "GroupAssessment": {
+        "type": "object",
+        "required": [
+          "method",
+          "candidate_photo_ids",
+          "close_score_gap",
+          "needs_review",
+          "comparisons"
+        ],
+        "properties": {
+          "candidate_photo_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "close_score_gap": {
+            "type": "number",
+            "format": "double"
+          },
+          "comparisons": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GroupComparison"
+            }
+          },
+          "method": {
+            "type": "string"
+          },
+          "needs_review": {
+            "type": "boolean"
+          },
+          "reference_photo_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Comparison reference only. Never an instruction to discard other members."
+          }
+        }
+      },
+      "GroupComparison": {
+        "type": "object",
+        "required": [
+          "photo_id",
+          "reasons"
+        ],
+        "properties": {
+          "photo_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "reasons": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "score_gap": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          }
+        }
       },
       "HeadPose": {
         "type": "object",
@@ -3492,6 +3571,48 @@
           }
         }
       },
+      "SelectionEvidence": {
+        "type": "object",
+        "required": [
+          "method",
+          "basis",
+          "subject",
+          "reasons"
+        ],
+        "properties": {
+          "basis": {
+            "type": "string"
+          },
+          "method": {
+            "type": "string"
+          },
+          "reasons": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SelectionReason"
+            }
+          },
+          "subject": {
+            "type": "string"
+          }
+        }
+      },
+      "SelectionReason": {
+        "type": "object",
+        "required": [
+          "code",
+          "kind"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "description": "observation, limitation, or context; missing evidence is not a defect."
+          }
+        }
+      },
       "SemanticEmbedding": {
         "type": "object",
         "required": [
@@ -3627,6 +3748,16 @@
             "oneOf": [
               {
                 "$ref": "#/components/schemas/ScoreBreakdown"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "selection_evidence": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SelectionEvidence"
               },
               {
                 "type": "null"

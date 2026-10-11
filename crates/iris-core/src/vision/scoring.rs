@@ -4,10 +4,10 @@ use image::RgbImage;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-pub const METHOD: &str = "observed_technical_quality_v1_lap75_fft25_face50_30_20";
+pub const METHOD: &str = "observed_technical_quality_v2_tonal_style_neutral";
 const LAP_MAPPING: &str = "clamp(100*ln(1+max(lap,0))/ln(1001),0,100)";
 const EXPOSURE_MAPPING: &str =
-    "clamp(100-abs(mean-128)/128*60-(shadow_clip+highlight_clip)*70,0,100)";
+    "clamp(100-100*(max(shadow_clip-0.02,0)+max(highlight_clip-0.02,0)),0,100); preview clipping only; mean brightness is not quality";
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct FaceQuality {
@@ -62,7 +62,7 @@ fn lap_score(lap: f64) -> f64 {
     (100. * lap.max(0.).ln_1p() / 1000f64.ln_1p()).clamp(0., 100.)
 }
 fn exposure_score(e: &Exposure) -> f64 {
-    (100. - (e.mean - 128.).abs() / 128. * 60. - (e.shadow_clip + e.highlight_clip) * 70.)
+    (100. - ((e.shadow_clip - 0.02).max(0.) + (e.highlight_clip - 0.02).max(0.)) * 100.)
         .clamp(0., 100.)
 }
 fn quality_scores(q: &mut FaceQuality) {
@@ -91,7 +91,7 @@ pub(super) fn measure_face(image: &RgbImage, bbox: [f32; 4]) -> Result<FaceQuali
     let crop = image::imageops::crop_imm(image, x0, y0, cw, ch).to_image();
     let (sharpness_lap, exposure) = metrics::spatial_metrics(&crop);
     let mut q = FaceQuality {
-        method: "preview_bbox_clipped_no_upscale_v1_lap50_exposure30_min_side128_20".into(),
+        method: "preview_bbox_clipped_no_upscale_v2_tonal_style_neutral".into(),
         crop_width: cw,
         crop_height: ch,
         sharpness_lap,

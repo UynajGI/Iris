@@ -65,6 +65,7 @@ fn save_groups_checks_only_active_project_members_before_replacing_groups() {
         project_id,
         kind: "duplicate".into(),
         member_photo_ids,
+        assessment: None,
     };
     svc.save_groups(id, vec![group(id, members.clone())])
         .unwrap();
@@ -1047,10 +1048,11 @@ fn preview_cache_preserves_aspect_and_settings_estimates_actual_verdicts() {
         preview_source: None,
         faces: vec![],
         sharpness_lap: 1.,
-        sharpness_fft: 1.,
+        sharpness_fft: 0.04,
         niqe: None,
         composition: None,
         score_breakdown: None,
+        selection_evidence: None,
         embedding: None,
         exposure: iris_core::vision::Exposure {
             mean: 10.,
@@ -1094,7 +1096,7 @@ fn preview_cache_preserves_aspect_and_settings_estimates_actual_verdicts() {
 fn full_current_analysis(svc: &Services, project_id: i64) -> serde_json::Value {
     json!({
         "width":24,"height":16,"original_width":24,"original_height":16,
-        "orientation":1,"faces":[],"sharpness_lap":1.,"sharpness_fft":1.,
+        "orientation":1,"faces":[],"sharpness_lap":1.,"sharpness_fft":0.04,
         "niqe":null,"exposure":{"mean":10.,"shadow_clip":0.8,
         "highlight_clip":0.,"verdict":"underexposed"},"composite_score":0.,
         "verdict":"reject_suggest","phash":"0","structure":[],"warnings":[],

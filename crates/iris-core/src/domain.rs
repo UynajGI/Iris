@@ -169,6 +169,8 @@ pub struct BurstGroup {
     pub project_id: i64,
     pub kind: String,
     pub member_photo_ids: Vec<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub assessment: Option<crate::vision::GroupAssessment>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct ExportReport {

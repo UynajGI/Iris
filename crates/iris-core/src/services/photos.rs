@@ -190,8 +190,47 @@ impl Services {
                 project_id,
                 kind,
                 member_photo_ids: serde_json::from_str(&members)?,
+                assessment: None,
             });
         }
+        if !out.is_empty() {
+            let analyses = self.group_analyses(project_id)?;
+            for group in &mut out {
+                let items: Vec<_> = group
+                    .member_photo_ids
+                    .iter()
+                    .map(|id| (*id, analyses.get(id)))
+                    .collect();
+                group.assessment = Some(crate::vision::assess_group(&items));
+            }
+        }
         Ok(out)
+    }
+
+    fn group_analyses(
+        &self,
+        project_id: i64,
+    ) -> Result<std::collections::HashMap<i64, crate::vision::VisionAnalysis>> {
+        let settings = self.settings(project_id)?;
+        let mut query = self.store.conn.prepare(
+            "SELECT p.id,a.data FROM photos p JOIN analyses a ON a.photo_id=p.id WHERE p.project_id=?1 AND p.missing=0 AND p.quarantined=0"
+        )?;
+        let rows = query.query_map([project_id], |r| {
+            Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?))
+        })?;
+        let mut analyses = std::collections::HashMap::new();
+        for row in rows {
+            let (id, data) = row?;
+            let Ok(value) = serde_json::from_str::<Value>(&data) else {
+                continue;
+            };
+            if analysis_status(Some(&value), &settings) != AnalysisStatus::Current {
+                continue;
+            }
+            if let Ok(analysis) = serde_json::from_value(value) {
+                analyses.insert(id, analysis);
+            }
+        }
+        Ok(analyses)
     }
 }

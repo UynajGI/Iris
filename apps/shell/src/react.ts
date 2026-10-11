@@ -4,6 +4,7 @@ import type { IrisClient } from './client.js';
 import type { CommandSystem } from './commands.js';
 import { readPhotoAnalysis } from './analysis-readout.js';
 import type { UpdaterStore } from './updater.js';
+import { mediaCache } from './media-cache.js';
 
 export function useIris(store: IrisStore) {
   return useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
@@ -28,43 +29,53 @@ export function useCommands(commands: CommandSystem, onError?: (error: unknown) 
 export function usePhotoUrl(
   client: IrisClient,
   id: number | null,
-  kind: 'thumb' | 'preview' | 'original'
+  kind: 'thumb' | 'preview' | 'original',
+  revision = ''
 ) {
   const [state, setState] = useState<{
     client: IrisClient;
     id: number | null;
     kind: typeof kind;
+    revision: string;
     url: string | null;
     error: Error | null;
-  }>({ client, id, kind, url: null, error: null });
+    invalidate(): void;
+  }>({ client, id, kind, revision, url: null, error: null, invalidate: () => {} });
   useEffect(() => {
-    const controller = new AbortController();
+    let active = true;
+    const lease = id === null ? null : mediaCache(client).acquire(id, kind, revision);
     let objectUrl: string | undefined;
-    setState({ client, id, kind, url: null, error: null });
-    if (id !== null)
-      void client
-        .media(id, kind, controller.signal)
+    const invalidate = () => lease?.invalidate();
+    setState({ client, id, kind, revision, url: null, error: null, invalidate });
+    if (lease)
+      void lease.promise
         .then((blob) => {
-          if (controller.signal.aborted) return;
+          if (!active) return;
           objectUrl = URL.createObjectURL(blob);
-          setState({ client, id, kind, url: objectUrl, error: null });
+          setState({ client, id, kind, revision, url: objectUrl, error: null, invalidate });
         })
         .catch((error) => {
-          if (!controller.signal.aborted)
+          if (active)
             setState({
               client,
               id,
               kind,
+              revision,
+              invalidate,
               url: null,
               error: error instanceof Error ? error : new Error(String(error)),
             });
         });
     return () => {
-      controller.abort();
+      active = false;
+      lease?.release();
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [client, id, kind]);
-  return state.client === client && state.id === id && state.kind === kind
+  }, [client, id, kind, revision]);
+  return state.client === client &&
+    state.id === id &&
+    state.kind === kind &&
+    state.revision === revision
     ? state
-    : { url: null, error: null };
+    : { url: null, error: null, invalidate: () => {} };
 }
