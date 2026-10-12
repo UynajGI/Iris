@@ -3134,7 +3134,7 @@ details p {
   align-items: center;
   gap: 8px 12px;
   padding: 8px 12px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--line-subtle);
 }
 .group-selection-bar form,
 .group-selection-bar label,

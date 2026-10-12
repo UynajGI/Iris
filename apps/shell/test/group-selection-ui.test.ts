@@ -85,6 +85,21 @@ test('over-target and shortage are visible, and rejected photos cannot be locked
   assert.match(actions, /disabled=""/);
 });
 
+test('a matching face can be confirmed directly and an individual correction can be reset', () => {
+  const choice = { photo_id: 1, face_index: 0, analysis_key: 'current' };
+  const value: GroupSelection = {
+    ...selection,
+    intent: { ...selection.intent, main_face: { ...choice, photo_id: 2 }, face_choices: [choice] },
+    faces: [{ ...choice, state: 'geometry_candidate' }],
+  };
+  const html = renderToStaticMarkup(
+    createElement(GroupCandidateActions, { control: control(value), photo })
+  );
+  assert.match(html, /确认这是主角/);
+  assert.match(html, /此片主角未出现/);
+  assert.match(html, /恢复位置候选/);
+});
+
 test('group intent API encodes group ids, authenticates and preserves the correction revision', async () => {
   const requests: { url: string; method: string; body: unknown }[] = [];
   const client = new IrisClient(
