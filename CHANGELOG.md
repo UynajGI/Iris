@@ -171,6 +171,8 @@ known limitations are maintained separately in [release notes](docs/releases/).
 
 - **vision:** avoid automatic device selection on CPU runtimes ([e786965](https://github.com/UynajGI/Iris/commit/e7869650d339b77d9db1272c7ba43f1560f0504a))
 
+- **vision:** retain dynamic runtime environment until process exit ([7181864](https://github.com/UynajGI/Iris/commit/71818643a0e36c0a8d8aab904482a1177e46713a))
+
 ### Other
 
 - Merge pull request #15 from UynajGI/codex/dependency-integration
