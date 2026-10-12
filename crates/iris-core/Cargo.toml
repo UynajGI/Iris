@@ -22,7 +22,9 @@ ort = { version = "=2.0.0-rc.13", default-features = false, features = [
   "std",
   "ndarray",
   "load-dynamic",
-  "api-22",
+  # rc.13 enables automatic EP selection with api-22; CPU-only Unix runtimes
+  # abort on an empty OrtEpDevice list. Use the explicit CPU/DirectML API surface.
+  "api-21",
   "directml"
 ] }
 sha2 = "0.10"
