@@ -17,8 +17,9 @@ static CPU_ONLY: AtomicBool = AtomicBool::new(false);
 static WARNINGS: OnceLock<Mutex<Vec<String>>> = OnceLock::new();
 static SEQUENCE: AtomicUsize = AtomicUsize::new(0);
 
+#[cfg(any(windows, target_os = "linux"))]
 fn retain_process_environment() -> Result<()> {
-    // ort rc.13 can release its TLS environment after the dynamically loaded
+    // ort rc.13 can release its process environment after the dynamically loaded
     // runtime has shut down: Windows aborts (CI 38125408318), while Linux
     // segfaults after successful inference (release CI 38216446348).
     // Retain ONE environment reference until process reclamation, as in rc.10;
@@ -187,6 +188,7 @@ fn initialize_unix(dir: &Path) -> Result<()> {
 }
 
 fn builder(gpu: bool, name: &str) -> Result<SessionBuilder> {
+    #[cfg(any(windows, target_os = "linux"))]
     retain_process_environment()?;
     let mut builder = Session::builder()?
         .with_intra_threads(1)
