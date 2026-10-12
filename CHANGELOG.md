@@ -173,6 +173,8 @@ known limitations are maintained separately in [release notes](docs/releases/).
 
 - **vision:** retain dynamic runtime environment until process exit ([7181864](https://github.com/UynajGI/Iris/commit/71818643a0e36c0a8d8aab904482a1177e46713a))
 
+- **vision:** preserve native environment cleanup on macOS ([b5a30e2](https://github.com/UynajGI/Iris/commit/b5a30e25a4d602013715099e8bea6d4059d4d38e))
+
 ### Other
 
 - Merge pull request #15 from UynajGI/codex/dependency-integration
