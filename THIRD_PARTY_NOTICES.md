@@ -21,4 +21,6 @@ This does not replace third-party licenses or copyrights.
 
 Rust dependencies are identified by each Cargo.lock; their original package notices remain authoritative. Portable packaging collects a dependency license index. This inventory is not a completed compatibility audit for every binary/model combination.
 
+The optional local retrieval pipeline uses Hugging Face Tokenizers (Apache-2.0), pinned in Cargo.lock. Compatible ONNX retrieval weights and tokenizer assets are supplied separately by the user and retain their own licenses; Iris does not download them or accept their terms automatically.
+
 Private photographs, optional weights, downloaded runtimes and research corpora are not in this repository. Corpus preparation records per-file licenses and attribution locally; Iris's GPL license grants no photograph rights.

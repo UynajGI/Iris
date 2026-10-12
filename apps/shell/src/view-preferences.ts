@@ -73,6 +73,19 @@ export function validatedPhotoFilter(value: unknown, strict = false): PhotoFilte
   copyFilterInteger(input, output, 'limit', 1, 1000, invalid);
   copyFilterInteger(input, output, 'rating', 0, 5, invalid);
   if (strict) copyFilterInteger(input, output, 'offset', 0, Number.MAX_SAFE_INTEGER, invalid);
+  // Navigation scopes are deliberately not restored after project reopen.
+  if (strict) {
+    copyFilterInteger(input, output, 'photo_id', 1, Number.MAX_SAFE_INTEGER, invalid);
+    if (input.scene_id !== undefined) {
+      if (
+        typeof input.scene_id === 'string' &&
+        input.scene_id.length > 0 &&
+        input.scene_id.length <= 128
+      )
+        output.scene_id = input.scene_id;
+      else invalid('scene_id');
+    }
+  }
   return output as PhotoFilter;
 }
 

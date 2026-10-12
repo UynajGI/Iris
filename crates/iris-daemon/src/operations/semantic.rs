@@ -258,7 +258,7 @@ impl EmbeddingPass<'_> {
     }
 }
 
-fn wait_for_semantic_job(job: &Job) -> anyhow::Result<()> {
+pub(super) fn wait_for_semantic_job(job: &Job) -> anyhow::Result<()> {
     while job.pause.load(Ordering::Relaxed) && !job.cancel.load(Ordering::Relaxed) {
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
@@ -331,7 +331,9 @@ fn run_embedding_workers<'a>(
     cpu: bool,
     mut seed: Option<AnalysisWorker>,
 ) -> anyhow::Result<Vec<EmbeddingPass<'a>>> {
-    let next = std::sync::atomic::AtomicUsize::new(0);
+    let queue = Mutex::new(crate::analysis_queue::PendingOrder::new(
+        pending.iter().map(|photo| photo.id),
+    ));
     let stop = AtomicBool::new(false);
 
     std::thread::scope(|scope| {
@@ -341,14 +343,20 @@ fn run_embedding_workers<'a>(
                 pass.force_cpu = cpu;
                 pass.worker = seed.take();
                 let pending = &pending;
-                let next = &next;
+                let queue = &queue;
                 let stop = &stop;
                 scope.spawn(move || {
                     while !stop.load(Ordering::Relaxed) {
-                        let index = next.fetch_add(1, Ordering::Relaxed);
-                        let Some(photo) = pending.get(index) else {
+                        wait_for_semantic_job(pass.job)?;
+                        let browsing = pass.state.browse_contexts.current(pass.project_id);
+                        let index = queue
+                            .lock()
+                            .unwrap_or_else(|error| error.into_inner())
+                            .claim(&browsing);
+                        let Some(index) = index else {
                             break;
                         };
+                        let photo = pending[index];
                         match pass.compute_photo(photo) {
                             Ok(true) => {}
                             Ok(false) => {

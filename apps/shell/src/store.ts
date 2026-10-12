@@ -312,6 +312,19 @@ export class IrisStore {
       this.update({ focusedId: id });
     }
   }
+  revealPhoto = (id: number): Promise<void> => {
+    const scope = this.scope();
+    return this.execute(async () => {
+      this.closeGroup();
+      const revision = ++this.viewRevision;
+      this.update({ filter: { limit: 200, offset: 0, photo_id: id }, selectedIds: [] });
+      await this.refresh();
+      if (!this.sameView(scope, revision)) return;
+      if (!this.state.photos.some((photo) => photo.id === id))
+        throw new Error('Photo is no longer available in this project');
+      this.update({ focusedId: id, reviewOpen: true });
+    }, scope);
+  };
   private sameView(scope: ProjectScope, revision: number): boolean {
     return this.isCurrent(scope) && revision === this.viewRevision;
   }

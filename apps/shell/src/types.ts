@@ -2,6 +2,16 @@ import type { components } from './generated/api.js';
 
 // The daemon's exported OpenAPI document is the single source of entity fields.
 type Schemas = components['schemas'];
+export type BrowseContext = Schemas['BrowseContext'];
+export type DetailRequest = Schemas['DetailRequest'];
+export type DetailEvidence = Schemas['DetailEvidence'];
+export type SceneGroup = Schemas['SceneGroup'];
+export type SceneCorrection = Schemas['SceneCorrection'];
+export type ComparisonRequest = Schemas['ComparisonRequest'];
+export type ComparisonReport = Schemas['ComparisonReport'];
+export type SearchStatus = Schemas['SearchStatus'];
+export type SearchRequest = Schemas['SearchRequest'];
+export type SearchResponse = Schemas['SearchResponse'];
 export type Action = Schemas['Action'];
 // Both request fields may be omitted; the server applies their defaults.
 // openapi-typescript otherwise marks default-valued component fields required.

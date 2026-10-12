@@ -3,6 +3,8 @@ import type { IrisClient } from '../client.js';
 import type { Photo } from '../types.js';
 import { usePhotoUrl } from '../react.js';
 import { mediaRevision } from '../media-cache.js';
+import { CompareViewport, type CompareViewportControl } from './CompareViewport.js';
+import { DetailReview } from './DetailReview.js';
 import {
   faceRegions,
   originalDetailAvailable,
@@ -15,14 +17,23 @@ export function FaceDetail({
   client,
   photo,
   active,
+  faceIndex,
+  onFaceChange,
+  viewport,
 }: {
   client: IrisClient;
   photo: Photo;
   active: boolean;
+  faceIndex?: number | null;
+  onFaceChange?(index: number): void;
+  viewport?: CompareViewportControl;
 }) {
   const regions = faceRegions(photo);
   const [selected, setSelected] = useState(0);
-  const region = regions[Math.min(selected, regions.length - 1)];
+  const region =
+    faceIndex === undefined
+      ? regions[Math.min(selected, regions.length - 1)]
+      : regions.find((face) => face.index === faceIndex);
   const {
     preview,
     original,
@@ -34,31 +45,47 @@ export function FaceDetail({
     status,
     ready,
   } = useDetailMedia(client, photo, region, active);
-  if (!region) return <p className="detail-empty">没有可复核的人脸区域，请切回整图观察</p>;
+  if (!regions.length) return <p className="detail-empty">没有可复核的人脸区域，请切回整图观察</p>;
+  const crop = region ? (
+    <FaceCrop
+      source={source}
+      region={showOriginal && ready ? scaleFaceRegion(region, ready.width, ready.height) : region}
+      name={`${photo.filename} 的人脸细节`}
+      failed={!source && !!preview.error}
+      invalidate={(showOriginal ? original : preview).invalidate}
+    />
+  ) : (
+    <p className="detail-empty">请选择要比较的人脸</p>
+  );
   return (
     <div className="face-detail">
       <label className="face-detail-picker">
         人脸区域
         <select
           aria-label={`${photo.filename} 的人脸区域`}
-          value={Math.min(selected, regions.length - 1)}
-          onChange={(event) => setSelected(Number(event.target.value))}
+          value={region?.index ?? ''}
+          onChange={(event) => {
+            const index = Number(event.target.value);
+            setSelected(regions.findIndex((face) => face.index === index));
+            onFaceChange?.(index);
+          }}
         >
+          {!region && <option value="">请选择人脸</option>}
           {regions.map((item, index) => (
-            <option key={item.index} value={index}>
+            <option key={item.index} value={item.index}>
               人脸 {index + 1}（从左到右）
             </option>
           ))}
         </select>
       </label>
-      <FaceCrop
-        source={source}
-        region={showOriginal && ready ? scaleFaceRegion(region, ready.width, ready.height) : region}
-        name={`${photo.filename} 的人脸 ${selected + 1} 细节`}
-        failed={!source && !!preview.error}
-        invalidate={(showOriginal ? original : preview).invalidate}
-      />
-      {original.url && !showOriginal && !originalFailed && (
+      {viewport ? (
+        <CompareViewport {...viewport} label={`${photo.filename} 的人脸视窗`}>
+          {crop}
+        </CompareViewport>
+      ) : (
+        crop
+      )}
+      {region && original.url && !showOriginal && !originalFailed && (
         <img
           className="zoom-preload"
           src={original.url}
@@ -80,6 +107,7 @@ export function FaceDetail({
       <p className="detail-source" role="status">
         {status}
       </p>
+      {active && region && <DetailReview client={client} photo={photo} faceIndex={region.index} />}
     </div>
   );
 }

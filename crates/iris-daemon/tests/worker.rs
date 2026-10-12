@@ -1,6 +1,6 @@
 //! Protocol isolation tests use an intentionally fake child executable, not model inference.
 use iris_core::vision::AnalysisSettings;
-use iris_daemon::worker::AnalysisWorker;
+use iris_daemon::worker::{AnalysisWorker, RetrievalWorker};
 use std::{
     path::{Path, PathBuf},
     sync::{
@@ -59,6 +59,41 @@ fn persistent_worker_reuses_process_and_roundtrips_numbered_requests() {
         assert_eq!(value.version, "protocol-fixture");
     }
     assert_eq!(starts(dir.path()), 1);
+}
+
+#[test]
+fn retrieval_child_reuses_sessions_checks_space_and_terminates_on_deadline() {
+    let dir = tempfile::tempdir().unwrap();
+    let space = "a".repeat(64);
+    let mut worker = RetrievalWorker::with_executable_and_cancel(
+        executable(),
+        dir.path(),
+        Duration::from_millis(500),
+        Arc::new(AtomicBool::new(false)),
+    )
+    .unwrap();
+    assert_eq!(worker.text("portrait", &space).unwrap(), vec![1., 0., 0.]);
+    assert_eq!(
+        worker.image(Path::new("normal.jpg"), &space).unwrap(),
+        vec![1., 0., 0.]
+    );
+    assert_eq!(starts(dir.path()), 1);
+    assert!(worker
+        .text("portrait", &"b".repeat(64))
+        .unwrap_err()
+        .to_string()
+        .contains("model changed"));
+    assert_eq!(worker.text("portrait", &space).unwrap(), vec![1., 0., 0.]);
+    assert_eq!(starts(dir.path()), 2);
+    let started = Instant::now();
+    assert!(worker
+        .image(Path::new("hang.jpg"), &space)
+        .unwrap_err()
+        .to_string()
+        .contains("timed out"));
+    assert!(started.elapsed() < Duration::from_secs(3));
+    assert_eq!(worker.text("portrait", &space).unwrap(), vec![1., 0., 0.]);
+    assert_eq!(starts(dir.path()), 3);
 }
 
 #[test]
@@ -298,6 +333,9 @@ fn main(){
         if line.contains("crash.jpg"){std::process::exit(7);}
         if line.contains("malformed.jpg"){send("not json");continue;}
         let id=if line.contains("wrong-id.jpg"){id+1}else{id};
+        if std::env::var("IRIS_WORKER_MODE").as_deref()==Ok("retrieval") {
+            send(&format!(r#"{{"id":{id},"vector":[1.0,0.0,0.0],"space_key":"{}","error":null,"fatal":false}}"#,"a".repeat(64)));continue;
+        }
         send(&format!(r#"{{"id":{id},"analysis":{{"width":1,"height":1,"original_width":1,"original_height":1,"orientation":1,"faces":[],"sharpness_lap":0.0,"sharpness_fft":0.0,"niqe":null,"exposure":{{"mean":128.0,"shadow_clip":0.0,"highlight_clip":0.0,"verdict":"normal"}},"composite_score":0.0,"verdict":"review","phash":"0","structure":[],"warnings":[],"version":"protocol-fixture"}},"error":null,"fatal":false}}"#));
     }
 }

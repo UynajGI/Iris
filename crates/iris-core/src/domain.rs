@@ -83,6 +83,10 @@ impl std::str::FromStr for Action {
 }
 #[derive(Debug, Clone, Default, Serialize, Deserialize, ToSchema)]
 pub struct PhotoFilter {
+    /// Transient scene navigation scope; other filters and pagination still apply.
+    pub scene_id: Option<String>,
+    /// Reveal a search hit without loading an entire project into the frontend.
+    pub photo_id: Option<i64>,
     pub decision: Option<Action>,
     pub rating: Option<u8>,
     pub color_label: Option<ColorLabel>,

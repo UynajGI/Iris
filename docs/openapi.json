@@ -7,7 +7,7 @@
       "name": "GPL-3.0-or-later",
       "identifier": "GPL-3.0-or-later"
     },
-    "version": "0.1.0-beta3"
+    "version": "0.1.0-beta4"
   },
   "paths": {
     "/api/v1/bootstrap": {
@@ -193,6 +193,47 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Photo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/photos/{id}/detail": {
+      "post": {
+        "tags": [
+          "operations"
+        ],
+        "operationId": "detail",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DetailRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DetailEvidence"
                 }
               }
             }
@@ -646,6 +687,47 @@
         }
       }
     },
+    "/api/v1/projects/{id}/browse-context": {
+      "put": {
+        "tags": [
+          "operations"
+        ],
+        "operationId": "browse_context",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BrowseContext"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowseContext"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/projects/{id}/cache": {
       "get": {
         "tags": [
@@ -844,6 +926,47 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/JobProgress"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/compare": {
+      "post": {
+        "tags": [
+          "operations"
+        ],
+        "operationId": "compare_photos",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComparisonRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComparisonReport"
                 }
               }
             }
@@ -1617,6 +1740,185 @@
         }
       }
     },
+    "/api/v1/projects/{id}/scenes": {
+      "get": {
+        "tags": [
+          "operations"
+        ],
+        "operationId": "scenes",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SceneGroup"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "operations"
+        ],
+        "operationId": "correct_scene",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SceneCorrection"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SceneGroup"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/search": {
+      "post": {
+        "tags": [
+          "operations"
+        ],
+        "operationId": "search",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/search/index": {
+      "post": {
+        "tags": [
+          "operations"
+        ],
+        "operationId": "index_search",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobProgress"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/search/status": {
+      "get": {
+        "tags": [
+          "operations"
+        ],
+        "operationId": "search_status",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/projects/{id}/undo": {
       "post": {
         "tags": [],
@@ -1922,6 +2224,48 @@
           }
         }
       },
+      "BrowseContext": {
+        "type": "object",
+        "description": "Browsing changes only queued work, never starts a job or changes its scope.",
+        "properties": {
+          "client_id": {
+            "type": "string",
+            "description": "Stable id for one window; monotonically increasing revisions reject late requests.",
+            "default": ""
+          },
+          "comparison_photo_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "default": []
+          },
+          "focused_photo_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "default": null
+          },
+          "nearby_photo_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "default": []
+          },
+          "revision": {
+            "type": "integer",
+            "format": "int64",
+            "default": 0,
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
       "BurstGroup": {
         "type": "object",
         "required": [
@@ -2063,6 +2407,98 @@
           "purple"
         ]
       },
+      "ComparisonMember": {
+        "type": "object",
+        "required": [
+          "photo_id",
+          "face_correspondences"
+        ],
+        "properties": {
+          "exposure_mean_delta": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "face_correspondences": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FaceCorrespondence"
+            }
+          },
+          "face_count": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "photo_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "score_delta": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "ComparisonReport": {
+        "type": "object",
+        "required": [
+          "method",
+          "assessment",
+          "members"
+        ],
+        "properties": {
+          "assessment": {
+            "$ref": "#/components/schemas/GroupAssessment"
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ComparisonMember"
+            }
+          },
+          "method": {
+            "type": "string"
+          },
+          "reference_photo_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          }
+        }
+      },
+      "ComparisonRequest": {
+        "type": "object",
+        "required": [
+          "photo_ids"
+        ],
+        "properties": {
+          "photo_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "reference_photo_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          }
+        },
+        "additionalProperties": false
+      },
       "Composition": {
         "type": "object",
         "description": "Explainable portrait-placement geometry, not a learned aesthetic assessment.",
@@ -2168,6 +2604,115 @@
             "type": "string"
           }
         }
+      },
+      "DetailEvidence": {
+        "type": "object",
+        "required": [
+          "method",
+          "state",
+          "region",
+          "source_width",
+          "source_height",
+          "crop_width",
+          "crop_height",
+          "measured_width",
+          "measured_height"
+        ],
+        "properties": {
+          "crop_height": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "crop_width": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "exposure": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Exposure"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "measured_height": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "measured_width": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "method": {
+            "type": "string"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "region": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "float"
+            }
+          },
+          "sharpness_lap": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "source_height": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "source_width": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "state": {
+            "type": "string",
+            "description": "full_detail, preview_only, or unavailable. No automatic reject decision."
+          }
+        }
+      },
+      "DetailRequest": {
+        "type": "object",
+        "properties": {
+          "face_index": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "default": null,
+            "minimum": 0
+          },
+          "region": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "number",
+              "format": "float"
+            },
+            "description": "x, y, width, height in the oriented image, normalized to 0..1.",
+            "default": null
+          }
+        },
+        "additionalProperties": false
       },
       "DetectorModelStatus": {
         "type": "object",
@@ -2544,6 +3089,30 @@
               "string",
               "null"
             ]
+          }
+        }
+      },
+      "FaceCorrespondence": {
+        "type": "object",
+        "required": [
+          "reference_face_index",
+          "state"
+        ],
+        "properties": {
+          "face_index": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "reference_face_index": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "state": {
+            "type": "string",
+            "description": "geometry_candidate or uncertain; users must verify correspondence."
           }
         }
       },
@@ -3276,6 +3845,14 @@
             ],
             "minimum": 0
           },
+          "photo_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Reveal a search hit without loading an entire project into the frontend."
+          },
           "rating": {
             "type": [
               "integer",
@@ -3283,6 +3860,13 @@
             ],
             "format": "int32",
             "minimum": 0
+          },
+          "scene_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Transient scene navigation scope; other filters and pagination still apply."
           },
           "sort": {
             "type": [
@@ -3434,6 +4018,64 @@
           }
         }
       },
+      "RetrievalCoverage": {
+        "type": "object",
+        "required": [
+          "total",
+          "indexed",
+          "pending"
+        ],
+        "properties": {
+          "indexed": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "pending": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "RetrievalStatus": {
+        "type": "object",
+        "required": [
+          "state"
+        ],
+        "properties": {
+          "dimensions": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "label": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "space_key": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "state": {
+            "type": "string"
+          }
+        }
+      },
       "ScanRequest": {
         "type": "object",
         "properties": {
@@ -3443,6 +4085,60 @@
           }
         },
         "additionalProperties": false
+      },
+      "SceneCorrection": {
+        "type": "object",
+        "required": [
+          "photo_ids"
+        ],
+        "properties": {
+          "photo_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "reset": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SceneGroup": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "member_photo_ids",
+          "burst_group_ids",
+          "reason"
+        ],
+        "properties": {
+          "burst_group_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "description": "scene_candidate, manual, or unsequenced; never an exact-duplicate judgment."
+          },
+          "member_photo_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
       },
       "ScoreBreakdown": {
         "type": "object",
@@ -3584,6 +4280,85 @@
             "type": "number",
             "format": "double",
             "description": "Actual normalized share inside this category; zero for missing terms."
+          }
+        }
+      },
+      "SearchHit": {
+        "type": "object",
+        "required": [
+          "photo_id",
+          "similarity"
+        ],
+        "properties": {
+          "photo_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "similarity": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "SearchRequest": {
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "properties": {
+          "limit": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "query": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SearchResponse": {
+        "type": "object",
+        "required": [
+          "space_key",
+          "coverage",
+          "hits"
+        ],
+        "properties": {
+          "coverage": {
+            "$ref": "#/components/schemas/RetrievalCoverage"
+          },
+          "hits": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SearchHit"
+            }
+          },
+          "space_key": {
+            "type": "string"
+          }
+        }
+      },
+      "SearchStatus": {
+        "type": "object",
+        "required": [
+          "model"
+        ],
+        "properties": {
+          "coverage": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/RetrievalCoverage"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "model": {
+            "$ref": "#/components/schemas/RetrievalStatus"
           }
         }
       },

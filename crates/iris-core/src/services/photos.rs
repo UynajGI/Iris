@@ -2,93 +2,26 @@ use super::*;
 
 const GROUP_ANALYSES_SQL: &str = "SELECT p.id,a.data FROM (SELECT DISTINCT m.value AS id FROM burst_groups g, json_each(g.members) m WHERE g.project_id=?1) members JOIN photos p ON p.id=members.id JOIN analyses a ON a.photo_id=p.id WHERE p.project_id=?1 AND p.missing=0 AND p.quarantined=0";
 
-fn matches_photo_filter(p: &Photo, filter: &PhotoFilter) -> bool {
-    (filter.include_missing.unwrap_or(false) || (!p.missing && !p.quarantined))
-        && filter.decision.is_none_or(|d| d == p.decision)
-        && filter.rating.is_none_or(|rating| rating == p.rating)
-        && filter
-            .color_label
-            .is_none_or(|color| color == p.color_label)
-        && filter.format.as_ref().is_none_or(|f| f == &p.format)
-        && filter.verdict.as_ref().is_none_or(|v| {
-            p.analysis_status == AnalysisStatus::Current
-                && p.analysis
-                    .as_ref()
-                    .and_then(|a| a.get("verdict"))
-                    .and_then(Value::as_str)
-                    == Some(v)
-        })
-}
-
 impl Services {
+    /// Validate scope using metadata only, without decoding analysis payloads.
+    pub fn require_available_photos(&self, project_id: i64, ids: &[i64]) -> Result<()> {
+        self.require_project(project_id)?;
+        let mut query = self.store.conn.prepare(
+            "SELECT EXISTS(SELECT 1 FROM photos WHERE id=?1 AND project_id=?2 AND missing=0 AND quarantined=0)",
+        )?;
+        for id in ids {
+            let available: bool = query.query_row(params![id, project_id], |row| row.get(0))?;
+            anyhow::ensure!(available, "photo is unavailable or outside this project");
+        }
+        Ok(())
+    }
+
     pub fn photos(&self, project_id: i64, filter: PhotoFilter) -> Result<Vec<Photo>> {
         if filter.rating.is_some_and(|rating| rating > 5) {
             bail!("rating must be between 0 and 5");
         }
         self.require_project(project_id)?;
-        if plain_name_page(&filter) {
-            return self.name_page(project_id, &filter);
-        }
-        let mut q = self
-            .store
-            .conn
-            .prepare(&format!("{} WHERE p.project_id=?1", PHOTO_SELECT))?;
-        let mut photos = q
-            .query_map([project_id], photo_row)?
-            .collect::<Result<Vec<_>, _>>()?;
-        let settings = self.settings(project_id)?;
-        for photo in &mut photos {
-            photo.analysis_status = analysis_status(photo.analysis.as_ref(), &settings);
-        }
-        photos.retain(|p| matches_photo_filter(p, &filter));
-        match filter.sort.as_deref().unwrap_or("name") {
-            "score" | "suggestion" => {
-                photos.sort_by(|a, b| score(b).total_cmp(&score(a)).then(a.id.cmp(&b.id)))
-            }
-            "size" => photos.sort_by_key(|p| p.size_bytes),
-            "date" => photos.sort_by_key(|p| (p.taken_at.clone().unwrap_or_default(), p.mtime)),
-            "name" => photos.sort_by(|a, b| a.path.cmp(&b.path)),
-            _ => bail!("unsupported photo sort"),
-        }
-        if filter.descending.unwrap_or(false) {
-            photos.reverse();
-        }
-        Ok(photos
-            .into_iter()
-            .skip(filter.offset.unwrap_or(0))
-            .take(filter.limit.unwrap_or(usize::MAX))
-            .collect())
-    }
-    fn name_page(&self, project_id: i64, filter: &PhotoFilter) -> Result<Vec<Photo>> {
-        // The ordinary gallery must deserialize only its visible page, not every stored
-        // face/embedding record in the project. Rust and SQLite BINARY path order agree.
-        let available = if filter.include_missing.unwrap_or(false) {
-            ""
-        } else {
-            " AND p.missing=0 AND p.quarantined=0"
-        };
-        let direction = if filter.descending.unwrap_or(false) {
-            "DESC"
-        } else {
-            "ASC"
-        };
-        let sql = format!("{PHOTO_SELECT} WHERE p.project_id=?1{available} ORDER BY p.path COLLATE BINARY {direction} LIMIT ?2 OFFSET ?3");
-        let mut query = self.store.conn.prepare(&sql)?;
-        let mut photos = query
-            .query_map(
-                params![
-                    project_id,
-                    filter.limit.unwrap_or(usize::MAX).min(i64::MAX as usize) as i64,
-                    filter.offset.unwrap_or(0).min(i64::MAX as usize) as i64
-                ],
-                photo_row,
-            )?
-            .collect::<Result<Vec<_>, _>>()?;
-        let settings = self.settings(project_id)?;
-        for photo in &mut photos {
-            photo.analysis_status = analysis_status(photo.analysis.as_ref(), &settings);
-        }
-        Ok(photos)
+        self.catalog_page(project_id, &filter)
     }
     pub fn photo(&self, id: i64) -> Result<Photo> {
         let mut photo = self.store.conn.query_row(
@@ -293,12 +226,4 @@ mod group_query_tests {
             .unwrap();
         assert_eq!(selected, vec![(1, "member".into())]);
     }
-}
-fn plain_name_page(filter: &PhotoFilter) -> bool {
-    filter.sort.as_deref().unwrap_or("name") == "name"
-        && filter.verdict.is_none()
-        && filter.decision.is_none()
-        && filter.rating.is_none()
-        && filter.color_label.is_none()
-        && filter.format.is_none()
 }

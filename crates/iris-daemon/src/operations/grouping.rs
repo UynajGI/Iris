@@ -123,15 +123,7 @@ mod group_freshness_tests {
 }
 
 pub(super) fn parse_capture_time(value: &str) -> Option<i64> {
-    chrono::DateTime::parse_from_rfc3339(value)
-        .ok()
-        .map(|v| v.timestamp())
-        .or_else(|| {
-            ["%Y-%m-%d %H:%M:%S", "%Y:%m:%d %H:%M:%S"]
-                .iter()
-                .find_map(|format| chrono::NaiveDateTime::parse_from_str(value, format).ok())
-                .map(|v| v.and_utc().timestamp())
-        })
+    iris_core::services::parse_capture_time(value)
 }
 
 #[cfg(test)]

@@ -26,6 +26,7 @@ pub mod model_installer;
 
 /// Default cap for each project's analysis pool, not a daemon-wide worker cap.
 pub const DEFAULT_WORKER_LIMIT: u8 = 12;
+pub mod analysis_queue;
 mod media_queue;
 pub mod ownership;
 
@@ -41,6 +42,9 @@ pub struct AppState {
     pub installer: model_installer::Installer,
     worker_limit: usize,
     media_queue: media_queue::MediaQueue,
+    browse_contexts: Arc<analysis_queue::BrowseContexts>,
+    retrieval_index_gate: Arc<tokio::sync::Semaphore>,
+    retrieval_search_gate: Arc<tokio::sync::Semaphore>,
 }
 #[derive(Clone)]
 pub struct Job {
@@ -137,6 +141,9 @@ impl AppState {
             installer: Default::default(),
             worker_limit: usize::from(DEFAULT_WORKER_LIMIT),
             media_queue: Default::default(),
+            browse_contexts: Default::default(),
+            retrieval_index_gate: Arc::new(tokio::sync::Semaphore::new(1)),
+            retrieval_search_gate: Arc::new(tokio::sync::Semaphore::new(1)),
         })
     }
     /// Per-project analysis resource policy; concurrent projects have separate pools.
@@ -456,7 +463,20 @@ pub mod worker;
 pub use operations::*;
 
 #[derive(OpenApi)]
-#[openapi(paths(bootstrap,gpu_devices,projects,create_project,project,open_project,hide_project,photos,photo,groups,decisions,marks,undo,accept,progress,cancel,pause,resume,model_installer::catalog,model_installer::status,model_installer::start,model_installer::cancel,operations::scan,operations::analyze,operations::export_xmp,operations::export_copy,operations::export_csv,operations::import_csv,operations::quarantine_history,operations::quarantine_preview,operations::quarantine_commit,operations::quarantine_restore,operations::models,operations::settings,operations::put_settings,operations::profiles,operations::save_profile,operations::delete_profile,operations::apply_profile,operations::estimate_profile,operations::cache_status,operations::cache_cleanup,operations::cache_migrate,operations::cache_migrations,operations::cache_cleanup_old,operations::thumb,operations::preview,operations::original),components(schemas(PhotoFilter)),security(("session"=[])),modifiers(&Security))]
+#[openapi(paths(
+    bootstrap,gpu_devices,projects,create_project,project,open_project,hide_project,photos,photo,groups,
+    decisions,marks,undo,accept,progress,cancel,pause,resume,
+    model_installer::catalog,model_installer::status,model_installer::start,model_installer::cancel,
+    operations::scan,operations::analyze,operations::browse_context,
+    operations::scenes,operations::correct_scene,operations::compare_photos,operations::detail,
+    operations::search_status,operations::search,operations::index_search,
+    operations::export_xmp,operations::export_copy,operations::export_csv,operations::import_csv,
+    operations::quarantine_history,operations::quarantine_preview,operations::quarantine_commit,operations::quarantine_restore,
+    operations::models,operations::settings,operations::put_settings,operations::profiles,operations::save_profile,
+    operations::delete_profile,operations::apply_profile,operations::estimate_profile,
+    operations::cache_status,operations::cache_cleanup,operations::cache_migrate,operations::cache_migrations,operations::cache_cleanup_old,
+    operations::thumb,operations::preview,operations::original
+),components(schemas(PhotoFilter)),security(("session"=[])),modifiers(&Security))]
 struct GeneratedApiDoc;
 
 pub struct ApiDoc;

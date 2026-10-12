@@ -18,6 +18,9 @@ use std::{
 const PROTOCOL: &str = "iris-analysis-worker-v1";
 const MAX_LINE: usize = 16 * 1024 * 1024;
 const POLL: Duration = Duration::from_millis(20);
+#[path = "retrieval_worker.rs"]
+mod retrieval_worker;
+pub use retrieval_worker::RetrievalWorker;
 
 /// A user cancellation signal, distinct from model initialization or I/O failures.
 #[derive(Debug)]
@@ -107,6 +110,7 @@ impl Drop for Process {
 }
 
 pub struct AnalysisWorker {
+    process_mode: &'static str,
     execution_provider: iris_core::vision::ExecutionProvider,
     effective_provider: iris_core::vision::ExecutionProvider,
     startup_warnings: Vec<String>,
@@ -172,6 +176,7 @@ impl AnalysisWorker {
             return Self::new_with_cancel(model_dir, timeout, cancel);
         }
         let mut worker = Self {
+            process_mode: "analysis",
             executable: std::path::absolute(worker_executable()?)?,
             model_dir: std::path::absolute(model_dir)?,
             timeout,
@@ -208,6 +213,7 @@ impl AnalysisWorker {
             bail!("analysis worker timeout must be positive");
         }
         let mut worker = Self {
+            process_mode: "analysis",
             execution_provider: iris_core::vision::ExecutionProvider::Cpu,
             effective_provider: iris_core::vision::ExecutionProvider::Cpu,
             startup_warnings: Vec::new(),
@@ -361,6 +367,7 @@ impl AnalysisWorker {
     fn start(&mut self) -> Result<()> {
         self.check_cancel()?;
         let mut command = Command::new(&self.executable);
+        command.env("IRIS_WORKER_MODE", self.process_mode);
         command
             .env(
                 "IRIS_WORKER_EXECUTION_PROVIDER",
@@ -504,6 +511,13 @@ fn send(writer: &mut impl Write, value: &impl Serialize) -> Result<()> {
 
 /// Internal subprocess mode. No application database, HTTP server, or photo upload.
 pub fn run(model_dir: &Path) -> Result<()> {
+    if std::env::var("IRIS_WORKER_MODE").as_deref() == Ok("retrieval") {
+        retrieval_worker::run(model_dir)
+    } else {
+        run_quality(model_dir)
+    }
+}
+fn run_quality(model_dir: &Path) -> Result<()> {
     let mut output = BufWriter::new(std::io::stdout().lock());
     let engine = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         VisionEngine::new(model_dir)

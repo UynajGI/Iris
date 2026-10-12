@@ -2,7 +2,7 @@ use anyhow::{bail, Context, Result};
 use rusqlite::Connection;
 use std::path::{Path, PathBuf};
 
-pub const SCHEMA_VERSION: i64 = 6;
+pub const SCHEMA_VERSION: i64 = 7;
 pub struct Store {
     pub conn: Connection,
     pub path: PathBuf,
@@ -15,6 +15,7 @@ impl Store {
             std::fs::create_dir_all(parent)?;
         }
         let conn = Connection::open(&path).context("open project database")?;
+        register_catalog_functions(&conn)?;
         conn.busy_timeout(std::time::Duration::from_secs(5))?;
         conn.execute_batch(
             "PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;",
@@ -72,23 +73,18 @@ fn upgrade_database(conn: &Connection, path: &Path, version: i64) -> Result<Opti
         return Ok(None);
     }
     let recovery_notice = backup_before_upgrade(conn, path, version)?;
-    if version < 1 {
-        conn.execute_batch(SCHEMA)?;
-    }
-    if version < 2 {
-        conn.execute_batch(MIGRATION_2)?;
-    }
-    if version < 3 {
-        conn.execute_batch(MIGRATION_3)?;
-    }
-    if version < 4 {
-        conn.execute_batch(MIGRATION_4)?;
-    }
-    if version < 5 {
-        conn.execute_batch(MIGRATION_5)?;
-    }
-    if version < 6 {
-        conn.execute_batch(MIGRATION_6)?;
+    for (target, migration) in [
+        (1, SCHEMA),
+        (2, MIGRATION_2),
+        (3, MIGRATION_3),
+        (4, MIGRATION_4),
+        (5, MIGRATION_5),
+        (6, MIGRATION_6),
+        (7, MIGRATION_7),
+    ] {
+        if version < target {
+            conn.execute_batch(migration)?;
+        }
     }
     Ok(recovery_notice)
 }
@@ -189,6 +185,84 @@ const MIGRATION_6: &str = r#"
 BEGIN IMMEDIATE;
 CREATE TABLE engine_cache_versions(name TEXT PRIMARY KEY,version TEXT NOT NULL);
 PRAGMA user_version=6;
+COMMIT;
+"#;
+
+// Normalize the small settings object at write time, never the complete analysis
+// (faces/vectors) while paging. This is the same validation/defaulting gate as
+// services::analysis_matches_settings, including historical partial settings.
+fn register_catalog_functions(conn: &Connection) -> Result<()> {
+    use rusqlite::{functions::FunctionFlags, types::ValueRef};
+    conn.create_scalar_function(
+        "iris_catalog_settings_v1",
+        1,
+        FunctionFlags::SQLITE_UTF8
+            | FunctionFlags::SQLITE_DETERMINISTIC
+            | FunctionFlags::SQLITE_INNOCUOUS,
+        |context| {
+            let ValueRef::Text(bytes) = context.get_raw(0) else {
+                return Ok(None::<String>);
+            };
+            let parsed = serde_json::from_slice::<crate::vision::AnalysisSettings>(bytes)
+                .ok()
+                .filter(|settings| settings.validate().is_ok());
+            Ok(parsed.and_then(|settings| serde_json::to_string(&settings).ok()))
+        },
+    )?;
+    Ok(())
+}
+
+const MIGRATION_7: &str = r#"
+BEGIN IMMEDIATE;
+CREATE TABLE analysis_catalog(
+    photo_id INTEGER PRIMARY KEY REFERENCES photos(id) ON DELETE CASCADE,
+    version TEXT,
+    settings_key TEXT,
+    source_invalid INTEGER NOT NULL,
+    score REAL NOT NULL,
+    verdict TEXT
+);
+CREATE VIEW analysis_catalog_source AS
+SELECT photo_id,
+    CASE WHEN json_type(safe,'$.version')='text' THEN json_extract(safe,'$.version') END,
+    iris_catalog_settings_v1(json_extract(safe,'$.settings')),
+    json_type(safe,'$.source_invalid') IS 'true',
+    CASE WHEN json_type(safe,'$.composite_score') IN ('integer','real')
+        THEN CAST(json_extract(safe,'$.composite_score') AS REAL) ELSE -1.0 END,
+    CASE WHEN json_type(safe,'$.verdict')='text' THEN json_extract(safe,'$.verdict') END
+FROM (SELECT photo_id,CASE WHEN json_valid(data) THEN data ELSE '{}' END AS safe FROM analyses);
+INSERT INTO analysis_catalog SELECT * FROM analysis_catalog_source;
+CREATE TRIGGER catalog_analysis_insert AFTER INSERT ON analyses BEGIN
+    INSERT OR REPLACE INTO analysis_catalog SELECT * FROM analysis_catalog_source WHERE photo_id=NEW.photo_id;
+END;
+CREATE TRIGGER catalog_analysis_update AFTER UPDATE OF data ON analyses BEGIN
+    DELETE FROM analysis_catalog WHERE photo_id=NEW.photo_id;
+    INSERT INTO analysis_catalog SELECT * FROM analysis_catalog_source WHERE photo_id=NEW.photo_id;
+END;
+CREATE TRIGGER catalog_analysis_delete AFTER DELETE ON analyses BEGIN
+    DELETE FROM analysis_catalog WHERE photo_id=OLD.photo_id;
+END;
+CREATE INDEX catalog_score ON analysis_catalog(version,settings_key,source_invalid,score,photo_id);
+CREATE INDEX catalog_verdict ON analysis_catalog(version,settings_key,source_invalid,verdict,photo_id);
+CREATE INDEX photo_catalog_name ON photos(project_id,path COLLATE BINARY);
+CREATE INDEX photo_catalog_size ON photos(project_id,size_bytes,id);
+CREATE INDEX photo_catalog_date ON photos(project_id,COALESCE(taken_at,''),mtime,id);
+CREATE TABLE IF NOT EXISTS scene_assignments(
+    photo_id INTEGER PRIMARY KEY REFERENCES photos(id) ON DELETE CASCADE,
+    project_id INTEGER NOT NULL REFERENCES projects(id),
+    scene_id TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS scene_assignment_project ON scene_assignments(project_id,scene_id);
+CREATE TABLE IF NOT EXISTS retrieval_embeddings(
+    photo_id INTEGER PRIMARY KEY REFERENCES photos(id) ON DELETE CASCADE,
+    space_key TEXT NOT NULL,
+    mtime INTEGER NOT NULL,
+    size_bytes INTEGER NOT NULL,
+    dimensions INTEGER NOT NULL,
+    vector BLOB NOT NULL
+);
+CREATE INDEX IF NOT EXISTS retrieval_space ON retrieval_embeddings(space_key,photo_id);
+PRAGMA user_version=7;
 COMMIT;
 "#;
 

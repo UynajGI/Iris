@@ -202,7 +202,7 @@ fn schema_one_upgrade_backs_up_and_marks_existing_projects_dirty() {
     let db = temp.path().join("v1.sqlite");
     let conn = rusqlite::Connection::open(&db).unwrap();
     conn.execute_batch("CREATE TABLE projects(id INTEGER PRIMARY KEY,root TEXT,name TEXT,created_at TEXT,cache_root TEXT);
-        CREATE TABLE photos(id INTEGER PRIMARY KEY,project_id INTEGER,mtime INTEGER,size_bytes INTEGER,missing INTEGER,quarantined INTEGER,taken_at TEXT,capture_variant_id TEXT);
+        CREATE TABLE photos(id INTEGER PRIMARY KEY,project_id INTEGER,path TEXT,filename TEXT,format TEXT,width INTEGER,height INTEGER,mtime INTEGER,size_bytes INTEGER,missing INTEGER,quarantined INTEGER,taken_at TEXT,capture_variant_id TEXT);
         CREATE TABLE analyses(photo_id INTEGER PRIMARY KEY,version TEXT,data TEXT);
         CREATE TABLE burst_groups(id TEXT,project_id INTEGER);
         CREATE TABLE settings(project_id INTEGER,data TEXT);
@@ -307,7 +307,7 @@ fn schema_two_upgrade_preserves_projects_and_has_pre_upgrade_backup() {
     let db = temp.path().join("v2.sqlite");
     let conn = rusqlite::Connection::open(&db).unwrap();
     conn.execute_batch("CREATE TABLE projects(id INTEGER PRIMARY KEY,root TEXT,name TEXT,created_at TEXT,cache_root TEXT,groups_dirty INTEGER);
-        CREATE TABLE photos(id INTEGER PRIMARY KEY,project_id INTEGER,missing INTEGER,quarantined INTEGER);
+        CREATE TABLE photos(id INTEGER PRIMARY KEY,project_id INTEGER,path TEXT,filename TEXT,format TEXT,width INTEGER,height INTEGER,mtime INTEGER,size_bytes INTEGER,taken_at TEXT,capture_variant_id TEXT,missing INTEGER,quarantined INTEGER);
         CREATE TABLE analyses(photo_id INTEGER PRIMARY KEY,version TEXT,data TEXT NOT NULL DEFAULT '{}');
         CREATE TABLE burst_groups(id TEXT,project_id INTEGER,kind TEXT,members TEXT);
         INSERT INTO projects VALUES(1,'photos','kept','2020-01-01T00:00:00Z','cache',0);

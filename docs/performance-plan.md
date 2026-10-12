@@ -1,5 +1,28 @@
 # Selection performance
 
+## beta4 local measurements, 2026-10-12
+
+Windows GNU release, Ryzen 9 7940HS / 16 logical CPUs, the same manifest-verified 541 PPR-derived resized portrait JPEGs, fresh disposable application data/cache. Filesystem cache and temperature were not controlled. This is a single implementation run, not a paired final-installer comparison or an accuracy benchmark.
+
+| Measurement                                         | Result                                    |
+| --------------------------------------------------- | ----------------------------------------- |
+| Complete import / first 48 service-visible rows     | 645ms / 171ms                             |
+| Basic CPU analysis, 12 bounded workers              | 38.6 photos/s, 541 completed, no failures |
+| Fresh / cached preview service P95                  | 64.3ms / 26.7ms                           |
+| Foreground preview service P95 under thumbnail load | 32.4ms                                    |
+| Fresh browser switch P95 / maximum, 30 switches     | 136.6ms / 192.2ms                         |
+| Cached browser switch P95                           | 75.4ms                                    |
+| Browser switch P95 / maximum during active analysis | 73.0ms / 108.5ms                          |
+| Rating display after action                         | 26.8ms                                    |
+
+Chrome measured action to decoded image plus two animation frames at 1440×960. Analysis was still running after the timed switches. The review harness selected Auto and reported missing DirectML assets with bounded CPU fallback; no GPU acceleration is claimed. Observed main-thread long tasks were 52ms and 77ms. Native WebView2, full-resolution RAW and other devices remain unmeasured. Resource peaks were not captured in these timing reports.
+
+An independent warm synthetic SQLite experiment used 10,000 photos, approximately 18,890 bytes of analysis JSON each, and a 100-item score-sorted page at offset 200. Seven runs: paging median 31.1ms, maximum 35.1ms; materialize-all-then-sort behavior oracle median 2173ms, maximum 2657ms. Result ids matched. The oracle emulates the old strategy; it is not a separately built beta3 binary. Projection indexes do not imply every filter/sort uses an index-only plan.
+
+Reproduce the catalog experiment with `cargo test --release -p iris-core --test catalog catalog_scale_measurement --locked -- --ignored --nocapture`. Public-data service/browser harnesses remain `tools/benchmark-selection.py` and `tools/benchmark-selection-browser.mjs`. Reports are ignored `artifacts/beta4-selection-performance.json` and `artifacts/beta4-browser-performance.json`; portrait manifest SHA-256 is `ef540bd30f1e62b4dbce619119b9796f8c919785e42fb212befd1d2df61abc09`, measured daemon SHA-256 `29227a52c971339a442862e5045aff303e8b21c9b6a337ddfe6797bf215a77dc`.
+
+Measurements preceded the beta4 version-metadata bump and final documentation/compact-layout adjustments. They validate that implementation binary and recorded workload, not a subsequently packaged release. No claim is made that a single run establishes a general throughput increase over beta3.
+
 The selection workflow must remain responsive while importing and analyzing public fixtures. Rust alone does not prevent blocking database locks, serial inference or unbounded image requests.
 
 ## Implementation and acceptance

@@ -1,4 +1,24 @@
 use super::*;
+use iris_core::vision::detail::{DetailEvidence, DetailRequest};
+
+#[utoipa::path(post,path="/api/v1/photos/{id}/detail",params(("id"=i64,Path)),request_body=DetailRequest,responses((status=200,body=DetailEvidence)))]
+pub async fn detail(
+    State(state): State<AppState>,
+    Path(id): Path<i64>,
+    Json(request): Json<DetailRequest>,
+) -> ApiResult<DetailEvidence> {
+    let prepared = run(state.clone(), move |services| {
+        services.prepare_detail(id, &request)
+    })
+    .await?;
+    // At most one full-resolution region pass; visible previews retain the other decoder.
+    let bytes = state
+        .media_queue
+        .render(2, move |cancel| prepared.render(cancel))
+        .await?;
+    run(state, move |services| services.photo_path(id)).await?;
+    Ok(Json(serde_json::from_slice(&bytes)?))
+}
 
 #[derive(Default, Deserialize)]
 pub struct MediaQuery {

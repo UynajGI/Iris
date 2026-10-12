@@ -63,6 +63,51 @@ export class IrisClient {
     );
   };
   photo = (id: number) => this.transport.request<Photo>('GET', `/api/v1/photos/${id}`);
+  browseContext = (id: number, context: import('./types.js').BrowseContext, signal?: AbortSignal) =>
+    this.transport.request<unknown>('PUT', `${projectPath(id)}/browse-context`, context, signal);
+  detail = (id: number, request: import('./types.js').DetailRequest, signal?: AbortSignal) =>
+    this.transport.request<import('./types.js').DetailEvidence>(
+      'POST',
+      `/api/v1/photos/${id}/detail`,
+      request,
+      signal
+    );
+  scenes = (id: number, signal?: AbortSignal) =>
+    this.transport.request<import('./types.js').SceneGroup[]>(
+      'GET',
+      `${projectPath(id)}/scenes`,
+      undefined,
+      signal
+    );
+  correctScene = (id: number, request: import('./types.js').SceneCorrection) =>
+    this.transport.request<import('./types.js').SceneGroup[]>(
+      'PUT',
+      `${projectPath(id)}/scenes`,
+      request
+    );
+  compare = (id: number, request: import('./types.js').ComparisonRequest, signal?: AbortSignal) =>
+    this.transport.request<import('./types.js').ComparisonReport>(
+      'POST',
+      `${projectPath(id)}/compare`,
+      request,
+      signal
+    );
+  searchStatus = (id: number, signal?: AbortSignal) =>
+    this.transport.request<import('./types.js').SearchStatus>(
+      'GET',
+      `${projectPath(id)}/search/status`,
+      undefined,
+      signal
+    );
+  search = (id: number, request: import('./types.js').SearchRequest, signal?: AbortSignal) =>
+    this.transport.request<import('./types.js').SearchResponse>(
+      'POST',
+      `${projectPath(id)}/search`,
+      request,
+      signal
+    );
+  indexSearch = (id: number) =>
+    this.transport.request<Progress>('POST', `${projectPath(id)}/search/index`);
   media = (
     id: number,
     kind: 'thumb' | 'preview' | 'original',
