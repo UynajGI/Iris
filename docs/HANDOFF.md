@@ -1,6 +1,6 @@
 # Iris 交接
 
-更新：2026-10-12。Iris / 伊人为 GPL-3.0-or-later 的本地选片软件。当前源码版本为 `0.1.0-beta4`，PR #17 已合并；后续五项功能在 `codex/selection-workflow` 开发，Rust 验证交给 CI。beta4 安装包尚未发布。见[选片功能补齐计划](selection-workflow-plan.md)、[beta4 说明](releases/v0.1.0-beta4.md)与[发布流程](releasing.md)。
+更新：2026-10-13。Iris / 伊人为 GPL-3.0-or-later 的本地选片软件。当前源码版本为 `0.1.0-beta4`，PR #17 已合并；后续五项功能已在 `codex/selection-workflow` 接通，交付于 [PR #18](https://github.com/UynajGI/Iris/pull/18)。Rust 功能回归与 RAW 区域读取由 CI 验证通过，接口契约已同步 CI 的实际生成结果，最新整轮状态以 PR 检查为准。beta4 安装包尚未发布。见[选片功能补齐计划](selection-workflow-plan.md)、[beta4 说明](releases/v0.1.0-beta4.md)与[发布流程](releasing.md)。
 
 ## 当前实现
 
