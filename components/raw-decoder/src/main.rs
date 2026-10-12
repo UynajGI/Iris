@@ -14,13 +14,6 @@ fn run() -> Result<()> {
         bail!("usage: iris-raw-decoder metadata|develop|region:x,y,w,h <RAW file>");
     }
     let path = Path::new(&args[2]);
-    if let Some(request) = args[1].to_string_lossy().strip_prefix("region:") {
-        anyhow::ensure!(
-            pixels <= 60_000_000,
-            "Native regional RAW detail exceeds the 60MP sensor limit"
-        );
-        return region::develop(decoder.raw_image(&input, &params, false)?, request);
-    }
     anyhow::ensure!(
         std::fs::metadata(path)?.len() <= 512 * 1024 * 1024,
         "RAW exceeds compressed input safety limit"
@@ -43,6 +36,13 @@ fn run() -> Result<()> {
             })
         );
         return Ok(());
+    }
+    if let Some(request) = args[1].to_string_lossy().strip_prefix("region:") {
+        anyhow::ensure!(
+            pixels <= 60_000_000,
+            "Native regional RAW detail exceeds the 60MP sensor limit"
+        );
+        return region::develop(decoder.raw_image(&input, &params, false)?, request);
     }
     anyhow::ensure!(
         pixels <= 24_000_000,

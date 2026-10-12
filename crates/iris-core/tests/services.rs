@@ -950,7 +950,8 @@ fn xmp_destination_collisions_fail_before_any_writes_in_both_overwrite_modes() {
                 .unwrap();
         }
         let existing = root.join("a.xmp");
-        fs::write(&existing, b"existing sidecar metadata").unwrap();
+        let original = "<rdf:RDF xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#'><rdf:Description xmlns:dc='http://purl.org/dc/elements/1.1/' dc:rights='existing sidecar metadata'/></rdf:RDF>";
+        fs::write(&existing, original).unwrap();
         for overwrite in [false, true] {
             let error = svc
                 .export_xmp(id, "all", overwrite)
@@ -964,16 +965,17 @@ fn xmp_destination_collisions_fail_before_any_writes_in_both_overwrite_modes() {
                 !root.join("00-first.xmp").exists(),
                 "no earlier photo may be written"
             );
-            assert_eq!(fs::read(&existing).unwrap(), b"existing sidecar metadata");
+            assert_eq!(fs::read(&existing).unwrap(), original.as_bytes());
             for (path, bytes) in &originals {
                 assert_eq!(fs::read(path).unwrap(), *bytes);
             }
         }
         // A scoped export with only one of the colliding photos remains available.
         assert_eq!(svc.export_xmp(id, "reject", true).unwrap().written, 1);
-        assert!(fs::read_to_string(existing)
-            .unwrap()
-            .contains("Rating='-1'"));
+        let exported = fs::read_to_string(existing).unwrap();
+        assert!(exported.contains("Rating='0'"));
+        assert!(exported.contains("iris:Decision='reject'"));
+        assert!(exported.contains("dc:rights='existing sidecar metadata'"));
     }
 }
 

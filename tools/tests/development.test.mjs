@@ -118,5 +118,9 @@ test('API generation owns its compiler independently of the application', () => 
   const workflow = readFileSync(resolve(root, '.github/workflows/verify.yml'), 'utf8');
   const rustJob = workflow.split('\n  rust:')[1].split('\n  local-media:')[0];
   assert.match(rustJob, /run: npm ci/);
-  assert.ok(rustJob.indexOf('run: npm ci') < rustJob.indexOf('tools/api.mjs --check'));
+  assert.ok(rustJob.indexOf('run: npm ci') < rustJob.indexOf('node tools/api.mjs'));
+  assert.match(
+    rustJob,
+    /git diff --exit-code -- docs\/openapi\.json apps\/shell\/src\/generated\/api\.d\.ts/
+  );
 });
