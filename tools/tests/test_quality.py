@@ -3,9 +3,12 @@
 import hashlib
 import importlib.util
 import io
+import tempfile
 import unittest
+import urllib.error
 import zipfile
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 ROOT = Path(__file__).resolve().parents[2]
 SPEC = importlib.util.spec_from_file_location("quality", ROOT / "tools/quality.py")
@@ -14,6 +17,69 @@ SPEC.loader.exec_module(quality)
 
 
 class QualityTests(unittest.TestCase):
+    def test_transient_download_failures_retry_then_return_complete_payload(self):
+        for failure in [
+            urllib.error.HTTPError("https://example.test/tool", code, "transient", {}, None)
+            for code in [408, 429, 500, 502, 503, 504]
+        ] + [urllib.error.URLError("connection reset"), TimeoutError("read timed out")]:
+            with self.subTest(failure=failure):
+                response = MagicMock()
+                response.__enter__.return_value.read.return_value = b"complete archive"
+                with (
+                    patch.object(
+                        quality.urllib.request, "urlopen", side_effect=[failure, response]
+                    ) as fetch,
+                    patch.object(quality.time, "sleep") as sleep,
+                ):
+                    self.assertEqual(
+                        quality.download_tool("https://example.test/tool"), b"complete archive"
+                    )
+                    self.assertEqual(fetch.call_count, 2)
+                    sleep.assert_called_once_with(2)
+
+    def test_download_retries_are_bounded_and_fail_closed(self):
+        failure = urllib.error.HTTPError("https://example.test/tool", 504, "timeout", {}, None)
+        with (
+            patch.object(quality.urllib.request, "urlopen", side_effect=failure) as fetch,
+            patch.object(quality.time, "sleep") as sleep,
+            self.assertRaises(urllib.error.HTTPError),
+        ):
+            quality.download_tool("https://example.test/tool")
+        self.assertEqual(fetch.call_count, 3)
+        self.assertEqual([call.args[0] for call in sleep.call_args_list], [2, 4])
+
+    def test_permanent_http_errors_are_not_retried(self):
+        for code in [401, 403, 404]:
+            with self.subTest(code=code):
+                failure = urllib.error.HTTPError(
+                    "https://example.test/tool", code, "permanent", {}, None
+                )
+                with (
+                    patch.object(quality.urllib.request, "urlopen", side_effect=failure) as fetch,
+                    patch.object(quality.time, "sleep") as sleep,
+                    self.assertRaises(urllib.error.HTTPError),
+                ):
+                    quality.download_tool("https://example.test/tool")
+                fetch.assert_called_once()
+                sleep.assert_not_called()
+
+    def test_invalid_download_never_enters_tool_cache(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            cache = Path(temporary)
+            with (
+                patch.object(quality, "CACHE", cache),
+                patch.object(
+                    quality,
+                    "tool_spec",
+                    return_value=("test.zip", "0" * 64, "https://example.test/tool"),
+                ),
+                patch.object(quality, "download_tool", return_value=b"tampered") as fetch,
+                self.assertRaisesRegex(ValueError, "SHA256 mismatch"),
+            ):
+                quality.tool("actionlint", install=True)
+            fetch.assert_called_once()
+            self.assertEqual(list(cache.iterdir()), [])
+
     def test_archive_is_verified_before_executable_is_read(self):
         data = io.BytesIO()
         with zipfile.ZipFile(data, "w") as archive:
