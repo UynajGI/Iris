@@ -9,6 +9,7 @@ pub(super) const MAX_BYTES: u64 = 8 * 1024 * 1024;
 const RDF: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
 const XMP: &str = "http://ns.adobe.com/xap/1.0/";
 const IRIS: &str = "urn:iris:selection:1.0";
+const XML: &str = "http://www.w3.org/XML/1998/namespace";
 
 fn owned(namespace: Option<&str>, name: &str) -> bool {
     (namespace == Some(XMP) && matches!(name, "Rating" | "Label"))
@@ -42,18 +43,25 @@ fn description(photo: &Photo, subject: &str) -> Result<String> {
     ))
 }
 
-fn describes_photo(node: Node<'_, '_>, photo: &Photo, source: &Path) -> bool {
+fn subject_url(node: Node<'_, '_>, source: &Path) -> Option<url::Url> {
+    let mut base = url::Url::from_file_path(source).ok()?;
+    let ancestors: Vec<_> = std::iter::successors(Some(node), |node| node.parent()).collect();
+    for ancestor in ancestors.into_iter().rev() {
+        if let Some(value) = ancestor.attribute((XML, "base")) {
+            base = base.join(value).ok()?;
+        }
+    }
+    base.join(node.attribute((RDF, "about")).unwrap_or("")).ok()
+}
+
+fn describes_photo(node: Node<'_, '_>, source: &Path) -> bool {
     if !node.has_tag_name((RDF, "Description")) {
         return false;
-    }
-    let about = node.attribute((RDF, "about")).unwrap_or("");
-    if about.is_empty() || about == photo.filename || about == photo.path {
-        return true;
     }
     let Ok(base) = url::Url::from_file_path(source) else {
         return false;
     };
-    let Ok(resolved) = base.join(about) else {
+    let Some(resolved) = subject_url(node, source) else {
         return false;
     };
     if resolved.scheme() != "file" || resolved.query().is_some() || resolved.fragment().is_some() {
@@ -74,12 +82,9 @@ fn describes_photo(node: Node<'_, '_>, photo: &Photo, source: &Path) -> bool {
     }
 }
 
-fn removed_properties(rdf: Node<'_, '_>, photo: &Photo, source: &Path) -> Vec<Range<usize>> {
+fn removed_properties(rdf: Node<'_, '_>, source: &Path) -> Vec<Range<usize>> {
     let mut ranges = Vec::new();
-    for node in rdf
-        .children()
-        .filter(|n| describes_photo(*n, photo, source))
-    {
+    for node in rdf.children().filter(|n| describes_photo(*n, source)) {
         if owns_entire_description(node) {
             ranges.push(node.range());
             continue;
@@ -132,16 +137,25 @@ pub(super) fn merge(photo: &Photo, original: Option<&str>, path: &Path) -> Resul
         .collect();
     anyhow::ensure!(roots.len() == 1, "XMP must contain exactly one RDF root");
     let rdf = roots[0];
-    let subject = rdf
+    let explicit_subject = rdf
         .children()
-        .filter(|n| describes_photo(*n, photo, path))
+        .filter(|n| describes_photo(*n, path))
         .filter_map(|n| n.attribute((RDF, "about")))
-        .find(|about| !about.is_empty())
-        .unwrap_or("");
-    let description = description(photo, subject)?;
+        .any(|about| !about.is_empty())
+        || document
+            .descendants()
+            .any(|n| n.attribute((XML, "base")).is_some());
+    let subject = if explicit_subject {
+        url::Url::from_file_path(path)
+            .map_err(|_| anyhow::anyhow!("XMP source path must be absolute"))?
+            .to_string()
+    } else {
+        String::new()
+    };
+    let description = description(photo, &subject)?;
     let range = rdf.range();
     let source = &original[range.clone()];
-    let mut edits: Vec<_> = removed_properties(rdf, photo, path)
+    let mut edits: Vec<_> = removed_properties(rdf, path)
         .into_iter()
         .map(|r| (r, String::new()))
         .collect();
@@ -178,7 +192,7 @@ mod tests {
     use crate::domain::{Action, AnalysisStatus};
 
     fn merge(photo: &Photo, original: Option<&str>) -> Result<String> {
-        super::merge(photo, original, Path::new(&photo.path))
+        super::merge(photo, original, &std::env::current_dir()?.join(&photo.path))
     }
 
     fn photo() -> Photo {
@@ -306,7 +320,7 @@ mod tests {
             let doc = Document::parse(&output).unwrap();
             let ratings: Vec<_> = doc
                 .descendants()
-                .filter(|n| describes_photo(*n, &p, &path))
+                .filter(|n| describes_photo(*n, &path))
                 .filter_map(|n| n.attribute((XMP, "Rating")))
                 .collect();
             assert_eq!(ratings, vec!["3"]);
@@ -322,6 +336,50 @@ mod tests {
         let original = format!("<r:RDF xmlns:r='{RDF}' xmlns:m='{XMP}'><r:Description r:about='人 像&amp;片.jpg' m:Rating='5'/></r:RDF>");
         let output = super::merge(&unicode, Some(&original), &path).unwrap();
         assert_marks(&output, &unicode);
-        assert!(output.contains("rdf:about='人 像&amp;片.jpg'"));
+        let document = Document::parse(&output).unwrap();
+        assert!(document.descendants().any(|n| describes_photo(n, &path)));
+    }
+
+    #[test]
+    fn relative_subjects_resolve_from_the_media_directory_with_uri_escaping() {
+        let temp = tempfile::tempdir().unwrap();
+        for (filename, about, other_about) in [
+            ("a.jpg", "a.jpg", "album/a.jpg"),
+            ("a#b.jpg", "a%23b.jpg", "a#b.jpg"),
+            ("a%23b.jpg", "a%2523b.jpg", "a%23b.jpg"),
+        ] {
+            let mut p = photo();
+            p.filename = filename.into();
+            p.path = format!("album/{filename}");
+            let path = temp.path().join(&p.path);
+            let other = format!("<r:Description r:about='{other_about}' m:Rating='4' m:Label='Red' i:Decision='keep'/>");
+            let original = format!("<r:RDF xmlns:r='{RDF}' xmlns:m='{XMP}' xmlns:i='{IRIS}'><r:Description r:about='{about}' m:Rating='5'/>{other}</r:RDF>");
+            let output = super::merge(&p, Some(&original), &path).unwrap();
+            assert!(output.contains(&other));
+            let document = Document::parse(&output).unwrap();
+            let ratings: Vec<_> = document
+                .descendants()
+                .filter(|n| describes_photo(*n, &path))
+                .filter_map(|n| n.attribute((XMP, "Rating")))
+                .collect();
+            assert_eq!(ratings, vec!["3"]);
+            assert_eq!(super::merge(&p, Some(&output), &path).unwrap(), output);
+        }
+    }
+
+    #[test]
+    fn inherited_xml_base_is_resolved_before_updating_a_subject() {
+        let temp = tempfile::tempdir().unwrap();
+        let p = photo();
+        let path = temp.path().join(&p.filename);
+        let other = "<r:Description r:about='synthetic.jpg' m:Rating='4'/>";
+        let original = format!("<r:RDF xmlns:r='{RDF}' xmlns:m='{XMP}' xml:base='other/'><r:Description r:about='../synthetic.jpg' m:Rating='5'/>{other}</r:RDF>");
+        let output = super::merge(&p, Some(&original), &path).unwrap();
+        assert!(output.contains(other));
+        let document = Document::parse(&output).unwrap();
+        assert!(document
+            .descendants()
+            .any(|n| describes_photo(n, &path) && n.attribute((XMP, "Rating")) == Some("3")));
+        assert_eq!(super::merge(&p, Some(&output), &path).unwrap(), output);
     }
 }

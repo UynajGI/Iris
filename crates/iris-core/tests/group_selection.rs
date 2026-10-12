@@ -252,6 +252,7 @@ fn linked_locked_variant_is_a_conflict_not_a_batch_failure() {
             rusqlite::params![ids[0], ids[1]],
         )
         .unwrap();
+    rebuild(&mut services, project, &ids);
     services
         .set_group_intent(
             project,
