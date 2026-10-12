@@ -41,7 +41,9 @@ export function generate(directory = root, { release = false } = {}) {
       maxBuffer: 16 * 1024 * 1024,
     })
       .replaceAll('\r\n', '\n')
-      .trimEnd() + '\n'
+      // Keep generated Markdown stable under the mandatory commit formatter.
+      .replace(/\n{3,}/g, '\n\n')
+      .trim() + '\n'
   );
 }
 

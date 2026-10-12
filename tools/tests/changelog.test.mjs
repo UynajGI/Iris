@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { changelogEnvironment, generate, releaseNotes } from '../changelog.mjs';
 
 function fixture() {
@@ -54,6 +54,30 @@ test('virtual release equals real tag and release metadata commits do not cause 
     const latest = generate(directory, { release: true });
     assert.match(latest, /reject linked model paths/);
     assert.doesNotMatch(latest, /first beta|prepare beta2/);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('generated changelogs survive the repository commit formatter unchanged', () => {
+  const { directory } = fixture();
+  try {
+    const root = fileURLToPath(new URL('../../', import.meta.url));
+    for (const release of [false, true]) {
+      const content = generate(directory, { release });
+      const formatted = execFileSync(
+        process.execPath,
+        [
+          resolve(root, 'node_modules/prettier/bin/prettier.cjs'),
+          '--config',
+          resolve(root, '.prettierrc.json'),
+          '--stdin-filepath',
+          resolve(directory, 'CHANGELOG.md'),
+        ],
+        { input: content, encoding: 'utf8' }
+      );
+      assert.equal(content, formatted);
+    }
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
