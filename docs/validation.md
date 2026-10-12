@@ -5,6 +5,7 @@
 ## beta3 本机检查点
 
 - 提交前统一重跑：Rust workspace 200 项通过、21 项忽略；Windows `window_lifecycle::tests` 两项通过。源码行为检查在版本号提升前完成，版本元数据另经 `check-release.py` 与 API 生成/比较验证。
+- 工具检查首次有 13 项因本机缺少 Gitleaks 失败，其余 128 项通过；按 `make quality-setup` 补齐固定摘要工具后，受影响的 Git 钩子专项 21 项全部通过。实际功能提交的暂存安全、密钥扫描、格式、Ruff、工作流、复杂度和 commitlint 检查通过；没有跳过提交钩子。原始记录在本机 `artifacts/beta3-*.log`。
 
 - 性能阶段 core/daemon：193 通过、21 忽略；前端 104 通过、1 跳过。类型检查、构建、API 比较、格式、复杂度与公开源码边界检查通过。提交前统一检查另列，不与历史数量累加。
 - 541 张 PPR 人像临时副本完成两轮基础配对、DINO 配对与浏览器首次/缓存/分析并发流程；源哈希保持。测量与缺口见[性能验收](performance-plan.md)。
