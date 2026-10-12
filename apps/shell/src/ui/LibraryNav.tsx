@@ -35,7 +35,7 @@ export function LibraryNav({
         <button
           type="button"
           className="nav-item"
-          aria-pressed={allPhotos}
+          aria-pressed={allPhotos && !state.groupSession}
           onClick={() => void go(() => store.setFilter({ limit: 200 }))}
         >
           <Icon name="library" />

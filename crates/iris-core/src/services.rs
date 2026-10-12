@@ -1,15 +1,24 @@
 mod cache;
+mod catalog;
+mod comparison;
 mod decisions;
+mod detail;
 mod exports;
 mod media;
 mod photos;
 mod projects;
 mod quarantine;
+mod retrieval;
 mod scan;
 mod scan_pipeline;
+mod scenes;
 mod settings;
 
+pub use comparison::ComparisonRequest;
+pub use detail::DetailJob;
 pub use media::CachedImageJob;
+pub use retrieval::{RetrievalCoverage, RetrievalPhoto, SearchHit};
+pub use scenes::{parse_capture_time, SceneCorrection, SceneGroup};
 
 use crate::{domain::*, Store};
 use anyhow::{bail, Context, Result};
@@ -170,16 +179,6 @@ fn analysis_status(analysis: Option<&Value>, settings: &Value) -> AnalysisStatus
 }
 fn now() -> String {
     chrono::Utc::now().to_rfc3339()
-}
-fn score(p: &Photo) -> f64 {
-    if p.analysis_status != AnalysisStatus::Current {
-        return -1.;
-    }
-    p.analysis
-        .as_ref()
-        .and_then(|a| a.get("composite_score"))
-        .and_then(Value::as_f64)
-        .unwrap_or(-1.)
 }
 fn modified(meta: &fs::Metadata) -> Result<i64> {
     Ok(meta

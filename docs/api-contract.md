@@ -6,6 +6,23 @@ token, including bootstrap and media. The daemon binds IPv4 loopback, default
 random port, and prints one startup JSON line `{base_url,token,version}` to stdout.
 Credentials are never served by an unauthenticated HTTP endpoint.
 
+## beta4 selection endpoints
+
+All new endpoints use the same authentication and project/source availability checks. Generated field definitions are in [openapi.json](openapi.json).
+
+| Endpoint                            | Behavior                                                                                                                               |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `PUT /projects/{id}/browse-context` | Focus, comparison and neighbor ids plus client/revision; changes queue priority without starting a job. Hints expire after 30 seconds. |
+| `POST /photos/{id}/detail`          | Optional face index or normalized oriented region; returns full-detail, preview-only or unavailable evidence without changing scores.  |
+| `GET /projects/{id}/scenes`         | Scene candidates and contained strict burst ids; separate from duplicates.                                                             |
+| `PUT /projects/{id}/scenes`         | Assign selected available photos together, split with one id, or reset selected manual assignments.                                    |
+| `POST /projects/{id}/compare`       | 2–32 available photos and optional member reference; current evidence, score differences and geometry-only face correspondences.       |
+| `GET /projects/{id}/search/status`  | Explicit local model/hash status and compatible index coverage; readiness is not accuracy validation.                                  |
+| `POST /projects/{id}/search/index`  | Explicit cancellable image-index job using the existing progress/pause/resume/cancel endpoints.                                        |
+| `POST /projects/{id}/search`        | Local text query and optional limit, 1–200; exact cosine hits and index coverage. Missing models fail explicitly.                      |
+
+Photo filtering additionally accepts transient `scene_id` and `photo_id` scopes. They combine with existing filters/sorts and are applied before full analysis materialization. Frontend preferences do not restore these navigation scopes on project reopen. Retrieval model compatibility and installation boundaries are described in [local-search.md](local-search.md).
+
 `GET /api/v1/devices/gpu` returns `status`, `source`, `default_device_id`,
 `adapters`, `inference_verified` and `reason`. Status is `available`,
 `unavailable` (DXGI failure) or `unsupported` (non-Windows). Enumeration failures

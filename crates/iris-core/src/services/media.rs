@@ -102,18 +102,18 @@ fn render_cached_image(
     Ok(bytes)
 }
 
-fn publish_cached_image(destination: &Path, bytes: &[u8]) -> Result<()> {
+pub(super) fn publish_cached_image(destination: &Path, bytes: &[u8]) -> Result<()> {
     // A competing renderer may populate the cache; never truncate that file.
     let temporary = destination.with_extension(format!("{}.tmp", uuid::Uuid::new_v4()));
     let mut file = OpenOptions::new()
         .write(true)
         .create_new(true)
         .open(&temporary)?;
-    file.write_all(&bytes)?;
+    file.write_all(bytes)?;
     file.sync_all()?;
     drop(file);
     // Publish atomically without replacing a competing renderer's file.
-    let publication = crate::cache_publish::publish_noclobber(&temporary, &destination);
+    let publication = crate::cache_publish::publish_noclobber(&temporary, destination);
     let _ = fs::remove_file(&temporary);
     match publication {
         Ok(()) => {}

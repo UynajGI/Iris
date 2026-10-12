@@ -1,12 +1,15 @@
 //! Offline, bounded-preview vision. Scores are heuristics, never calibrated probabilities.
+pub mod comparison;
 mod composition;
 mod decode;
+pub mod detail;
 pub mod dinov3;
 mod eye_quality;
 mod faceocc;
 mod metrics;
 mod models;
 mod niqe;
+pub mod retrieval;
 pub mod runtime;
 mod scoring;
 mod scrfd;

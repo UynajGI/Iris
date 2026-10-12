@@ -1,5 +1,5 @@
 // Generated from iris-daemon OpenAPI. Do not edit.
-// Contract SHA-256: 2ef3349574932640689ca3d8db2659deb2c0dd5b4d0ce64b91f0e4b0d88f284a
+// Contract SHA-256: dc521a29e11fdb8499342cde1b8befa17a9ffac6af5a818d6c088ae5d3c98913
 export interface paths {
     "/api/v1/bootstrap": {
         parameters: {
@@ -107,6 +107,22 @@ export interface paths {
         get: operations["photo"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/photos/{id}/detail": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["detail"];
         delete?: never;
         options?: never;
         head?: never;
@@ -273,6 +289,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/browse-context": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["browse_context"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/cache": {
         parameters: {
             query?: never;
@@ -363,6 +395,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["cancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/compare": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["compare_photos"];
         delete?: never;
         options?: never;
         head?: never;
@@ -673,6 +721,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/scenes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["scenes"];
+        put: operations["correct_scene"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["search"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/search/index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["index_search"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/search/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["search_status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/undo": {
         parameters: {
             query?: never;
@@ -813,6 +925,28 @@ export interface components {
             recovery_notice?: string | null;
             version: string;
         };
+        /** @description Browsing changes only queued work, never starts a job or changes its scope. */
+        BrowseContext: {
+            /**
+             * @description Stable id for one window; monotonically increasing revisions reject late requests.
+             * @default
+             */
+            client_id: string;
+            /** @default [] */
+            comparison_photo_ids: number[];
+            /**
+             * Format: int64
+             * @default null
+             */
+            focused_photo_id: number | null;
+            /** @default [] */
+            nearby_photo_ids: number[];
+            /**
+             * Format: int64
+             * @default 0
+             */
+            revision: number;
+        };
         BurstGroup: {
             assessment?: components["schemas"]["GroupAssessment"] | null;
             id: string;
@@ -847,6 +981,28 @@ export interface components {
         };
         /** @enum {string} */
         ColorLabel: "none" | "red" | "yellow" | "green" | "blue" | "purple";
+        ComparisonMember: {
+            /** Format: double */
+            exposure_mean_delta?: number | null;
+            face_correspondences: components["schemas"]["FaceCorrespondence"][];
+            face_count?: number | null;
+            /** Format: int64 */
+            photo_id: number;
+            /** Format: double */
+            score_delta?: number | null;
+        };
+        ComparisonReport: {
+            assessment: components["schemas"]["GroupAssessment"];
+            members: components["schemas"]["ComparisonMember"][];
+            method: string;
+            /** Format: int64 */
+            reference_photo_id?: number | null;
+        };
+        ComparisonRequest: {
+            photo_ids: number[];
+            /** Format: int64 */
+            reference_photo_id?: number | null;
+        };
         /** @description Explainable portrait-placement geometry, not a learned aesthetic assessment. */
         Composition: {
             /** Format: double */
@@ -874,6 +1030,37 @@ export interface components {
         };
         DestinationRequest: {
             destination: string;
+        };
+        DetailEvidence: {
+            /** Format: int32 */
+            crop_height: number;
+            /** Format: int32 */
+            crop_width: number;
+            exposure?: components["schemas"]["Exposure"] | null;
+            /** Format: int32 */
+            measured_height: number;
+            /** Format: int32 */
+            measured_width: number;
+            method: string;
+            reason?: string | null;
+            region: number[];
+            /** Format: double */
+            sharpness_lap?: number | null;
+            /** Format: int32 */
+            source_height: number;
+            /** Format: int32 */
+            source_width: number;
+            /** @description full_detail, preview_only, or unavailable. No automatic reject decision. */
+            state: string;
+        };
+        DetailRequest: {
+            /** @default null */
+            face_index: number | null;
+            /**
+             * @description x, y, width, height in the oriented image, normalized to 0..1.
+             * @default null
+             */
+            region: number[] | null;
         };
         /** @description `available` means file/hash/metadata checks passed, not inference or accuracy validation. */
         DetectorModelStatus: {
@@ -962,6 +1149,12 @@ export interface components {
             /** Format: float */
             smile_score?: number | null;
             unreliable_reason?: string | null;
+        };
+        FaceCorrespondence: {
+            face_index?: number | null;
+            reference_face_index: number;
+            /** @description geometry_candidate or uncertain; users must verify correspondence. */
+            state: string;
         };
         /** @enum {string} */
         FaceDetectorProvider: "yunet" | "scrfd_500m";
@@ -1159,8 +1352,15 @@ export interface components {
             include_missing?: boolean | null;
             limit?: number | null;
             offset?: number | null;
+            /**
+             * Format: int64
+             * @description Reveal a search hit without loading an entire project into the frontend.
+             */
+            photo_id?: number | null;
             /** Format: int32 */
             rating?: number | null;
+            /** @description Transient scene navigation scope; other filters and pagination still apply. */
+            scene_id?: string | null;
             sort?: string | null;
             verdict?: string | null;
         };
@@ -1206,9 +1406,33 @@ export interface components {
             project_id: number;
             state: string;
         };
+        RetrievalCoverage: {
+            indexed: number;
+            pending: number;
+            total: number;
+        };
+        RetrievalStatus: {
+            dimensions?: number | null;
+            label?: string | null;
+            reason?: string | null;
+            space_key?: string | null;
+            state: string;
+        };
         ScanRequest: {
             /** @default false */
             retry_failed_only: boolean;
+        };
+        SceneCorrection: {
+            photo_ids: number[];
+            reset?: boolean;
+        };
+        SceneGroup: {
+            burst_group_ids: string[];
+            id: string;
+            /** @description scene_candidate, manual, or unsequenced; never an exact-duplicate judgment. */
+            kind: string;
+            member_photo_ids: number[];
+            reason: string;
         };
         ScoreBreakdown: {
             components: components["schemas"]["ScoreComponent"][];
@@ -1256,6 +1480,25 @@ export interface components {
              * @description Actual normalized share inside this category; zero for missing terms.
              */
             weight: number;
+        };
+        SearchHit: {
+            /** Format: int64 */
+            photo_id: number;
+            /** Format: double */
+            similarity: number;
+        };
+        SearchRequest: {
+            limit?: number | null;
+            query: string;
+        };
+        SearchResponse: {
+            coverage: components["schemas"]["RetrievalCoverage"];
+            hits: components["schemas"]["SearchHit"][];
+            space_key: string;
+        };
+        SearchStatus: {
+            coverage?: components["schemas"]["RetrievalCoverage"] | null;
+            model: components["schemas"]["RetrievalStatus"];
         };
         SelectionEvidence: {
             basis: string;
@@ -1490,6 +1733,32 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Photo"];
+                };
+            };
+        };
+    };
+    detail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DetailRequest"];
+            };
+        };
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DetailEvidence"];
                 };
             };
         };
@@ -1777,6 +2046,32 @@ export interface operations {
             };
         };
     };
+    browse_context: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BrowseContext"];
+            };
+        };
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrowseContext"];
+                };
+            };
+        };
+    };
     cache_status: {
         parameters: {
             query?: never;
@@ -1910,6 +2205,32 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JobProgress"];
+                };
+            };
+        };
+    };
+    compare_photos: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ComparisonRequest"];
+            };
+        };
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComparisonReport"];
                 };
             };
         };
@@ -2376,6 +2697,124 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JobProgress"];
+                };
+            };
+        };
+    };
+    scenes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SceneGroup"][];
+                };
+            };
+        };
+    };
+    correct_scene: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SceneCorrection"];
+            };
+        };
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SceneGroup"][];
+                };
+            };
+        };
+    };
+    search: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SearchRequest"];
+            };
+        };
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchResponse"];
+                };
+            };
+        };
+    };
+    index_search: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobProgress"];
+                };
+            };
+        };
+    };
+    search_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchStatus"];
                 };
             };
         };

@@ -2,7 +2,11 @@ import { IrisClient } from './client.js';
 import { OptimisticMarks } from './optimistic-marks.js';
 import type { MarkRequest } from './types.js';
 import { EventBus, type ConnectionState, type DaemonEvent, type EventOptions } from './events.js';
-import { loadGroupMembers, type GroupSessionState } from './group-session.js';
+import {
+  loadGroupMembers,
+  MAX_COMPARISON_PHOTOS,
+  type GroupSessionState,
+} from './group-session.js';
 import { validatedPhotoFilter, ViewPreferencesRepository } from './view-preferences.js';
 import { readPhotoAnalysis, type PhotoAnalysisReadout } from './analysis-readout.js';
 import type {
@@ -312,6 +316,19 @@ export class IrisStore {
       this.update({ focusedId: id });
     }
   }
+  revealPhoto = (id: number): Promise<void> => {
+    const scope = this.scope();
+    return this.execute(async () => {
+      this.closeGroup();
+      const revision = ++this.viewRevision;
+      this.update({ filter: { limit: 200, offset: 0, photo_id: id }, selectedIds: [] });
+      await this.refresh();
+      if (!this.sameView(scope, revision)) return;
+      if (!this.state.photos.some((photo) => photo.id === id))
+        throw new Error('Photo is no longer available in this project');
+      this.update({ focusedId: id, reviewOpen: true });
+    }, scope);
+  };
   private sameView(scope: ProjectScope, revision: number): boolean {
     return this.isCurrent(scope) && revision === this.viewRevision;
   }
@@ -652,6 +669,8 @@ export class IrisStore {
   setComparisonCandidates = (ids: number[]): void => {
     const session = this.requireGroup();
     const comparisonIds = [...new Set(ids)];
+    if (comparisonIds.length > MAX_COMPARISON_PHOTOS)
+      throw new Error(`最多同时对比 ${MAX_COMPARISON_PHOTOS} 张照片，请先移除一张再加入`);
     if (comparisonIds.some((id) => !session.memberIds.includes(id)))
       throw new Error('Comparison candidates must belong to the active group');
     const focusedId =

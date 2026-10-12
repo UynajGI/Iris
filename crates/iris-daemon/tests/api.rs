@@ -67,6 +67,187 @@ async fn token_required_for_bootstrap_schema_and_library() {
 }
 
 #[tokio::test]
+async fn browsing_context_is_scoped_revisioned_and_never_starts_analysis() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("public-synthetic");
+    std::fs::create_dir(&root).unwrap();
+    let state = AppState::new(&temp.path().join("db.sqlite3"), temp.path().into()).unwrap();
+    let project = state
+        .services
+        .lock()
+        .unwrap()
+        .create_project(&root)
+        .unwrap();
+    let app = router(state.clone());
+    let path = format!("/api/v1/projects/{}/browse-context", project.id);
+    let newer = json!({"client_id":"window", "revision":2});
+    assert_eq!(
+        call(&app, None, "PUT", &path, newer.clone()).await.0,
+        StatusCode::UNAUTHORIZED
+    );
+    let (status, accepted) = call(&app, Some(&state.token), "PUT", &path, newer).await;
+    assert_eq!(status, StatusCode::OK);
+    let (_, older) = call(
+        &app,
+        Some(&state.token),
+        "PUT",
+        &path,
+        json!({"client_id":"window","revision":1}),
+    )
+    .await;
+    assert_eq!(older, accepted);
+    assert!(state.jobs.lock().unwrap().is_empty());
+    for invalid in [
+        json!({"focused_photo_id":-1}),
+        json!({"focused_photo_id":123456}),
+        json!({"comparison_photo_ids":vec![1;33]}),
+        json!({"nearby_photo_ids":vec![1;129]}),
+    ] {
+        assert_eq!(
+            call(&app, Some(&state.token), "PUT", &path, invalid)
+                .await
+                .0,
+            StatusCode::BAD_REQUEST
+        );
+    }
+    let unknown = format!("/api/v1/projects/{}/browse-context", project.id + 1);
+    assert_eq!(
+        call(&app, Some(&state.token), "PUT", &unknown, json!({}))
+            .await
+            .0,
+        StatusCode::BAD_REQUEST
+    );
+    let schema = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    assert_eq!(
+        schema["paths"]["/api/v1/projects/{id}/browse-context"]["put"]["requestBody"]["content"]
+            ["application/json"]["schema"]["$ref"],
+        "#/components/schemas/BrowseContext"
+    );
+}
+
+fn selection_fixture() -> (tempfile::TempDir, AppState, i64, Vec<i64>) {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("synthetic");
+    std::fs::create_dir(&root).unwrap();
+    for name in ["a.png", "b.png"] {
+        image::RgbImage::from_pixel(128, 128, image::Rgb([128; 3]))
+            .save(root.join(name))
+            .unwrap();
+    }
+    let state = AppState::new(
+        &temp.path().join("library.sqlite"),
+        temp.path().join("missing-models"),
+    )
+    .unwrap();
+    let (project, ids) = {
+        let mut services = state.services.lock().unwrap();
+        let id = services.create_project(&root).unwrap().id;
+        services.scan(id).unwrap();
+        let ids: Vec<_> = services
+            .photos(id, Default::default())
+            .unwrap()
+            .iter()
+            .map(|p| p.id)
+            .collect();
+        (id, ids)
+    };
+    (temp, state, project, ids)
+}
+#[tokio::test]
+async fn detail_scene_comparison_and_optional_search_have_real_scoped_contracts() {
+    let (_temp, state, project, ids) = selection_fixture();
+    let app = router(state.clone());
+    let token = Some(state.token.as_str());
+    let base = format!("/api/v1/projects/{project}");
+    let (status, evidence) = call(
+        &app,
+        token,
+        "POST",
+        &format!("/api/v1/photos/{}/detail", ids[0]),
+        json!({}),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{evidence}");
+    assert_eq!(evidence["state"], "full_detail");
+    let (status, scenes) = call(&app, token, "GET", &format!("{base}/scenes"), Value::Null).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(scenes.as_array().unwrap().len(), 2);
+    let (_, scenes) = call(
+        &app,
+        token,
+        "PUT",
+        &format!("{base}/scenes"),
+        json!({"photo_ids":ids}),
+    )
+    .await;
+    assert_eq!(scenes.as_array().unwrap().len(), 1);
+    assert_eq!(scenes[0]["kind"], "manual");
+    let (status, report) = call(
+        &app,
+        token,
+        "POST",
+        &format!("{base}/compare"),
+        json!({"photo_ids":ids}),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(report["members"].as_array().unwrap().len(), 2);
+    assert!(report["members"][0]["score_delta"].is_null());
+    let (_, status) = call(
+        &app,
+        token,
+        "GET",
+        &format!("{base}/search/status"),
+        Value::Null,
+    )
+    .await;
+    assert_eq!(status["model"]["state"], "disabled");
+    assert_eq!(
+        call(
+            &app,
+            token,
+            "POST",
+            &format!("{base}/search"),
+            json!({"query":"人像"})
+        )
+        .await
+        .0,
+        StatusCode::BAD_REQUEST
+    );
+    assert_eq!(
+        call(
+            &app,
+            token,
+            "POST",
+            &format!("{base}/search/index"),
+            Value::Null
+        )
+        .await
+        .0,
+        StatusCode::BAD_REQUEST
+    );
+    assert!(state.jobs.lock().unwrap().is_empty());
+    assert!(state
+        .services
+        .lock()
+        .unwrap()
+        .photos(project, Default::default())
+        .unwrap()
+        .iter()
+        .all(|p| p.decision == iris_core::Action::Pending));
+    let schema = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    for path in [
+        "/api/v1/photos/{id}/detail",
+        "/api/v1/projects/{id}/scenes",
+        "/api/v1/projects/{id}/compare",
+        "/api/v1/projects/{id}/search",
+        "/api/v1/projects/{id}/search/index",
+    ] {
+        assert!(schema["paths"].get(path).is_some(), "{path}");
+    }
+}
+
+#[tokio::test]
 async fn gpu_inventory_needs_no_project_or_models_and_has_a_typed_contract() {
     let temp = tempfile::tempdir().unwrap();
     let state = AppState::new(

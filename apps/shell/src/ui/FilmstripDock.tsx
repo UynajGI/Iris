@@ -3,6 +3,7 @@ import { GALLERY_LOUPE, GALLERY_MIN } from './gallery-motion.js';
 import { Icon } from './Icon.js';
 import { MarkTools } from './MarkTools.js';
 import { PhotoFilters, filterLabels, filterValue } from './PhotoFilters.js';
+import { MAX_COMPARISON_PHOTOS } from '../group-session.js';
 
 import type { PhotoWorkspaceModel } from './usePhotoWorkspace.js';
 
@@ -41,6 +42,12 @@ export function FilmstripDock({ model }: { model: PhotoWorkspaceModel }) {
         </button>
         <MarkTools key={state.project!.id} store={store} photo={current} />
         <div className="gallery-tools">
+          {group && (
+            <span className="muted tabular" role="status">
+              对比 {group.comparisonIds.length} / {MAX_COMPARISON_PHOTOS}
+              {group.comparisonIds.length >= MAX_COMPARISON_PHOTOS && ' · 已满，请先移除再加入'}
+            </span>
+          )}
           {!group && (
             <div className="gallery-scale" role="group" aria-label="画册缩放">
               <button
@@ -131,34 +138,7 @@ export function FilmstripDock({ model }: { model: PhotoWorkspaceModel }) {
       </div>
       {stripOpen &&
         (group ? (
-          <div className="filmstrip" aria-label="相似组照片">
-            {group.photos.map((photo) => (
-              <button
-                key={photo.id}
-                data-photo-id={photo.id}
-                className={`film ${photo.id === group.focusedId ? 'current' : ''}`}
-                disabled={group.loading}
-                aria-label={`${group.comparisonIds.includes(photo.id) ? '移出对比' : '加入对比'}：${photo.filename}`}
-                aria-pressed={group.comparisonIds.includes(photo.id)}
-                onClick={() => {
-                  const ids = group.comparisonIds.includes(photo.id)
-                    ? group.comparisonIds.filter((id) => id !== photo.id)
-                    : [...group.comparisonIds, photo.id];
-                  store.setComparisonCandidates(ids);
-                }}
-              >
-                <PhotoImage client={store.client} photo={photo} />
-                {group.comparisonIds.includes(photo.id) && (
-                  <span className="film-check" aria-hidden="true">
-                    <Icon name="done" />
-                  </span>
-                )}
-                {photo.decision !== 'pending' && (
-                  <span className={`film-flag flag-${photo.decision}`} aria-hidden="true" />
-                )}
-              </button>
-            ))}
-          </div>
+          <GroupFilmstrip model={model} />
         ) : (
           <div className="filmstrip" aria-label="照片胶片栏">
             {state.photos.map((photo, index) => (
@@ -185,6 +165,49 @@ export function FilmstripDock({ model }: { model: PhotoWorkspaceModel }) {
             ))}
           </div>
         ))}
+    </div>
+  );
+}
+
+function GroupFilmstrip({ model }: { model: PhotoWorkspaceModel }) {
+  const { group, store, attempt } = model;
+  if (!group) return null;
+  const full = group.comparisonIds.length >= MAX_COMPARISON_PHOTOS;
+  return (
+    <div className="filmstrip" aria-label="相似组照片">
+      {group.photos.map((photo) => {
+        const selected = group.comparisonIds.includes(photo.id);
+        const blocked = full && !selected;
+        return (
+          <button
+            key={photo.id}
+            data-photo-id={photo.id}
+            className={`film ${photo.id === group.focusedId ? 'current' : ''}`}
+            disabled={group.loading || blocked}
+            title={blocked ? `最多同时对比 ${MAX_COMPARISON_PHOTOS} 张，请先移除一张` : undefined}
+            aria-label={`${selected ? '移出对比' : '加入对比'}：${photo.filename}`}
+            aria-pressed={selected}
+            onClick={() =>
+              attempt(async () => {
+                const ids = selected
+                  ? group.comparisonIds.filter((id) => id !== photo.id)
+                  : [...group.comparisonIds, photo.id];
+                store.setComparisonCandidates(ids);
+              })
+            }
+          >
+            <PhotoImage client={store.client} photo={photo} />
+            {selected && (
+              <span className="film-check" aria-hidden="true">
+                <Icon name="done" />
+              </span>
+            )}
+            {photo.decision !== 'pending' && (
+              <span className={`film-flag flag-${photo.decision}`} aria-hidden="true" />
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }

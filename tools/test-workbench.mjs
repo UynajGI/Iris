@@ -937,6 +937,88 @@ try {
     await click('.subbar > .sub-button');
     await wait('!!document.querySelector(".grid")');
   });
+  await check('beta4 linked comparison, native detail, scenes and disabled search', async () => {
+    await click('.view-tab[title="相似组比较"]');
+    await wait('document.querySelectorAll(".compare-viewport-content img.loaded").length >= 2');
+    await click('[aria-label="放大比较视图"]');
+    const linkedTransforms = await evaluate(
+      '[...document.querySelectorAll(".compare-viewport-content")].map(n=>n.style.transform)'
+    );
+    assert.ok(linkedTransforms.every((value) => value === linkedTransforms[0]));
+    assert.ok(linkedTransforms[0].includes('1.25'));
+    await click('.compare-options > button');
+    await click('.compare-cell:first-child .compare-viewport');
+    await key('ArrowRight', 1);
+    const independentTransforms = await evaluate(
+      '[...document.querySelectorAll(".compare-viewport-content")].map(n=>n.style.transform)'
+    );
+    assert.notEqual(independentTransforms[0], independentTransforms[1]);
+    await click('.compare-options > button');
+    await click('.compare-options .segmented button:nth-child(2)');
+    await wait('!!document.querySelector(".face-detail svg image")');
+    await click('.face-detail .detail-review button');
+    await wait('!!document.querySelector(".face-detail .detail-evidence")');
+    assert.ok(
+      await evaluate(
+        'document.querySelector(".detail-evidence").textContent.includes("原图区域测量")'
+      )
+    );
+    await evaluate('document.activeElement?.blur()');
+    await key('w');
+    await wait(
+      'document.querySelector(".compare-cell[data-focused=true]").textContent.includes("保留")'
+    );
+    await shot('40-beta4-comparison');
+    await send('Emulation.setDeviceMetricsOverride', {
+      width: 800,
+      height: 560,
+      deviceScaleFactor: 1,
+      mobile: false,
+    });
+    assert.ok(await evaluate('document.documentElement.scrollWidth<=innerWidth'));
+    await shot('41-beta4-comparison-compact');
+    await send('Emulation.setDeviceMetricsOverride', {
+      width: 1440,
+      height: 960,
+      deviceScaleFactor: 1,
+      mobile: false,
+    });
+    await click('.subbar > .sub-button');
+    await callPageFunction(send, function () {
+      const button = [...document.querySelectorAll('.panel-toggle')].find((n) =>
+        n.textContent.includes('场景与连拍')
+      );
+      if (button.getAttribute('aria-expanded') !== 'true') button.click();
+    });
+    await click('.scene-browser > button');
+    await wait('document.querySelectorAll(".scene-list > div").length>0');
+    await evaluate(
+      '[...document.querySelectorAll(".cell-check input")].slice(0,2).forEach(n=>n.click())'
+    );
+    await click('.scene-corrections button:first-of-type');
+    await wait(
+      '[...document.querySelectorAll(".scene-list .nav-item")].some(n=>n.textContent.includes("手动场景"))'
+    );
+    await callPageFunction(send, function () {
+      [...document.querySelectorAll('.scene-list .nav-item')]
+        .find((n) => n.textContent.includes('手动场景'))
+        .click();
+    });
+    await wait('document.querySelectorAll(".cell").length===2');
+    await click('.scene-browser > .quiet');
+    await wait('document.querySelectorAll(".cell").length===12');
+    await callPageFunction(send, function () {
+      const button = [...document.querySelectorAll('.panel-toggle')].find((n) =>
+        n.textContent.includes('本地搜索')
+      );
+      if (button.getAttribute('aria-expanded') !== 'true') button.click();
+    });
+    await click('.local-search > button');
+    await wait(
+      'document.querySelector(".local-search [role=status]")?.textContent.includes("尚未启用")'
+    );
+    await shot('42-beta4-scene-search');
+  });
   await check(
     'selection evidence and original face comparison at desktop and compact sizes',
     async () => {

@@ -14,7 +14,10 @@ fn version_four_upgrade_and_run_history_preserve_project_settings() {
         .store
         .conn
         .execute_batch(
-            "DROP TABLE engine_cache_versions; DROP TABLE analysis_runs; PRAGMA user_version=4;",
+            "DROP TRIGGER catalog_analysis_insert; DROP TRIGGER catalog_analysis_update; DROP TRIGGER catalog_analysis_delete;
+             DROP VIEW analysis_catalog_source; DROP TABLE analysis_catalog;
+             DROP INDEX photo_catalog_name; DROP INDEX photo_catalog_size; DROP INDEX photo_catalog_date;
+             DROP TABLE engine_cache_versions; DROP TABLE analysis_runs; PRAGMA user_version=4;",
         )
         .unwrap();
     drop(services);

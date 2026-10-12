@@ -1,6 +1,7 @@
 use super::*;
+use crate::analysis_queue::PendingOrder;
 use preflight::{AnalysisPlan, PendingPhoto};
-use std::sync::{atomic::AtomicUsize, mpsc::SyncSender};
+use std::sync::{mpsc::SyncSender, Mutex};
 
 type Outcome = (Photo, anyhow::Result<Value>, f64);
 
@@ -70,13 +71,14 @@ fn quality_settings(settings: &AnalysisSettings) -> AnalysisSettings {
 }
 
 fn run_worker(
-    job: &Job,
+    context: &AnalysisContext<'_>,
     pending: &[PendingPhoto],
-    next: &AtomicUsize,
+    queue: &Mutex<PendingOrder>,
     mut engine: AnalysisWorker,
     tx: SyncSender<Outcome>,
     settings: &AnalysisSettings,
 ) {
+    let job = context.job;
     let base_settings = quality_settings(settings);
     loop {
         while job.pause.load(Ordering::Relaxed) && !job.cancel.load(Ordering::Relaxed) {
@@ -85,10 +87,15 @@ fn run_worker(
         if job.cancel.load(Ordering::Relaxed) {
             break;
         }
-        let index = next.fetch_add(1, Ordering::Relaxed);
-        let Some((photo, path)) = pending.get(index) else {
+        let browse = context.state.browse_contexts.current(context.project_id);
+        let next = queue
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .claim(&browse);
+        let Some(index) = next else {
             break;
         };
+        let (photo, path) = &pending[index];
         let started = std::time::Instant::now();
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             verify_fingerprint(photo, path)?;
@@ -164,7 +171,9 @@ pub(super) fn process(
     plan: &AnalysisPlan,
     engines: Vec<AnalysisWorker>,
 ) -> anyhow::Result<ProcessingSummary> {
-    let next = AtomicUsize::new(0);
+    let queue = Mutex::new(PendingOrder::new(
+        plan.pending.iter().map(|(photo, _)| photo.id),
+    ));
     let mut summary = ProcessingSummary {
         analyzed: 0,
         failures: plan.failures,
@@ -174,16 +183,9 @@ pub(super) fn process(
         let (tx, rx) = std::sync::mpsc::sync_channel(engines.len());
         for engine in engines {
             let tx = tx.clone();
-            let next = &next;
+            let queue = &queue;
             scope.spawn(move || {
-                run_worker(
-                    context.job,
-                    &plan.pending,
-                    next,
-                    engine,
-                    tx,
-                    context.settings,
-                )
+                run_worker(context, &plan.pending, queue, engine, tx, context.settings)
             });
         }
         drop(tx);

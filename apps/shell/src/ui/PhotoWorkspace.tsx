@@ -42,7 +42,7 @@ export function PhotoWorkspace({ model }: { model: PhotoWorkspaceModel }) {
 
         <div className="canvas">
           {group ? (
-            <CompareCanvas model={model} />
+            <CompareCanvas key={group.groupId} model={model} />
           ) : view === 'loupe' && current ? (
             <LoupeCanvas model={model} />
           ) : state.photos.length ? (

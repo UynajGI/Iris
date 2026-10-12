@@ -8,6 +8,9 @@ import { Panel } from './Panel.js';
 import { ScoreChip, decisionNames, formatBytes, tallyOrder } from './photo-readouts.js';
 import { AnalysisPanel, Metadata } from './PhotoInspector.js';
 import type { PhotoWorkspaceModel } from './usePhotoWorkspace.js';
+import { SceneBrowser } from './SceneBrowser.js';
+import { LocalSearch } from './LocalSearch.js';
+import { DetailReview } from './DetailReview.js';
 
 export function LibraryPanel({ model }: { model: PhotoWorkspaceModel }) {
   const {
@@ -52,6 +55,12 @@ export function LibraryPanel({ model }: { model: PhotoWorkspaceModel }) {
           <div className="sidebar-scroll">
             <Panel id="library" title="照片库">
               <LibraryNav store={store} onNavigate={() => setLibraryDrawer(false)} />
+            </Panel>
+            <Panel id="scenes" title="场景与连拍" defaultOpen={false}>
+              <SceneBrowser key={state.project!.id} model={model} />
+            </Panel>
+            <Panel id="local-search" title="本地搜索" defaultOpen={false}>
+              <LocalSearch key={state.project!.id} model={model} />
             </Panel>
             <Panel id="session" title="本页进度">
               <div className="tally">
@@ -107,6 +116,15 @@ export function InspectorPanel({ model }: { model: PhotoWorkspaceModel }) {
             {current && !bulk && (
               <Panel id="analysis" title="智能评估" aside={<ScoreChip photo={current} />}>
                 <AnalysisPanel photo={current} />
+              </Panel>
+            )}
+            {current && !bulk && (
+              <Panel id="detail-review" title="细节复核" defaultOpen={false}>
+                <DetailReview
+                  key={`${current.id}:${current.mtime}`}
+                  client={store.client}
+                  photo={current}
+                />
               </Panel>
             )}
             {current && !bulk && (

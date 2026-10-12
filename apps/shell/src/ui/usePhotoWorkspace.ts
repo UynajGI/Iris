@@ -10,6 +10,7 @@ import { useGalleryView } from './useGalleryView.js';
 import { useWorkspacePanels } from './useWorkspacePanels.js';
 import { useWorkspaceKeyboard } from './workspace-key-handler.js';
 import { usePreviewPrefetch } from './usePreviewPrefetch.js';
+import { useBrowseContext } from './useBrowseContext.js';
 
 export interface WorkspaceOptions {
   store: IrisStore;
@@ -27,6 +28,7 @@ export function usePhotoWorkspace(options: WorkspaceOptions) {
   const { store, commands, page, modal, attempt, setError, setShortcutsOpen, setScanRoot } =
     options;
   const state = useIris(store);
+  useBrowseContext(store, state, page === 'photos');
   const [filterOpen, setFilterOpen] = useState(false);
   const workspace = useRef<HTMLElement>(null);
   const panels = useWorkspacePanels();

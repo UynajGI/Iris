@@ -1,4 +1,15 @@
 mod contracts;
+mod retrieval;
+pub use retrieval::{
+    __path_index_search, __path_search, __path_search_status, index_search, search, search_status,
+};
+mod scenes;
+pub use scenes::{
+    __path_compare_photos, __path_correct_scene, __path_scenes, compare_photos, correct_scene,
+    scenes,
+};
+mod browse;
+pub use browse::{__path_browse_context, browse_context};
 mod jobs;
 pub use contracts::{ModelStatusResponse, ProjectRequest};
 use jobs::*;
@@ -34,7 +45,9 @@ pub use cache::{
     cache_status,
 };
 mod media;
-pub use media::{__path_original, __path_preview, __path_thumb, original, preview, thumb};
+pub use media::{
+    __path_detail, __path_original, __path_preview, __path_thumb, detail, original, preview, thumb,
+};
 
 use super::*;
 use crate::worker::AnalysisWorker;
@@ -43,7 +56,19 @@ use iris_core::vision::AnalysisSettings;
 pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/api/v1/projects/{id}/scan", post(scan))
+        .route("/api/v1/projects/{id}/search/status", get(search_status))
+        .route("/api/v1/projects/{id}/search", post(search))
+        .route("/api/v1/projects/{id}/search/index", post(index_search))
+        .route(
+            "/api/v1/projects/{id}/scenes",
+            get(scenes).put(correct_scene),
+        )
+        .route("/api/v1/projects/{id}/compare", post(compare_photos))
         .route("/api/v1/projects/{id}/analyze", post(analyze))
+        .route(
+            "/api/v1/projects/{id}/browse-context",
+            axum::routing::put(browse_context),
+        )
         .route("/api/v1/projects/{id}/export/xmp", post(export_xmp))
         .route("/api/v1/projects/{id}/export/copy", post(export_copy))
         .route("/api/v1/projects/{id}/export/csv", post(export_csv))
@@ -85,6 +110,7 @@ pub fn routes() -> Router<AppState> {
             post(cache_cleanup_old),
         )
         .route("/api/v1/photos/{id}/thumb", get(thumb))
+        .route("/api/v1/photos/{id}/detail", post(detail))
         .route("/api/v1/photos/{id}/preview", get(preview))
         .route("/api/v1/photos/{id}/original", get(original))
 }

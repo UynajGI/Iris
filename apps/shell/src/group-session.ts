@@ -1,6 +1,9 @@
 import type { IrisClient } from './client.js';
 import type { Photo } from './types.js';
 
+/** Matches the bounded comparison-report contract; group membership may be larger. */
+export const MAX_COMPARISON_PHOTOS = 32;
+
 /** Ordered server group membership, independent of the library's current page. */
 export interface GroupSessionState {
   groupId: string;

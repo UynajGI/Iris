@@ -11,6 +11,8 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import time
+import urllib.error
 import urllib.request
 import zipfile
 from pathlib import Path
@@ -56,14 +58,34 @@ def verified_payload(data, digest, name, filename):
         return executable, archive.extractfile(member).read()
 
 
+def download_tool(url):
+    request = urllib.request.Request(url, headers={"User-Agent": "Iris-maintenance"})
+    for attempt in range(3):
+        try:
+            with urllib.request.urlopen(request, timeout=120) as response:
+                return response.read()
+        except urllib.error.HTTPError as error:
+            if error.code not in {408, 429, 500, 502, 503, 504}:
+                raise
+            failure = error
+        except (urllib.error.URLError, TimeoutError) as error:
+            failure = error
+        if attempt == 2:
+            raise failure
+        delay = 2 ** (attempt + 1)
+        print(
+            f"Tool download failed: {failure}; retrying in {delay}s ({attempt + 2}/3)",
+            file=sys.stderr,
+        )
+        time.sleep(delay)
+
+
 def tool(name, install=False):
     filename, digest, url = tool_spec(name)
     directory = CACHE / digest
     archive = directory / filename
     if install and not archive.exists():
-        request = urllib.request.Request(url, headers={"User-Agent": "Iris-maintenance"})
-        with urllib.request.urlopen(request, timeout=120) as response:
-            data = response.read()
+        data = download_tool(url)
         verified_payload(data, digest, name, filename)
         directory.mkdir(parents=True, exist_ok=True)
         archive.write_bytes(data)

@@ -2992,3 +2992,166 @@ details p {
     border: 1px solid CanvasText;
   }
 }
+.compare-viewport {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 80px;
+  overflow: hidden;
+  touch-action: none;
+  cursor: grab;
+}
+.compare-grid {
+  overflow: auto;
+}
+.compare-cell {
+  min-height: 280px;
+}
+.compare-viewport:active {
+  cursor: grabbing;
+}
+.compare-viewport-content {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  transform-origin: center;
+}
+.compare-viewport-content img {
+  pointer-events: none;
+  user-select: none;
+}
+.compare-reference {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.compare-reference select {
+  max-width: 180px;
+  min-width: 0;
+}
+.compare-zoom {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.compare-zoom button {
+  padding: 4px 6px;
+  display: inline-flex;
+}
+.compare-options .compare-note {
+  flex-basis: 100%;
+  font-size: var(--small);
+}
+.compare-delta {
+  margin: 0;
+  padding: 6px 8px;
+  background: var(--tool);
+  font-size: var(--small);
+}
+.reference-tag {
+  color: var(--text);
+  font-weight: 500;
+}
+.compact-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.scene-burst {
+  padding-inline-start: 24px;
+  font-size: var(--small);
+}
+.scene-list {
+  max-height: 350px;
+  overflow: auto;
+}
+.scene-corrections {
+  margin-top: 16px;
+  border-top: 1px solid var(--divider);
+  padding-top: 8px;
+}
+.search-form,
+.detail-review {
+  display: grid;
+  gap: 8px;
+  margin-block: 8px;
+}
+.search-form input {
+  min-width: 0;
+  width: 100%;
+}
+.search-results {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.search-results button {
+  padding: 0;
+  border: 0;
+  background: var(--tool);
+  color: var(--text);
+  text-align: left;
+  min-width: 0;
+}
+.search-results img {
+  display: block;
+  width: 100%;
+  height: 90px;
+  object-fit: contain;
+  background: var(--photo-ground);
+}
+.search-results .filename-line,
+.search-results .muted {
+  display: block;
+  padding: 3px 5px;
+  font-size: var(--small);
+}
+.detail-evidence {
+  font-size: var(--small);
+}
+.detail-evidence p {
+  margin-block: 6px;
+}
+.evidence-values {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px;
+  margin-block: 8px;
+}
+.evidence-values dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+.face-detail .detail-review {
+  margin: 0;
+  padding: 0 8px 8px;
+  flex-shrink: 0;
+}
+.face-detail .detail-evidence {
+  max-height: 160px;
+  overflow: auto;
+}
+@media (max-width: 1000px) {
+  .compare-reference select {
+    max-width: 120px;
+  }
+  .compare-options {
+    gap: 6px 10px;
+    padding: 6px 8px;
+  }
+  .compare-options .compare-note {
+    display: none;
+  }
+  .compare-grid {
+    padding: 8px;
+  }
+  .subbar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+  .subbar > * {
+    flex-shrink: 0;
+  }
+}
