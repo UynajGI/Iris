@@ -1,5 +1,5 @@
 // Generated from iris-daemon OpenAPI. Do not edit.
-// Contract SHA-256: 6c3b8de67c0bf5df3ca19c5568d9408302c9aa769a867a591dbe96005a4e3e2c
+// Contract SHA-256: 44661f453414abd0e6475e46cd3c1d68dafaa3194b6277b8b39677ccad5bdf48
 export interface paths {
     "/api/v1/bootstrap": {
         parameters: {
@@ -1068,22 +1068,13 @@ export interface components {
             crop_height: number;
             /** Format: int32 */
             crop_width: number;
-            /**
-             * Format: int32
-             * @default 0
-             */
-            display_height: number;
-            /**
-             * Format: int32
-             * @default 0
-             */
-            display_width: number;
+            /** Format: int32 */
+            display_height?: number;
+            /** Format: int32 */
+            display_width?: number;
             exposure?: components["schemas"]["Exposure"] | null;
-            /**
-             * @description Bounded JPEG of this original region; absent when native detail is unavailable.
-             * @default null
-             */
-            image_data_url: string | null;
+            /** @description Bounded JPEG of this original region; absent when native detail is unavailable. */
+            image_data_url?: string | null;
             /** Format: int32 */
             measured_height: number;
             /** Format: int32 */
