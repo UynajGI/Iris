@@ -29,7 +29,7 @@ impl Services {
                         if sibling.id != *id
                             && sibling.capture_variant_id.as_ref() == Some(&variant)
                         {
-                            if sibling.decision != Action::Pending && sibling.decision != action {
+                            if self.linked_decision_conflicts(&sibling, action, ids)? {
                                 conflicts.push(sibling.id);
                             } else {
                                 changes.insert(sibling.id, action);
@@ -40,6 +40,20 @@ impl Services {
             }
         }
         self.apply_decisions(project_id, changes, source, conflicts)
+    }
+    fn linked_decision_conflicts(
+        &self,
+        photo: &Photo,
+        action: Action,
+        explicit: &[i64],
+    ) -> Result<bool> {
+        Ok(
+            (photo.decision != Action::Pending && photo.decision != action)
+                || (!explicit.contains(&photo.id)
+                    && action != Action::Keep
+                    && action != photo.decision
+                    && self.selection_locked(photo.id)?),
+        )
     }
     pub(super) fn apply_decisions(
         &mut self,

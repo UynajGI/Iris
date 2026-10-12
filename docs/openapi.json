@@ -3572,6 +3572,14 @@
             },
             "default": []
           },
+          "lock_baseline": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "default": []
+          },
           "locked_photo_ids": {
             "type": "array",
             "items": {

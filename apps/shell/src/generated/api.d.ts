@@ -1,5 +1,5 @@
 // Generated from iris-daemon OpenAPI. Do not edit.
-// Contract SHA-256: 44661f453414abd0e6475e46cd3c1d68dafaa3194b6277b8b39677ccad5bdf48
+// Contract SHA-256: d20346574a8eb0f61da1a9976334d8935c74da8c3bac29049645471f731dc6a8
 export interface paths {
     "/api/v1/bootstrap": {
         parameters: {
@@ -1296,6 +1296,8 @@ export interface components {
         GroupIntent: {
             /** @default [] */
             face_choices: components["schemas"]["FaceChoice"][];
+            /** @default [] */
+            lock_baseline: number[];
             /** @default [] */
             locked_photo_ids: number[];
             /** @default null */

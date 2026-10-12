@@ -62,6 +62,11 @@ function fixture(linkVariants = false, photoCount = 12) {
     );
     return { id: 'decision', changed: 1, conflicts: [] };
   }
+  function accept(path: string) {
+    return path.endsWith('/groups/a/selection/accept')
+      ? applyDecision({ photo_ids: [8, 11], action: 'keep' })
+      : { id: 'accept', changed: 0, conflicts: [] };
+  }
   const client = new IrisClient(
     new Transport(
       { base_url: 'http://127.0.0.1:45678', token: 'test', version: '0.1.0' },
@@ -89,7 +94,7 @@ function fixture(linkVariants = false, photoCount = 12) {
           };
         else if (path.endsWith('/quarantine')) value = [];
         else if (path.endsWith('/decisions')) value = applyDecision(body);
-        else if (path.endsWith('/accept')) value = { id: 'accept', changed: 0, conflicts: [] };
+        else if (path.endsWith('/accept')) value = accept(path);
         else if (path.endsWith('/analyze'))
           value = {
             kind: 'analysis',
@@ -114,6 +119,25 @@ function fixture(linkVariants = false, photoCount = 12) {
     },
   };
 }
+
+test('group adoption refreshes off-page decisions without an event connection', async () => {
+  const { store } = fixture();
+  await store.openProject('C:/photos');
+  await store.openGroup('a');
+  assert.equal(
+    store.getSnapshot().photos.some((photo) => photo.id === 8),
+    false
+  );
+  await store.acceptGroupSelection('a');
+  assert.deepEqual(
+    store.getSnapshot().groupSession?.photos.map((photo) => [photo.id, photo.decision]),
+    [
+      [8, 'keep'],
+      [3, 'pending'],
+      [11, 'keep'],
+    ]
+  );
+});
 
 test('group loads all off-page members in server order and validates comparison candidates', async () => {
   const { store } = fixture();

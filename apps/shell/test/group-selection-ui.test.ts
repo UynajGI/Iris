@@ -29,7 +29,13 @@ const photo: Photo = {
 
 const selection: GroupSelection = {
   group_id: 'group/一',
-  intent: { target_keep: 1, locked_photo_ids: [1], face_choices: [], main_face: null },
+  intent: {
+    target_keep: 1,
+    locked_photo_ids: [1],
+    lock_baseline: [1],
+    face_choices: [],
+    main_face: null,
+  },
   recommended_photo_ids: [1],
   pending_keep_photo_ids: [1],
   remaining_slots: 0,

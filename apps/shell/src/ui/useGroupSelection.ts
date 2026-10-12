@@ -104,9 +104,8 @@ export function useGroupSelection(model: PhotoWorkspaceModel) {
     controller.current = request;
     setState({ key, selection, busy: true });
     try {
-      await store.client.acceptGroupSelection(project, group.groupId, request.signal);
+      await store.acceptGroupSelection(group.groupId, request.signal);
       if (!request.signal.aborted && current.current === key) {
-        await store.refresh();
         const result = await store.client.groupSelection(project, group.groupId, request.signal);
         if (!request.signal.aborted && current.current === key)
           setState({ key, selection: result, busy: false });

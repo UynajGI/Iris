@@ -34,6 +34,7 @@ nalgebra = "0.35"
 tempfile = "3"
 roxmltree = "0.21"
 base64 = "0.22"
+url = "2"
 
 [dev-dependencies]
 

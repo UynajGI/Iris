@@ -19,6 +19,8 @@ pub struct FaceChoice {
 pub struct GroupIntent {
     pub target_keep: Option<usize>,
     pub locked_photo_ids: Vec<i64>,
+    // The lock snapshot returned by GET. Only changes relative to it are applied.
+    pub lock_baseline: Vec<i64>,
     pub main_face: Option<FaceChoice>,
     pub face_choices: Vec<FaceChoice>,
 }
@@ -127,6 +129,7 @@ impl Services {
             .filter(|photo| locks.contains(&photo.id))
             .map(|photo| photo.id)
             .collect();
+        intent.lock_baseline = intent.locked_photo_ids.clone();
         Ok(plan(group, intent, &context))
     }
 
@@ -142,19 +145,22 @@ impl Services {
         intent.locked_photo_ids.dedup();
         let tx = self.store.conn.transaction()?;
         for photo in &context.photos {
-            if intent.locked_photo_ids.contains(&photo.id) {
+            let requested = intent.locked_photo_ids.contains(&photo.id);
+            let previous = intent.lock_baseline.contains(&photo.id);
+            if requested && !previous {
                 tx.execute(
                     "INSERT OR IGNORE INTO selection_locks(photo_id) VALUES(?1)",
                     [photo.id],
                 )?;
-            } else {
+            } else if previous && !requested {
                 tx.execute("DELETE FROM selection_locks WHERE photo_id=?1", [photo.id])?;
             }
         }
+        intent.lock_baseline.clear();
         tx.execute("INSERT INTO group_selection_intents(project_id,group_id,members_key,data) VALUES(?1,?2,?3,?4) ON CONFLICT(project_id,group_id) DO UPDATE SET members_key=excluded.members_key,data=excluded.data",
             params![project, group, context.members_key, serde_json::to_string(&intent)?])?;
         tx.commit()?;
-        Ok(plan(group, intent, &context))
+        self.group_selection(project, group)
     }
 
     pub fn accept_group_selection(&mut self, project: i64, group: &str) -> Result<DecisionBatch> {
@@ -235,8 +241,16 @@ fn validate_intent(intent: &GroupIntent, context: &ContextData) -> Result<()> {
     );
     anyhow::ensure!(
         intent.locked_photo_ids.len() <= context.photos.len()
+            && intent.lock_baseline.len() <= context.photos.len()
             && intent.face_choices.len() <= context.photos.len(),
         "too many group choices"
+    );
+    anyhow::ensure!(
+        intent
+            .lock_baseline
+            .iter()
+            .all(|id| context.photos.iter().any(|photo| photo.id == *id)),
+        "lock baseline must belong to this group"
     );
     for id in &intent.locked_photo_ids {
         let photo = context

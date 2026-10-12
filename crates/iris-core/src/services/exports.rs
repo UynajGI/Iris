@@ -210,7 +210,11 @@ fn write_sidecar(dest: &Path, photo: &Photo, overwrite: bool) -> Result<bool> {
         return Ok(false);
     }
     let original = read_sidecar(dest)?;
-    let body = xmp::merge(photo, original.as_deref())?;
+    let body = xmp::merge(
+        photo,
+        original.as_deref(),
+        &dest.with_file_name(&photo.filename),
+    )?;
     let mut temp =
         tempfile::NamedTempFile::new_in(dest.parent().context("sidecar has no parent")?)?;
     temp.write_all(body.as_bytes())?;

@@ -3,6 +3,7 @@ use crate::domain::{ColorLabel, Photo};
 use anyhow::{Context, Result};
 use roxmltree::{Document, Node};
 use std::ops::Range;
+use std::path::Path;
 
 pub(super) const MAX_BYTES: u64 = 8 * 1024 * 1024;
 const RDF: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
@@ -25,22 +26,60 @@ fn label(color: ColorLabel) -> &'static str {
     }
 }
 
-fn description(photo: &Photo) -> Result<String> {
+fn description(photo: &Photo, subject: &str) -> Result<String> {
     anyhow::ensure!(photo.rating <= 5, "invalid photo rating");
     // Decisions and stars are independent. Reject is not encoded as Rating=-1,
     // which would erase a separately assigned star rating in other applications.
+    let subject = subject
+        .replace('&', "&amp;")
+        .replace('\'', "&apos;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;");
     Ok(format!(
-        "<rdf:Description xmlns:rdf='{RDF}' rdf:about='' xmlns:xmp='{XMP}' xmlns:iris='{IRIS}' xmp:Rating='{}' xmp:Label='{}' iris:Decision='{}'/>",
+        "<rdf:Description xmlns:rdf='{RDF}' rdf:about='{subject}' xmlns:xmp='{XMP}' xmlns:iris='{IRIS}' xmp:Rating='{}' xmp:Label='{}' iris:Decision='{}'/>",
         photo.rating, label(photo.color_label), photo.decision.as_str()
     ))
 }
 
-fn removed_properties(rdf: Node<'_, '_>) -> Vec<Range<usize>> {
+fn describes_photo(node: Node<'_, '_>, photo: &Photo, source: &Path) -> bool {
+    if !node.has_tag_name((RDF, "Description")) {
+        return false;
+    }
+    let about = node.attribute((RDF, "about")).unwrap_or("");
+    if about.is_empty() || about == photo.filename || about == photo.path {
+        return true;
+    }
+    let Ok(base) = url::Url::from_file_path(source) else {
+        return false;
+    };
+    let Ok(resolved) = base.join(about) else {
+        return false;
+    };
+    if resolved.scheme() != "file" || resolved.query().is_some() || resolved.fragment().is_some() {
+        return false;
+    }
+    let (Ok(actual), Ok(expected)) = (resolved.to_file_path(), base.to_file_path()) else {
+        return false;
+    };
+    #[cfg(windows)]
+    {
+        actual
+            .to_string_lossy()
+            .eq_ignore_ascii_case(&expected.to_string_lossy())
+    }
+    #[cfg(not(windows))]
+    {
+        actual == expected
+    }
+}
+
+fn removed_properties(rdf: Node<'_, '_>, photo: &Photo, source: &Path) -> Vec<Range<usize>> {
     let mut ranges = Vec::new();
-    for node in rdf.children().filter(|n| {
-        n.has_tag_name((RDF, "Description"))
-            && n.attribute((RDF, "about")).is_none_or(str::is_empty)
-    }) {
+    for node in rdf
+        .children()
+        .filter(|n| describes_photo(*n, photo, source))
+    {
         if owns_entire_description(node) {
             ranges.push(node.range());
             continue;
@@ -74,9 +113,9 @@ fn owns_entire_description(node: Node<'_, '_>) -> bool {
         })
 }
 
-pub(super) fn merge(photo: &Photo, original: Option<&str>) -> Result<String> {
-    let description = description(photo)?;
+pub(super) fn merge(photo: &Photo, original: Option<&str>, path: &Path) -> Result<String> {
     let Some(original) = original else {
+        let description = description(photo, "")?;
         return Ok(format!(
             "<?xpacket begin='\u{feff}' id='W5M0MpCehiHzreSzNTczkc9d'?>\n<x:xmpmeta xmlns:x='adobe:ns:meta/'><rdf:RDF xmlns:rdf='{RDF}'>{description}</rdf:RDF></x:xmpmeta>\n<?xpacket end='w'?>\n"
         ));
@@ -93,9 +132,16 @@ pub(super) fn merge(photo: &Photo, original: Option<&str>) -> Result<String> {
         .collect();
     anyhow::ensure!(roots.len() == 1, "XMP must contain exactly one RDF root");
     let rdf = roots[0];
+    let subject = rdf
+        .children()
+        .filter(|n| describes_photo(*n, photo, path))
+        .filter_map(|n| n.attribute((RDF, "about")))
+        .find(|about| !about.is_empty())
+        .unwrap_or("");
+    let description = description(photo, subject)?;
     let range = rdf.range();
     let source = &original[range.clone()];
-    let mut edits: Vec<_> = removed_properties(rdf)
+    let mut edits: Vec<_> = removed_properties(rdf, photo, path)
         .into_iter()
         .map(|r| (r, String::new()))
         .collect();
@@ -130,6 +176,10 @@ pub(super) fn merge(photo: &Photo, original: Option<&str>) -> Result<String> {
 mod tests {
     use super::*;
     use crate::domain::{Action, AnalysisStatus};
+
+    fn merge(photo: &Photo, original: Option<&str>) -> Result<String> {
+        super::merge(photo, original, Path::new(&photo.path))
+    }
 
     fn photo() -> Photo {
         Photo {
@@ -238,5 +288,40 @@ mod tests {
         ] {
             assert!(merge(&photo(), Some(original)).is_err());
         }
+    }
+
+    #[test]
+    fn file_subjects_replace_owned_marks_and_preserve_other_subjects() {
+        let temp = tempfile::tempdir().unwrap();
+        let p = photo();
+        let path = temp.path().join(&p.filename);
+        for about in [
+            p.filename.clone(),
+            "synthetic%2Ejpg".into(),
+            url::Url::from_file_path(&path).unwrap().to_string(),
+        ] {
+            let other = "<r:Description r:about='other.jpg' m:Rating='4'/>";
+            let original = format!("<r:RDF xmlns:r='{RDF}' xmlns:m='{XMP}' xmlns:c='urn:custom'><r:Description r:about='{about}' m:Rating='5'><m:Label>Red</m:Label><c:grading>untouched</c:grading></r:Description>{other}</r:RDF>");
+            let output = super::merge(&p, Some(&original), &path).unwrap();
+            let doc = Document::parse(&output).unwrap();
+            let ratings: Vec<_> = doc
+                .descendants()
+                .filter(|n| describes_photo(*n, &p, &path))
+                .filter_map(|n| n.attribute((XMP, "Rating")))
+                .collect();
+            assert_eq!(ratings, vec!["3"]);
+            assert!(!output.contains("<m:Label>"));
+            assert!(output.contains("<c:grading>untouched</c:grading>"));
+            assert!(output.contains(other));
+            assert_eq!(super::merge(&p, Some(&output), &path).unwrap(), output);
+        }
+        let mut unicode = p;
+        unicode.filename = "人 像&片.jpg".into();
+        unicode.path = unicode.filename.clone();
+        let path = temp.path().join(&unicode.filename);
+        let original = format!("<r:RDF xmlns:r='{RDF}' xmlns:m='{XMP}'><r:Description r:about='人 像&amp;片.jpg' m:Rating='5'/></r:RDF>");
+        let output = super::merge(&unicode, Some(&original), &path).unwrap();
+        assert_marks(&output, &unicode);
+        assert!(output.contains("rdf:about='人 像&amp;片.jpg'"));
     }
 }

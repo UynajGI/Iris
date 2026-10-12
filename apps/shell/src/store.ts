@@ -745,6 +745,20 @@ export class IrisStore {
     if (this.isCurrent(scope) && this.state.groupSession)
       await this.readGroup(scope, this.groupGeneration, true);
   };
+  acceptGroupSelection = (groupId: string, signal?: AbortSignal): Promise<void> => {
+    const scope = this.scope();
+    const generation = this.groupGeneration;
+    return this.enqueue(async () => {
+      if (
+        signal?.aborted ||
+        generation !== this.groupGeneration ||
+        this.state.groupSession?.groupId !== groupId
+      )
+        return;
+      await this.client.acceptGroupSelection(scope.id, groupId, signal);
+      if (this.isCurrent(scope)) await this.refreshWithGroup();
+    }, scope);
+  };
   focusGroupPhoto = (id: number): void => {
     const session = this.requireGroup();
     if (!session.memberIds.includes(id))

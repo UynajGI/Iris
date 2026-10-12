@@ -193,6 +193,89 @@ fn changed_source_prevents_partial_adoption() {
 }
 
 #[test]
+fn overlapping_group_saves_apply_only_explicit_lock_changes() {
+    let (_temp, mut services, project, ids) = fixture();
+    let groups = ["burst", "duplicate"].map(|id| BurstGroup {
+        id: id.into(),
+        project_id: project,
+        kind: id.into(),
+        member_photo_ids: ids.clone(),
+        assessment: None,
+    });
+    services.save_groups(project, groups.to_vec()).unwrap();
+    let mut stale = services
+        .group_selection(project, "duplicate")
+        .unwrap()
+        .intent;
+    let mut lock = services.group_selection(project, "burst").unwrap().intent;
+    lock.locked_photo_ids = vec![ids[0]];
+    services.set_group_intent(project, "burst", lock).unwrap();
+    stale.target_keep = Some(2);
+    let mut shared = services
+        .set_group_intent(project, "duplicate", stale)
+        .unwrap()
+        .intent;
+    assert_eq!(shared.locked_photo_ids, vec![ids[0]]);
+    let mut unlock = services.group_selection(project, "burst").unwrap().intent;
+    unlock.locked_photo_ids.clear();
+    services.set_group_intent(project, "burst", unlock).unwrap();
+    shared.target_keep = Some(3);
+    let unlocked = services
+        .set_group_intent(project, "duplicate", shared)
+        .unwrap();
+    assert!(
+        unlocked.intent.locked_photo_ids.is_empty(),
+        "stale unchanged locks must not be reinserted"
+    );
+    let mut lock = unlocked.intent;
+    lock.locked_photo_ids = vec![ids[1]];
+    services
+        .set_group_intent(project, "duplicate", lock)
+        .unwrap();
+    let mut unlock = services.group_selection(project, "burst").unwrap().intent;
+    unlock.locked_photo_ids.clear();
+    assert!(services
+        .set_group_intent(project, "burst", unlock)
+        .unwrap()
+        .intent
+        .locked_photo_ids
+        .is_empty());
+}
+
+#[test]
+fn linked_locked_variant_is_a_conflict_not_a_batch_failure() {
+    let (temp, mut services, project, ids) = fixture();
+    let connection = rusqlite::Connection::open(temp.path().join("db.sqlite")).unwrap();
+    connection
+        .execute(
+            "UPDATE photos SET capture_variant_id='synthetic-pair' WHERE id IN (?1,?2)",
+            rusqlite::params![ids[0], ids[1]],
+        )
+        .unwrap();
+    services
+        .set_group_intent(
+            project,
+            "burst",
+            GroupIntent {
+                locked_photo_ids: vec![ids[0]],
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    let result = services
+        .decisions(project, &[ids[1]], Action::Reject, "human", true)
+        .unwrap();
+    assert_eq!(result.changed, 1);
+    assert_eq!(result.conflicts, vec![ids[0]]);
+    assert_eq!(services.photo(ids[0]).unwrap().decision, Action::Pending);
+    assert_eq!(services.photo(ids[1]).unwrap().decision, Action::Reject);
+    assert!(services
+        .decisions(project, &[ids[0], ids[2]], Action::Reject, "human", true)
+        .is_err());
+    assert_eq!(services.photo(ids[2]).unwrap().decision, Action::Pending);
+}
+
+#[test]
 fn project_adoption_obeys_group_targets() {
     let (_temp, mut services, project, ids) = fixture();
     services
