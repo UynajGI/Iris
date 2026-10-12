@@ -396,7 +396,7 @@ test('library decisions refresh linked off-page group members without an event c
   assert.equal(store.getSnapshot().connection, 'disconnected');
 });
 
-test('late member reads cannot reopen a closed, switched, or reopened-project group', async () => {
+test('late member reads cannot replace a closed, switched, or freshly restored group', async () => {
   for (const action of ['close', 'group', 'project'] as const) {
     const { store, client } = fixture();
     await store.openProject('C:/photos');
@@ -414,12 +414,14 @@ test('late member reads cannot reopen a closed, switched, or reopened-project gr
     if (action === 'close') store.closeGroup();
     else if (action === 'group') await store.openGroup('b');
     else await store.openProject('C:/photos');
+    const current = store.getSnapshot().groupSession;
     release();
     await previous;
     assert.equal(
       store.getSnapshot().groupSession?.groupId ?? null,
-      action === 'group' ? 'b' : null
+      action === 'group' ? 'b' : action === 'project' ? 'a' : null
     );
+    assert.equal(store.getSnapshot().groupSession, current);
     assert.equal(store.getSnapshot().pending, 0);
   }
 });

@@ -1168,6 +1168,35 @@
         }
       }
     },
+    "/api/v1/projects/{id}/groups/{group_id}/selection": {
+      "get": {
+        "tags": ["operations"], "operationId": "group_selection",
+        "parameters": [
+          {"name":"id","in":"path","required":true,"schema":{"type":"integer","format":"int64"}},
+          {"name":"group_id","in":"path","required":true,"schema":{"type":"string"}}
+        ],
+        "responses": {"200":{"description":"Response","content":{"application/json":{"schema":{"$ref":"#/components/schemas/GroupSelection"}}}}}
+      },
+      "put": {
+        "tags": ["operations"], "operationId": "set_group_intent",
+        "parameters": [
+          {"name":"id","in":"path","required":true,"schema":{"type":"integer","format":"int64"}},
+          {"name":"group_id","in":"path","required":true,"schema":{"type":"string"}}
+        ],
+        "requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/GroupIntent"}}},"required":true},
+        "responses":{"200":{"description":"Response","content":{"application/json":{"schema":{"$ref":"#/components/schemas/GroupSelection"}}}}}
+      }
+    },
+    "/api/v1/projects/{id}/groups/{group_id}/selection/accept": {
+      "post": {
+        "tags": ["operations"], "operationId": "accept_group_selection",
+        "parameters": [
+          {"name":"id","in":"path","required":true,"schema":{"type":"integer","format":"int64"}},
+          {"name":"group_id","in":"path","required":true,"schema":{"type":"string"}}
+        ],
+        "responses":{"200":{"description":"Response","content":{"application/json":{"schema":{"$ref":"#/components/schemas/DecisionBatch"}}}}}
+      }
+    },
     "/api/v1/projects/{id}/hide": {
       "post": {
         "tags": [],
@@ -2629,6 +2658,18 @@
             "format": "int32",
             "minimum": 0
           },
+            "display_height": {
+              "type": "integer",
+              "format": "int32",
+              "default": 0,
+              "minimum": 0
+            },
+            "display_width": {
+              "type": "integer",
+              "format": "int32",
+              "default": 0,
+              "minimum": 0
+            },
           "exposure": {
             "oneOf": [
               {
@@ -2639,7 +2680,12 @@
               }
             ]
           },
-          "measured_height": {
+            "image_data_url": {
+              "type": ["string", "null"],
+              "description": "Bounded JPEG of this original region; absent when native detail is unavailable.",
+              "default": null
+            },
+            "measured_height": {
             "type": "integer",
             "format": "int32",
             "minimum": 0
@@ -3092,6 +3138,14 @@
           }
         }
       },
+      "FaceChoice": {
+        "type":"object", "required":["photo_id","analysis_key"],
+        "properties":{
+          "analysis_key":{"type":"string","description":"Echo the current key returned by group selection; stale corrections are rejected."},
+          "face_index":{"type":["integer","null"],"description":"Null explicitly means that the main person is absent in this photo.","minimum":0},
+          "photo_id":{"type":"integer","format":"int64"}
+        }, "additionalProperties":false
+      },
       "FaceCorrespondence": {
         "type": "object",
         "required": [
@@ -3362,6 +3416,37 @@
             ],
             "format": "double"
           }
+        }
+      },
+      "GroupFace": {
+        "type":"object", "required":["photo_id","state"],
+        "properties":{
+          "analysis_key":{"type":["string","null"]},
+          "face_index":{"type":["integer","null"],"minimum":0},
+          "photo_id":{"type":"integer","format":"int64"},
+          "state":{"type":"string","description":"reference, manual, absent, geometry_candidate, uncertain, or stale."}
+        }
+      },
+      "GroupIntent": {
+        "type":"object",
+        "properties":{
+          "face_choices":{"type":"array","items":{"$ref":"#/components/schemas/FaceChoice"},"default":[]},
+          "locked_photo_ids":{"type":"array","items":{"type":"integer","format":"int64"},"default":[]},
+          "main_face":{"oneOf":[{"$ref":"#/components/schemas/FaceChoice"},{"type":"null"}],"default":null},
+          "target_keep":{"type":["integer","null"],"default":null,"minimum":0}
+        }, "additionalProperties":false
+      },
+      "GroupSelection": {
+        "type":"object", "required":["group_id","intent","recommended_photo_ids","pending_keep_photo_ids","remaining_slots","over_target","needs_review","faces"],
+        "properties":{
+          "faces":{"type":"array","items":{"$ref":"#/components/schemas/GroupFace"}},
+          "group_id":{"type":"string"},
+          "intent":{"$ref":"#/components/schemas/GroupIntent"},
+          "needs_review":{"type":"boolean"},
+          "over_target":{"type":"integer","minimum":0},
+          "pending_keep_photo_ids":{"type":"array","items":{"type":"integer","format":"int64"}},
+          "recommended_photo_ids":{"type":"array","items":{"type":"integer","format":"int64"}},
+          "remaining_slots":{"type":"integer","minimum":0}
         }
       },
       "HeadPose": {

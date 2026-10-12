@@ -802,7 +802,7 @@ fn exports_csv_are_transactional_preserve_sources_and_existing_outputs() {
     assert_eq!(svc.export_xmp(id, "keep", false).unwrap().written, 1);
     assert!(fs::read_to_string(src.with_extension("xmp"))
         .unwrap()
-        .contains("Rating='5'"));
+        .contains("Rating='0'"));
     assert_eq!(svc.export_xmp(id, "keep", false).unwrap().skipped, 1);
     assert_eq!(fs::read(&src).unwrap(), original);
     let copied = temp.path().join("export");

@@ -5,6 +5,8 @@ import type {
   Action,
   Bootstrap,
   BurstGroup,
+  GroupIntent,
+  GroupSelection,
   CacheMigration,
   CacheStatus,
   DecisionBatch,
@@ -119,6 +121,27 @@ export class IrisClient {
       signal
     );
   groups = (id: number) => this.transport.request<BurstGroup[]>('GET', `${projectPath(id)}/groups`);
+  groupSelection = (id: number, group: string, signal?: AbortSignal) =>
+    this.transport.request<GroupSelection>(
+      'GET',
+      `${projectPath(id)}/groups/${encodeURIComponent(group)}/selection`,
+      undefined,
+      signal
+    );
+  setGroupIntent = (id: number, group: string, intent: GroupIntent, signal?: AbortSignal) =>
+    this.transport.request<GroupSelection>(
+      'PUT',
+      `${projectPath(id)}/groups/${encodeURIComponent(group)}/selection`,
+      intent,
+      signal
+    );
+  acceptGroupSelection = (id: number, group: string, signal?: AbortSignal) =>
+    this.transport.request<DecisionBatch>(
+      'POST',
+      `${projectPath(id)}/groups/${encodeURIComponent(group)}/selection/accept`,
+      undefined,
+      signal
+    );
   progress = (id: number) => this.transport.request<Progress>('GET', `${projectPath(id)}/progress`);
   run = (id: number, operation: 'scan' | 'analyze' | 'cancel' | 'pause' | 'resume') =>
     this.transport.request<Progress>('POST', `${projectPath(id)}/${operation}`);

@@ -128,7 +128,10 @@ jobs:
           $env:IRIS_TEST_DAEMON = (Resolve-Path target/debug/iris-daemon.exe).Path
           cargo +stable-x86_64-pc-windows-msvc test --locked --manifest-path apps/shell/src-tauri/Cargo.toml --features updater-client --lib real_daemon_update_pause_and_failed_install_recovery -- --ignored
       - name: Check API schema
-        run: node tools/api.mjs --check
+        run: |
+          node tools/api.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git diff --exit-code -- docs/openapi.json apps/shell/src/generated/api.d.ts
   local-media:
     runs-on: windows-latest
     env:
@@ -166,6 +169,8 @@ jobs:
       - name: Test RAW preview, rawler fallback and paired RAW-JPEG operations
         run: |
           cargo +stable-x86_64-pc-windows-msvc build --release --locked --manifest-path components/raw-decoder/Cargo.toml
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cargo +stable-x86_64-pc-windows-msvc test --locked --manifest-path components/raw-decoder/Cargo.toml
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $env:IRIS_RAW_DECODER_PATH = (Resolve-Path components/raw-decoder/target/release/iris-raw-decoder.exe).Path
           cargo +stable-x86_64-pc-windows-msvc test --locked -p iris-core --test raw -- --ignored

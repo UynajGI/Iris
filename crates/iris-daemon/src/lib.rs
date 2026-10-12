@@ -470,6 +470,7 @@ pub use operations::*;
     operations::scan,operations::analyze,operations::browse_context,
     operations::scenes,operations::correct_scene,operations::compare_photos,operations::detail,
     operations::search_status,operations::search,operations::index_search,
+    operations::group_selection,operations::set_group_intent,operations::accept_group_selection,
     operations::export_xmp,operations::export_copy,operations::export_csv,operations::import_csv,
     operations::quarantine_history,operations::quarantine_preview,operations::quarantine_commit,operations::quarantine_restore,
     operations::models,operations::settings,operations::put_settings,operations::profiles,operations::save_profile,

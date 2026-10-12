@@ -1,5 +1,5 @@
 // Generated from iris-daemon OpenAPI. Do not edit.
-// Contract SHA-256: dc521a29e11fdb8499342cde1b8befa17a9ffac6af5a818d6c088ae5d3c98913
+// Contract SHA-256: 6c3b8de67c0bf5df3ca19c5568d9408302c9aa769a867a591dbe96005a4e3e2c
 export interface paths {
     "/api/v1/bootstrap": {
         parameters: {
@@ -491,6 +491,38 @@ export interface paths {
         get: operations["groups"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/groups/{group_id}/selection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["group_selection"];
+        put: operations["set_group_intent"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/groups/{group_id}/selection/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["accept_group_selection"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1036,7 +1068,22 @@ export interface components {
             crop_height: number;
             /** Format: int32 */
             crop_width: number;
+            /**
+             * Format: int32
+             * @default 0
+             */
+            display_height: number;
+            /**
+             * Format: int32
+             * @default 0
+             */
+            display_width: number;
             exposure?: components["schemas"]["Exposure"] | null;
+            /**
+             * @description Bounded JPEG of this original region; absent when native detail is unavailable.
+             * @default null
+             */
+            image_data_url: string | null;
             /** Format: int32 */
             measured_height: number;
             /** Format: int32 */
@@ -1150,6 +1197,14 @@ export interface components {
             smile_score?: number | null;
             unreliable_reason?: string | null;
         };
+        FaceChoice: {
+            /** @description Echo the current key returned by group selection; stale corrections are rejected. */
+            analysis_key: string;
+            /** @description Null explicitly means that the main person is absent in this photo. */
+            face_index?: number | null;
+            /** Format: int64 */
+            photo_id: number;
+        };
         FaceCorrespondence: {
             face_index?: number | null;
             reference_face_index: number;
@@ -1238,6 +1293,34 @@ export interface components {
             reasons: string[];
             /** Format: double */
             score_gap?: number | null;
+        };
+        GroupFace: {
+            analysis_key?: string | null;
+            face_index?: number | null;
+            /** Format: int64 */
+            photo_id: number;
+            /** @description reference, manual, absent, geometry_candidate, uncertain, or stale. */
+            state: string;
+        };
+        GroupIntent: {
+            /** @default [] */
+            face_choices: components["schemas"]["FaceChoice"][];
+            /** @default [] */
+            locked_photo_ids: number[];
+            /** @default null */
+            main_face: components["schemas"]["FaceChoice"] | null;
+            /** @default null */
+            target_keep: number | null;
+        };
+        GroupSelection: {
+            faces: components["schemas"]["GroupFace"][];
+            group_id: string;
+            intent: components["schemas"]["GroupIntent"];
+            needs_review: boolean;
+            over_target: number;
+            pending_keep_photo_ids: number[];
+            recommended_photo_ids: number[];
+            remaining_slots: number;
         };
         HeadPose: {
             method: string;
@@ -2357,6 +2440,79 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BurstGroup"][];
+                };
+            };
+        };
+    };
+    group_selection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+                group_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupSelection"];
+                };
+            };
+        };
+    };
+    set_group_intent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+                group_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroupIntent"];
+            };
+        };
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupSelection"];
+                };
+            };
+        };
+    };
+    accept_group_selection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+                group_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionBatch"];
                 };
             };
         };

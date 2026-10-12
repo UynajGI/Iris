@@ -21,6 +21,7 @@ fn version_three_upgrade_preserves_existing_decisions_and_creates_backup() {
         .execute_batch("DROP TRIGGER catalog_analysis_insert; DROP TRIGGER catalog_analysis_update; DROP TRIGGER catalog_analysis_delete;
             DROP VIEW analysis_catalog_source; DROP TABLE analysis_catalog;
             DROP INDEX photo_catalog_name; DROP INDEX photo_catalog_size; DROP INDEX photo_catalog_date;
+            DROP TABLE group_selection_intents; DROP TABLE selection_locks;
             DROP TABLE engine_cache_versions; DROP TABLE analysis_runs; DROP TABLE photo_marks; PRAGMA user_version=3;")
         .unwrap();
     drop(services);
