@@ -54,7 +54,10 @@ It does not update scores, eye classifications or decisions.
 
 XMP export writes actual rating/color and Iris decision separately. Empty subjects
 and filename/file-URI subjects referring to the current photo have their owned
-marks replaced together; unrelated RDF subjects are preserved. Existing
+marks replaced together; unrelated RDF subjects are preserved. Newly written
+subjects use relative references without local directory names. A base URI that
+cannot express the current photo safely is rejected before replacing the sidecar.
+Existing
 unrelated XML properties remain intact; malformed sidecars fail without overwrite,
 and replaced originals are retained in uniquely named backups. Paired RAW/JPEG
 photos can share a sidecar only when decision, rating and color all agree.

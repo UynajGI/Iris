@@ -43,7 +43,7 @@ fn description(photo: &Photo, subject: &str) -> Result<String> {
     ))
 }
 
-fn subject_url(node: Node<'_, '_>, source: &Path) -> Option<url::Url> {
+fn subject_base(node: Node<'_, '_>, source: &Path) -> Option<url::Url> {
     let mut base = url::Url::from_file_path(source).ok()?;
     let ancestors: Vec<_> = std::iter::successors(Some(node), |node| node.parent()).collect();
     for ancestor in ancestors.into_iter().rev() {
@@ -51,7 +51,33 @@ fn subject_url(node: Node<'_, '_>, source: &Path) -> Option<url::Url> {
             base = base.join(value).ok()?;
         }
     }
-    base.join(node.attribute((RDF, "about")).unwrap_or("")).ok()
+    Some(base)
+}
+
+fn subject_url(node: Node<'_, '_>, source: &Path) -> Option<url::Url> {
+    subject_base(node, source)?
+        .join(node.attribute((RDF, "about")).unwrap_or(""))
+        .ok()
+}
+
+fn output_subject(rdf: Node<'_, '_>, path: &Path) -> Result<String> {
+    let target = url::Url::from_file_path(path)
+        .map_err(|_| anyhow::anyhow!("XMP source path must be absolute"))?;
+    let base = subject_base(rdf, path).context("invalid XMP base URI")?;
+    let relative = base
+        .make_relative(&target)
+        .context("XMP base cannot safely address this photo")?;
+    let filename = target
+        .path_segments()
+        .and_then(|mut parts| parts.next_back())
+        .context("XMP source filename is unavailable")?;
+    // Never introduce local directory names into a shared sidecar. Descendant
+    // bases can be addressed with parent segments and the encoded filename only.
+    anyhow::ensure!(
+        relative.is_empty() || relative.trim_start_matches("../") == filename,
+        "XMP base cannot address this photo without exposing local directories"
+    );
+    Ok(relative)
 }
 
 fn describes_photo(node: Node<'_, '_>, source: &Path) -> bool {
@@ -137,21 +163,7 @@ pub(super) fn merge(photo: &Photo, original: Option<&str>, path: &Path) -> Resul
         .collect();
     anyhow::ensure!(roots.len() == 1, "XMP must contain exactly one RDF root");
     let rdf = roots[0];
-    let explicit_subject = rdf
-        .children()
-        .filter(|n| describes_photo(*n, path))
-        .filter_map(|n| n.attribute((RDF, "about")))
-        .any(|about| !about.is_empty())
-        || document
-            .descendants()
-            .any(|n| n.attribute((XML, "base")).is_some());
-    let subject = if explicit_subject {
-        url::Url::from_file_path(path)
-            .map_err(|_| anyhow::anyhow!("XMP source path must be absolute"))?
-            .to_string()
-    } else {
-        String::new()
-    };
+    let subject = output_subject(rdf, path)?;
     let description = description(photo, &subject)?;
     let range = rdf.range();
     let source = &original[range.clone()];
@@ -327,6 +339,17 @@ mod tests {
             assert!(!output.contains("<m:Label>"));
             assert!(output.contains("<c:grading>untouched</c:grading>"));
             assert!(output.contains(other));
+            if !original.contains("file:") {
+                assert!(!output.contains("file:"));
+            }
+            let written = doc
+                .descendants()
+                .find(|n| n.attribute((XMP, "Rating")) == Some("3"))
+                .unwrap();
+            assert!(!written
+                .attribute((RDF, "about"))
+                .unwrap()
+                .starts_with("file:"));
             assert_eq!(super::merge(&p, Some(&output), &path).unwrap(), output);
         }
         let mut unicode = p;
@@ -376,10 +399,22 @@ mod tests {
         let original = format!("<r:RDF xmlns:r='{RDF}' xmlns:m='{XMP}' xml:base='other/'><r:Description r:about='../synthetic.jpg' m:Rating='5'/>{other}</r:RDF>");
         let output = super::merge(&p, Some(&original), &path).unwrap();
         assert!(output.contains(other));
+        assert!(!output.contains("file:"));
         let document = Document::parse(&output).unwrap();
         assert!(document
             .descendants()
             .any(|n| describes_photo(n, &path) && n.attribute((XMP, "Rating")) == Some("3")));
         assert_eq!(super::merge(&p, Some(&output), &path).unwrap(), output);
+    }
+
+    #[test]
+    fn external_bases_never_cause_local_directories_to_be_written() {
+        let temp = tempfile::tempdir().unwrap();
+        let p = photo();
+        let path = temp.path().join("private-album").join(&p.filename);
+        for base in ["../", "https://example.invalid/metadata/"] {
+            let original = format!("<r:RDF xmlns:r='{RDF}' xmlns:m='{XMP}' xml:base='{base}'><r:Description m:Rating='4'/></r:RDF>");
+            assert!(super::merge(&p, Some(&original), &path).is_err());
+        }
     }
 }
