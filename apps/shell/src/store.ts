@@ -910,7 +910,7 @@ export class IrisStore {
     });
     this.bus.start();
   }
-  private scheduleRefresh(group = false): void {
+  private scheduleRefresh(group = false, delay = 50): void {
     this.eventRefreshGroup ||= group;
     if (this.eventRefresh !== undefined) return;
     this.eventRefresh = setTimeout(() => {
@@ -918,7 +918,7 @@ export class IrisStore {
       const refresh = this.eventRefreshGroup ? this.refreshWithGroup : this.refresh;
       this.eventRefreshGroup = false;
       void refresh().catch((error) => this.update({ error: String(error) }));
-    }, 50);
+    }, delay);
   }
   private handleEvent = (event: DaemonEvent): void => {
     if (event.event === 'resync') {
@@ -927,23 +927,55 @@ export class IrisStore {
     }
     if (event.project_id !== this.state.project?.id) return;
     if (event.event === 'scan:progress' || event.event === 'analysis:stage') {
-      if (typeof event.data === 'object' && event.data !== null) {
-        const progress = event.data as Progress;
-        if (
-          progress.kind === 'analysis' &&
-          ['running', 'paused', 'cancelling'].includes(progress.state)
-        ) {
+      this.applyProgress(event.data);
+    }
+    if (event.event === 'verdict:updated') {
+      this.applyVerdict(event.data);
+    }
+    if (event.event === 'session:changed') this.scheduleRefresh(true);
+  };
+  private applyProgress(data: unknown): void {
+    if (typeof data === 'object' && data !== null) {
+      const progress = data as Progress;
+      if (
+        progress.kind === 'analysis' &&
+        ['running', 'paused', 'cancelling'].includes(progress.state)
+      ) {
+        if (!progress.id || this.state.progress?.id !== progress.id) {
           ++this.refreshSequence;
           this.closeGroup();
           this.update({ groups: [], reanalysisRequired: true });
         }
-        this.update({ progress });
-        if (['completed', 'cancelled', 'failed'].includes(progress.state)) this.scheduleRefresh();
       }
+      this.update({ progress });
+      // Scan progress is emitted after durable batches; expose photos before the walk finishes.
+      if (progress.kind === 'scan' && (progress.found_photos ?? 0) > this.state.photos.length)
+        this.scheduleRefresh();
+      if (['completed', 'cancelled', 'failed'].includes(progress.state)) this.scheduleRefresh();
     }
-    if (event.event === 'session:changed' || event.event === 'verdict:updated')
-      this.scheduleRefresh(true);
-  };
+  }
+  private applyVerdict(data: unknown): void {
+    const payload = data as {
+      photo_id?: number;
+      analysis?: Photo['analysis'];
+      analysis_status?: string;
+    };
+    const analyzedSettings = (payload?.analysis as { settings?: Settings } | undefined)?.settings;
+    if (
+      payload?.analysis &&
+      payload.analysis_status === 'current' &&
+      analyzedSettings &&
+      JSON.stringify(analyzedSettings) === JSON.stringify(this.state.settings)
+    ) {
+      const analysis = payload.analysis;
+      this.update({
+        photos: this.state.photos.map((photo) =>
+          photo.id === payload.photo_id ? { ...photo, analysis, analysis_status: 'current' } : photo
+        ),
+      });
+    }
+    this.scheduleRefresh(true, 500);
+  }
   disconnect(): void {
     this.bus?.stop();
     this.bus = undefined;

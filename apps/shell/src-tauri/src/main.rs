@@ -5,6 +5,10 @@ use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Manager};
 use tauri_plugin_dialog::DialogExt;
 
+mod window_frame;
+mod window_lifecycle;
+use window_lifecycle::{close_behavior, confirm_close, set_close_behavior, window_frame_platform};
+
 #[cfg(feature = "native-smoke")]
 mod native_smoke;
 
@@ -88,13 +92,6 @@ fn set_unsaved_changes(
     }
     state.0.store(dirty, Ordering::SeqCst);
     Ok(())
-}
-#[tauri::command]
-fn confirm_close(window: tauri::WebviewWindow) -> Result<(), String> {
-    if window.label() != "main" {
-        return Err("Only the main window can confirm closing".into());
-    }
-    window.destroy().map_err(|error| error.to_string())
 }
 #[tauri::command]
 fn frontend_ready(window: tauri::WebviewWindow) -> Result<(), String> {
@@ -187,11 +184,10 @@ fn main() {
     let builder = tauri::Builder::default()
         .manage(UnsavedChanges::default())
         .on_window_event(|window, event| {
-            if window.label() == "main" && window.state::<UnsavedChanges>().0.load(Ordering::SeqCst)
-            {
+            if window.label() == "main" {
                 if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                     api.prevent_close();
-                    let _ = window.emit("iris:close-requested", ());
+                    window_lifecycle::request_close(window.app_handle(), false);
                 }
             }
         })
@@ -202,6 +198,9 @@ fn main() {
         frontend_ready,
         set_unsaved_changes,
         confirm_close,
+        close_behavior,
+        set_close_behavior,
+        window_frame_platform,
         daemon_session,
         set_app_locale,
         select_project_folder,
@@ -216,6 +215,9 @@ fn main() {
         frontend_ready,
         set_unsaved_changes,
         confirm_close,
+        close_behavior,
+        set_close_behavior,
+        window_frame_platform,
         daemon_session,
         set_app_locale,
         select_project_folder,
@@ -225,6 +227,7 @@ fn main() {
         updater::download_update,
         updater::install_update,
         native_smoke::native_title_smoke_observe,
+        native_smoke::native_window_smoke,
         native_smoke::native_title_smoke_finish
     ]);
     #[cfg(feature = "native-smoke")]
@@ -236,6 +239,8 @@ fn main() {
                 .map(std::path::PathBuf::from)
                 .unwrap_or(app.path().app_data_dir()?);
             std::fs::create_dir_all(&data_dir)?;
+            window_lifecycle::setup(app.handle(), data_dir.clone())?;
+            window_frame::setup(app.handle())?;
             let mut host = DaemonHost::new(executable, data_dir);
             host.start()?;
             let host = Arc::new(Mutex::new(host));

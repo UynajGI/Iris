@@ -69,6 +69,10 @@ pub(super) fn analyze_project_scoped(
     let plan = preflight::prepare_photos(&context, &photos)?;
     let validation_ms = validation_started.elapsed().as_secs_f64() * 1000.;
     if plan.pending.is_empty() {
+        update(s, id, |p| {
+            p.quality_ready = true;
+            p.phase = "semantic".into();
+        });
         let grouping_started = std::time::Instant::now();
         let semantic = prepare_semantic_groups(s, id, job, &settings_value, selected)?;
         return Ok(
@@ -81,16 +85,17 @@ pub(super) fn analyze_project_scoped(
         );
     }
     let workers = bounded_worker_count(
-        if settings.execution_provider != iris_core::vision::ExecutionProvider::Cpu {
-            1
-        } else {
-            s.worker_limit
-        },
-        std::thread::available_parallelism().map_or(1, usize::from),
+        s.worker_limit,
+        std::thread::available_parallelism()
+            .map_or(1, usize::from)
+            .saturating_sub(2)
+            .max(1),
         plan.pending.len(),
     );
     let initialization_started = std::time::Instant::now();
+    update(s, id, |p| p.phase = "quality".into());
     let engines = pool::initialize(&context, workers)?;
+    let workers = engines.len();
     let initialization_ms = initialization_started.elapsed().as_secs_f64() * 1000.;
     if let Some(engine) = engines.first() {
         let feedback = engine.execution_feedback("quality");
@@ -100,6 +105,12 @@ pub(super) fn analyze_project_scoped(
     let processed = pool::process(&context, &plan, engines)?;
     let processing_ms = processing_started.elapsed().as_secs_f64() * 1000.;
     let grouping_started = std::time::Instant::now();
+    if !job.cancel.load(Ordering::Relaxed) {
+        update(s, id, |p| {
+            p.quality_ready = true;
+            p.phase = "semantic".into();
+        });
+    }
     let semantic = prepare_semantic_groups(s, id, job, &settings_value, selected)?;
     Ok(
         json!({"analyzed":processed.analyzed,"reused":plan.reused,"failed":processed.failures,"workers":workers,

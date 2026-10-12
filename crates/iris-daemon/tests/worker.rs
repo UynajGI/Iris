@@ -62,6 +62,24 @@ fn persistent_worker_reuses_process_and_roundtrips_numbered_requests() {
 }
 
 #[test]
+fn startup_reports_effective_provider_and_fallback_warning() {
+    let dir = tempfile::tempdir().unwrap();
+    let models = dir.path().join("cpu-fallback");
+    std::fs::create_dir(&models).unwrap();
+    let child = worker(&models, Duration::from_secs(2));
+    let feedback = child.execution_feedback("quality");
+    assert_eq!(
+        feedback.selected_provider,
+        iris_core::vision::ExecutionProvider::Cpu
+    );
+    assert_eq!(feedback.device_id, None);
+    assert_eq!(
+        feedback.warnings,
+        ["DirectML runtime missing; CPU fallback"]
+    );
+}
+
+#[test]
 fn hard_deadline_kills_hung_child_and_next_request_starts_replacement() {
     let dir = tempfile::tempdir().unwrap();
     let mut child = worker(dir.path(), Duration::from_millis(500));
@@ -271,7 +289,9 @@ fn main(){
     if name=="startup-hang"{std::thread::sleep(Duration::from_secs(60));}
     if name=="bad-handshake"{send(r#"{"protocol":"wrong-v0","ready":true,"error":null}"#);return;}
     if name=="startup-error"{send(r#"{"protocol":"iris-analysis-worker-v1","ready":false,"error":"fixture startup error"}"#);return;}
-    send(r#"{"protocol":"iris-analysis-worker-v1","ready":true,"error":null}"#);
+    if name=="cpu-fallback" {
+        send(r#"{"protocol":"iris-analysis-worker-v1","ready":true,"error":null,"effective_provider":"cpu","warnings":["DirectML runtime missing; CPU fallback"]}"#);
+    } else { send(r#"{"protocol":"iris-analysis-worker-v1","ready":true,"error":null}"#); }
     for line in std::io::stdin().lock().lines(){let line=line.unwrap();let rest=line.split("\"id\":").nth(1).unwrap();let id=rest.chars().take_while(|c|c.is_ascii_digit()).collect::<String>().parse::<u64>().unwrap();
         if line.contains("hang.jpg"){std::thread::sleep(Duration::from_secs(60));}
         if line.contains("late-marker.jpg"){std::thread::sleep(Duration::from_secs(2));std::fs::write(model.join("late-result"),b"finished").unwrap();}

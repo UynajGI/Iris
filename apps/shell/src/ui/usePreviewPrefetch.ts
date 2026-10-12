@@ -17,7 +17,7 @@ export function usePreviewPrefetch(
     const timer = setTimeout(() => {
       const targets: [number, string][] = JSON.parse(identity);
       for (const [id, revision] of targets) {
-        const lease = mediaCache(client).acquire(id, 'preview', revision);
+        const lease = mediaCache(client).acquire(id, 'preview', revision, true);
         leases.push(lease);
         void lease.promise.then(lease.release, lease.release);
       }

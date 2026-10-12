@@ -105,7 +105,11 @@ export function WorkspaceToolbar({ model }: { model: PhotoWorkspaceModel }) {
         onClick={() => attempt(() => store.run('analyze'))}
       >
         <Icon name="auto-awesome" />
-        {running && progress?.kind === 'analysis' ? '分析中' : '智能分析'}
+        {running && progress?.kind === 'analysis'
+          ? progress.quality_ready
+            ? '评分已完成 · 分组中'
+            : '分析中'
+          : '智能分析'}
       </Button>
       <button
         type="button"

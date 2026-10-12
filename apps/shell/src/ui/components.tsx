@@ -145,12 +145,31 @@ export function PhotoImage({
   photo: Photo;
   kind?: 'thumb' | 'preview' | 'original';
 }) {
-  const media = usePhotoUrl(client, photo.id, kind, mediaRevision(photo));
+  const element = useRef<HTMLElement | null>(null);
+  const [visible, setVisible] = useState(kind !== 'thumb');
+  const media = usePhotoUrl(
+    client,
+    kind === 'thumb' && !visible ? null : photo.id,
+    kind,
+    mediaRevision(photo)
+  );
+  useEffect(() => {
+    if (kind !== 'thumb' || !element.current || typeof IntersectionObserver === 'undefined') {
+      setVisible(true);
+      return;
+    }
+    const observer = new IntersectionObserver(([entry]) => setVisible(!!entry?.isIntersecting), {
+      rootMargin: '200px',
+    });
+    observer.observe(element.current);
+    return () => observer.disconnect();
+  }, [kind, photo.id, media.url]);
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const [loadedUrl, setLoadedUrl] = useState<string | null>(null);
   const failed = !!media.error || (!!media.url && failedUrl === media.url);
   // Cached images may finish before React attaches onLoad; read completion from the node.
   const observe = (node: HTMLImageElement | null) => {
+    element.current = node;
     if (node?.complete && node.naturalWidth && media.url && loadedUrl !== media.url)
       setLoadedUrl(media.url);
   };
@@ -171,6 +190,9 @@ export function PhotoImage({
     />
   ) : (
     <span
+      ref={(node) => {
+        element.current = node;
+      }}
       className={`photo-placeholder ${failed ? 'unavailable' : 'loading'}`}
       role="img"
       aria-label={`${photo.filename}：${failed ? '照片暂不可用' : '正在载入'}`}

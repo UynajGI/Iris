@@ -170,3 +170,56 @@ test('expired idle blobs revalidate without aborting active consumers', async ()
   assert.equal(signals[0]!.aborted, true);
   fresh.release();
 });
+
+test('foreground reserves capacity and queued abandoned thumbnails never fetch', async () => {
+  const calls: number[] = [];
+  const finish = new Map<number, (blob: Blob) => void>();
+  const cache = new MediaCache({
+    media: (id) => {
+      calls.push(id);
+      return new Promise((resolve) => finish.set(id, resolve));
+    },
+  });
+  const thumbs = [1, 2, 3, 4, 5].map((id) => cache.acquire(id, 'thumb'));
+  assert.deepEqual(calls, [1, 2, 3]);
+  const abandoned = thumbs[3]!;
+  abandoned.release();
+  await assert.rejects(abandoned.promise, { name: 'AbortError' });
+  const focused = cache.acquire(90, 'preview');
+  assert.deepEqual(calls, [1, 2, 3, 90]);
+  finish.get(90)!(new Blob(['focus']));
+  await focused.promise;
+  finish.get(1)!(new Blob(['thumb']));
+  await thumbs[0]!.promise;
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(calls, [1, 2, 3, 90, 5]);
+  for (const [id, resolve] of finish) resolve(new Blob([String(id)]));
+  await Promise.all(thumbs.filter((_, i) => i !== 3).map((lease) => lease.promise));
+  thumbs.forEach((lease) => lease.release());
+  focused.release();
+});
+
+test('only one speculative request runs and a queued neighbor is promoted on focus', async () => {
+  const calls: [number, boolean | undefined][] = [];
+  const finish = new Map<number, (blob: Blob) => void>();
+  const cache = new MediaCache({
+    media: (id, _kind, _signal, prefetch) => {
+      calls.push([id, prefetch]);
+      return new Promise((resolve) => finish.set(id, resolve));
+    },
+  });
+  const a = cache.acquire(1, 'preview', '', true),
+    b = cache.acquire(2, 'preview', '', true);
+  assert.deepEqual(calls, [[1, true]]);
+  const focused = cache.acquire(2, 'preview');
+  assert.deepEqual(calls, [
+    [1, true],
+    [2, false],
+  ]);
+  finish.get(1)!(new Blob(['a']));
+  finish.get(2)!(new Blob(['b']));
+  await Promise.all([a.promise, b.promise, focused.promise]);
+  a.release();
+  b.release();
+  focused.release();
+});

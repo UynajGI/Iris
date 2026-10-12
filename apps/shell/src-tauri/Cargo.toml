@@ -1,6 +1,6 @@
 [package]
 name = "iris-shell"
-version = "0.1.0-beta2"
+version = "0.1.0-beta3"
 edition = "2021"
 license = "GPL-3.0-or-later"
 
@@ -12,7 +12,14 @@ inherits = "release"
 
 [features]
 default = []
-desktop = ["updater-client", "tauri/default", "dep:tauri-build", "dep:tauri-plugin-dialog"]
+desktop = [
+  "updater-client",
+  "tauri/default",
+  "tauri/tray-icon",
+  "tauri/image-png",
+  "dep:tauri-build",
+  "dep:tauri-plugin-dialog"
+]
 updater-client = ["dep:tauri", "dep:tauri-plugin-updater", "dep:base64", "dep:minisign-verify"]
 native-smoke = ["desktop"]
 
@@ -34,6 +41,16 @@ minisign = "0.9"
 
 [build-dependencies]
 tauri-build = { version = "2", optional = true, features = [] }
+
+[target."cfg(windows)".dependencies]
+windows-sys = { version = "0.61", features = [
+  "Win32_Foundation",
+  "Win32_Graphics_Dwm",
+  "Win32_UI_Controls",
+  "Win32_UI_Shell",
+  "Win32_UI_HiDpi",
+  "Win32_UI_WindowsAndMessaging"
+] }
 
 [[bin]]
 name = "iris-shell"

@@ -64,6 +64,32 @@
   font-size: 22px;
   flex-shrink: 0;
 }
+[data-window-frame='windows'] .titlebar {
+  padding-right: 160px;
+}
+:root[data-window-frame='windows'],
+[data-window-frame='windows'] body {
+  background: transparent;
+}
+[data-window-frame='windows'] .app,
+[data-window-frame='windows'] dialog::backdrop {
+  /* Expose the native caption corner through WebView2, including over modal backdrops. */
+  clip-path: polygon(
+    0 0,
+    calc(100% - 144px) 0,
+    calc(100% - 144px) 36px,
+    100% 36px,
+    100% 100%,
+    0 100%
+  );
+}
+.close-remember {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 20px 0;
+  font-size: var(--small);
+}
 .brand-mark {
   display: none;
 }

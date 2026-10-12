@@ -1,6 +1,6 @@
 # 发布流程
 
-产品为 Iris / 伊人。当前预发布为 `v0.1.0-beta2`，应用版本为 `0.1.0-beta2`；首版为 `v0.1.0-beta`。
+产品为 Iris / 伊人。当前源码版本为 `0.1.0-beta3`，发行说明见 [beta3](releases/v0.1.0-beta3.md)。仓库已有 `v0.1.0-beta2` 的公开发行记录；beta3 尚需对应提交的构建、安装及发布验收，不能沿用旧版 CI 作为新版本通过证明。
 已公开 Tag 和附件不移动、不静默覆盖；历史便携包不因新流程而自动获得安装器。
 本页描述当前源码的发版契约，实际可下载内容以对应 Release 附件为准。
 
@@ -71,7 +71,7 @@ macOS 删除 `Iris.app` 不清理用户应用数据；系统安装收据不是�
 先提交全部公开源码，源码导出拒绝 dirty tree。同步版本后运行：
 
 ```powershell
-python tools/check-release.py v0.1.0-beta2
+python tools/check-release.py v0.1.0-beta3
 make verify
 ```
 
@@ -98,7 +98,7 @@ make installer-native PORTABLE=dist/local/Iris-unix OUTPUT=dist/local/native-ins
 
 默认是**未签名 Beta**，不配置自动更新；macOS PKG 和 App 均未正式签名、公证。
 Windows 仍需要 WebView2 Runtime 和 VC++ 2015–2022 x64 Runtime，不静默下载它们。
-macOS/Linux 暂未打包 HEIC 和 ExifTool，默认 CPU 范围见[当前发行说明](releases/v0.1.0-beta2.md)。
+macOS/Linux 暂未打包 HEIC 和 ExifTool，默认 CPU 范围见[当前发行说明](releases/v0.1.0-beta3.md)。
 Windows Authenticode/更新签名工具见[原生更新](native-updates.md)。正式密钥、Apple Developer ID、
 公证凭据和更新端点须独立配置，不能把“生成安装器”记为“通过正式发行认证”。
 

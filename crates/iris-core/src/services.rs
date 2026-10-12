@@ -6,7 +6,10 @@ mod photos;
 mod projects;
 mod quarantine;
 mod scan;
+mod scan_pipeline;
 mod settings;
+
+pub use media::CachedImageJob;
 
 use crate::{domain::*, Store};
 use anyhow::{bail, Context, Result};

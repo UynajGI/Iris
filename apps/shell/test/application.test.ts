@@ -539,6 +539,110 @@ test('failed scan preserves terminal errors and refreshes successfully imported 
   }
 });
 
+test('running scan exposes committed photos before its terminal event', async () => {
+  const { store, client } = fixture(0);
+  await store.openProject('C:/photos');
+  const running: Progress = {
+    id: 'scan-live',
+    kind: 'scan',
+    state: 'running',
+    completed: 1,
+    total: 1,
+    found_photos: 1,
+    errors: [],
+    result: null,
+  };
+  client.photos = async () => [photo(9)];
+  client.progress = async () => running;
+  const socket: Socket = {
+    onopen: null,
+    onmessage: null,
+    onerror: null,
+    onclose: null,
+    close() {},
+  };
+  store.connect({ createSocket: () => socket, pollMs: 60000 });
+  try {
+    socket.onmessage?.({
+      data: JSON.stringify({ event: 'scan:progress', project_id: 1, data: running }),
+    } as MessageEvent);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    assert.equal(store.getSnapshot().photos[0]?.id, 9);
+    assert.equal(store.getSnapshot().progress?.state, 'running');
+  } finally {
+    store.dispose();
+  }
+});
+
+test('committed quality events are usable while semantic analysis continues', async () => {
+  const { store } = fixture(1);
+  await store.openProject('C:/photos');
+  const id = store.getSnapshot().photos[0]!.id;
+  const socket: Socket = {
+    onopen: null,
+    onmessage: null,
+    onerror: null,
+    onclose: null,
+    close() {},
+  };
+  store.connect({ createSocket: () => socket, pollMs: 60000 });
+  try {
+    socket.onmessage?.({
+      data: JSON.stringify({
+        event: 'analysis:stage',
+        project_id: 1,
+        data: {
+          id: 'analysis-live',
+          kind: 'analysis',
+          state: 'running',
+          quality_ready: true,
+          phase: 'semantic',
+        },
+      }),
+    } as MessageEvent);
+    socket.onmessage?.({
+      data: JSON.stringify({
+        event: 'verdict:updated',
+        project_id: 1,
+        data: {
+          photo_id: id,
+          analysis_status: 'current',
+          analysis: {
+            settings: store.getSnapshot().settings,
+            composite_score: 73,
+            verdict: 'recommend',
+          },
+        },
+      }),
+    } as MessageEvent);
+    assert.equal(store.photoAnalysis(id)?.score, 73);
+    assert.equal(store.getSnapshot().progress?.state, 'running');
+    assert.equal(store.getSnapshot().progress?.quality_ready, true);
+    socket.onmessage?.({
+      data: JSON.stringify({
+        event: 'verdict:updated',
+        project_id: 1,
+        data: {
+          photo_id: id,
+          analysis_status: 'current',
+          analysis: {
+            settings: { ...store.getSnapshot().settings, eyes_weight: 999 },
+            composite_score: 99,
+            verdict: 'recommend',
+          },
+        },
+      }),
+    } as MessageEvent);
+    assert.equal(
+      store.photoAnalysis(id)?.score,
+      73,
+      'late results for different settings cannot become current'
+    );
+  } finally {
+    store.dispose();
+  }
+});
+
 test('a slower previous filter response cannot replace a newer library snapshot', async () => {
   const { store, client } = fixture();
   await store.openProject('C:/photos');

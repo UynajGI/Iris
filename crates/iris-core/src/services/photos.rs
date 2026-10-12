@@ -25,7 +25,10 @@ impl Services {
         if filter.rating.is_some_and(|rating| rating > 5) {
             bail!("rating must be between 0 and 5");
         }
-        self.project(project_id)?;
+        self.require_project(project_id)?;
+        if plain_name_page(&filter) {
+            return self.name_page(project_id, &filter);
+        }
         let mut q = self
             .store
             .conn
@@ -55,6 +58,37 @@ impl Services {
             .skip(filter.offset.unwrap_or(0))
             .take(filter.limit.unwrap_or(usize::MAX))
             .collect())
+    }
+    fn name_page(&self, project_id: i64, filter: &PhotoFilter) -> Result<Vec<Photo>> {
+        // The ordinary gallery must deserialize only its visible page, not every stored
+        // face/embedding record in the project. Rust and SQLite BINARY path order agree.
+        let available = if filter.include_missing.unwrap_or(false) {
+            ""
+        } else {
+            " AND p.missing=0 AND p.quarantined=0"
+        };
+        let direction = if filter.descending.unwrap_or(false) {
+            "DESC"
+        } else {
+            "ASC"
+        };
+        let sql = format!("{PHOTO_SELECT} WHERE p.project_id=?1{available} ORDER BY p.path COLLATE BINARY {direction} LIMIT ?2 OFFSET ?3");
+        let mut query = self.store.conn.prepare(&sql)?;
+        let mut photos = query
+            .query_map(
+                params![
+                    project_id,
+                    filter.limit.unwrap_or(usize::MAX).min(i64::MAX as usize) as i64,
+                    filter.offset.unwrap_or(0).min(i64::MAX as usize) as i64
+                ],
+                photo_row,
+            )?
+            .collect::<Result<Vec<_>, _>>()?;
+        let settings = self.settings(project_id)?;
+        for photo in &mut photos {
+            photo.analysis_status = analysis_status(photo.analysis.as_ref(), &settings);
+        }
+        Ok(photos)
     }
     pub fn photo(&self, id: i64) -> Result<Photo> {
         let mut photo = self.store.conn.query_row(
@@ -90,22 +124,27 @@ impl Services {
         photo_id: i64,
         data: impl std::borrow::Borrow<Value>,
     ) -> Result<()> {
-        let data = data.borrow();
-        let exists: bool = self.store.conn.query_row(
-            "SELECT EXISTS(SELECT 1 FROM photos WHERE id=?1)",
-            [photo_id],
-            |r| r.get(0),
-        )?;
-        anyhow::ensure!(exists, "photo does not exist");
+        self.save_analysis_batch(&[(photo_id, data.borrow())])
+    }
+    /// Commit a small completed batch atomically, amortizing FULL synchronous WAL writes.
+    pub fn save_analysis_batch(&mut self, entries: &[(i64, &Value)]) -> Result<()> {
         let tx = self.store.conn.transaction()?;
-        tx.execute("INSERT INTO analyses(photo_id,data,version,analyzed_at) VALUES(?1,?2,?3,?4) ON CONFLICT(photo_id) DO UPDATE SET data=excluded.data,version=excluded.version,analyzed_at=excluded.analyzed_at",params![photo_id,data.to_string(),data.get("version").and_then(Value::as_str),now()])?;
-        tx.execute("DELETE FROM faces WHERE photo_id=?1", [photo_id])?;
-        if let Some(faces) = data.get("faces").and_then(Value::as_array) {
-            for (i, face) in faces.iter().enumerate() {
-                tx.execute(
-                    "INSERT INTO faces(photo_id,face_index,data) VALUES(?1,?2,?3)",
-                    params![photo_id, i as i64, face.to_string()],
-                )?;
+        for (photo_id, data) in entries {
+            let exists: bool = tx.query_row(
+                "SELECT EXISTS(SELECT 1 FROM photos WHERE id=?1)",
+                [photo_id],
+                |r| r.get(0),
+            )?;
+            anyhow::ensure!(exists, "photo does not exist");
+            tx.execute("INSERT INTO analyses(photo_id,data,version,analyzed_at) VALUES(?1,?2,?3,?4) ON CONFLICT(photo_id) DO UPDATE SET data=excluded.data,version=excluded.version,analyzed_at=excluded.analyzed_at",params![photo_id,data.to_string(),data.get("version").and_then(Value::as_str),now()])?;
+            tx.execute("DELETE FROM faces WHERE photo_id=?1", [photo_id])?;
+            if let Some(faces) = data.get("faces").and_then(Value::as_array) {
+                for (i, face) in faces.iter().enumerate() {
+                    tx.execute(
+                        "INSERT INTO faces(photo_id,face_index,data) VALUES(?1,?2,?3)",
+                        params![photo_id, i as i64, face.to_string()],
+                    )?;
+                }
             }
         }
         tx.commit()?;
@@ -254,4 +293,12 @@ mod group_query_tests {
             .unwrap();
         assert_eq!(selected, vec![(1, "member".into())]);
     }
+}
+fn plain_name_page(filter: &PhotoFilter) -> bool {
+    filter.sort.as_deref().unwrap_or("name") == "name"
+        && filter.verdict.is_none()
+        && filter.decision.is_none()
+        && filter.rating.is_none()
+        && filter.color_label.is_none()
+        && filter.format.is_none()
 }

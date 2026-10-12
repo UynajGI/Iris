@@ -68,24 +68,64 @@ fn dinov3_report(
         .map_err(|_| anyhow::anyhow!("service lock poisoned"))?
         .photos(id, PhotoFilter::default())?;
     let candidates = semantic_candidates(&photos);
-    let mut pass = EmbeddingPass {
+    let make_pass = || EmbeddingPass {
         state: s,
         project_id: id,
         job,
         settings_value,
         settings,
+        force_cpu: false,
         worker: None,
         warnings: Vec::new(),
         computed: 0,
         reused: 0,
     };
+    let mut pass = make_pass();
     if status.state == iris_core::vision::ModelAvailability::Missing {
         pass.warnings.push(format!(
             "DINOv3 unavailable; pHash fallback: {}",
             status.reason.unwrap_or_default()
         ));
     } else {
-        pass.compute_candidates(&photos, &candidates, selected)?;
+        let mut pending: Vec<_> = photos
+            .iter()
+            .filter(|photo| {
+                candidates.contains(&photo.id.to_string())
+                    && selected.is_none_or(|ids| ids.contains(&photo.id))
+            })
+            .collect();
+        pending.retain(|photo| {
+            let cached = iris_core::vision::embedding_matches_settings(
+                photo.analysis.as_ref().expect("current candidate"),
+                settings,
+            );
+            pass.reused += usize::from(cached);
+            !cached
+        });
+        if !pending.is_empty() {
+            pass.ensure_worker()?;
+        }
+        let cpu = pass.worker.as_ref().is_some_and(|worker| {
+            worker.execution_feedback("embedding").selected_provider
+                == iris_core::vision::ExecutionProvider::Cpu
+        });
+        let workers = if cpu {
+            s.worker_limit.min(4).min(
+                std::thread::available_parallelism()
+                    .map_or(1, usize::from)
+                    .saturating_sub(2)
+                    .max(1),
+            )
+        } else {
+            1
+        }
+        .min(pending.len());
+        let passes = run_embedding_workers(make_pass, &pending, workers, cpu, pass.worker.take())?;
+        for completed in passes {
+            pass.computed += completed.computed;
+            pass.reused += completed.reused;
+            pass.warnings.extend(completed.warnings);
+        }
     }
     Ok(
         json!({"mode":if pass.warnings.is_empty() { "dinov3" } else { "phash_fallback" },
@@ -99,6 +139,7 @@ struct EmbeddingPass<'a> {
     job: &'a Job,
     settings_value: &'a Value,
     settings: &'a AnalysisSettings,
+    force_cpu: bool,
     worker: Option<AnalysisWorker>,
     warnings: Vec<String>,
     computed: usize,
@@ -106,22 +147,6 @@ struct EmbeddingPass<'a> {
 }
 
 impl EmbeddingPass<'_> {
-    fn compute_candidates(
-        &mut self,
-        photos: &[Photo],
-        candidates: &std::collections::HashSet<String>,
-        selected: Option<&std::collections::HashSet<i64>>,
-    ) -> anyhow::Result<()> {
-        for photo in photos.iter().filter(|p| {
-            candidates.contains(&p.id.to_string()) && selected.is_none_or(|ids| ids.contains(&p.id))
-        }) {
-            if !self.compute_photo(photo)? {
-                break;
-            }
-        }
-        Ok(())
-    }
-
     // false means an inference fallback stopped the embedding pass, not a source failure.
     fn compute_photo(&mut self, photo: &Photo) -> anyhow::Result<bool> {
         wait_for_semantic_job(self.job)?;
@@ -161,25 +186,39 @@ impl EmbeddingPass<'_> {
         }
     }
 
-    fn embed(
-        &mut self,
-        path: &std::path::Path,
-        value: &Value,
-    ) -> anyhow::Result<iris_core::vision::VisionAnalysis> {
+    fn ensure_worker(&mut self) -> anyhow::Result<()> {
         if self.worker.is_none() {
+            let mut execution_settings = self.settings.clone();
+            if self.force_cpu {
+                execution_settings.execution_provider = iris_core::vision::ExecutionProvider::Cpu;
+                execution_settings.directml_device_id = None;
+            }
             self.worker = Some(AnalysisWorker::new_with_settings(
                 &self.state.model_dir,
                 std::time::Duration::from_secs(30),
                 self.job.cancel.clone(),
-                self.settings,
+                &execution_settings,
             )?);
             let feedback = self
                 .worker
                 .as_ref()
                 .unwrap()
                 .execution_feedback("embedding");
-            update(self.state, self.project_id, |p| p.execution.push(feedback));
+            update(self.state, self.project_id, |p| {
+                if !p.execution.iter().any(|entry| entry.phase == "embedding") {
+                    p.execution.push(feedback);
+                }
+            });
         }
+        Ok(())
+    }
+
+    fn embed(
+        &mut self,
+        path: &std::path::Path,
+        value: &Value,
+    ) -> anyhow::Result<iris_core::vision::VisionAnalysis> {
+        self.ensure_worker()?;
         self.worker.as_mut().unwrap().embed(
             path,
             self.settings,
@@ -284,4 +323,55 @@ mod tests {
         let error = wait_for_semantic_job(&job).unwrap_err();
         assert!(error.is::<crate::worker::WorkerCancelled>());
     }
+}
+fn run_embedding_workers<'a>(
+    make_pass: impl Fn() -> EmbeddingPass<'a>,
+    pending: &[&Photo],
+    workers: usize,
+    cpu: bool,
+    mut seed: Option<AnalysisWorker>,
+) -> anyhow::Result<Vec<EmbeddingPass<'a>>> {
+    let next = std::sync::atomic::AtomicUsize::new(0);
+    let stop = AtomicBool::new(false);
+
+    std::thread::scope(|scope| {
+        let handles: Vec<_> = (0..workers)
+            .map(|_| {
+                let mut pass = make_pass();
+                pass.force_cpu = cpu;
+                pass.worker = seed.take();
+                let pending = &pending;
+                let next = &next;
+                let stop = &stop;
+                scope.spawn(move || {
+                    while !stop.load(Ordering::Relaxed) {
+                        let index = next.fetch_add(1, Ordering::Relaxed);
+                        let Some(photo) = pending.get(index) else {
+                            break;
+                        };
+                        match pass.compute_photo(photo) {
+                            Ok(true) => {}
+                            Ok(false) => {
+                                stop.store(true, Ordering::Relaxed);
+                                break;
+                            }
+                            Err(error) => {
+                                stop.store(true, Ordering::Relaxed);
+                                return Err(error);
+                            }
+                        }
+                    }
+                    Ok(pass)
+                })
+            })
+            .collect();
+        handles
+            .into_iter()
+            .map(|handle| {
+                handle
+                    .join()
+                    .unwrap_or_else(|_| Err(anyhow::anyhow!("embedding worker panicked")))
+            })
+            .collect::<anyhow::Result<Vec<_>>>()
+    })
 }

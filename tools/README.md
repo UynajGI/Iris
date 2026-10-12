@@ -148,6 +148,31 @@ hooks、打包、公开树、运行库闭包、SCRFD 工具及发布版本/原�
 `test_native_installer.py` 额外覆盖 Unix 安装器清单/平台资源和完整发行附件门禁。
 统一运行 `make test-tools`，包含 Make 编排和 Node 辅助工具回归测试。
 
+## 选片速度验收
+
+`benchmark-selection.py` 要求显式公共素材清单和至少 500 张 PPR 人像，用全新工作目录保存数据库、缓存和打星副本。源文件在复制前后均校验 SHA-256；报告记录二进制及清单哈希。首次指应用缓存为空，文件系统缓存未清空。示例：
+
+```powershell
+uv run --locked python tools/benchmark-selection.py --manifest reference/test-data/portraits/manifest.json --binary target/release/iris-daemon.exe --work artifacts/selection-run-001 --output artifacts/selection-run-001.json
+```
+
+可加 `--dino` 或 `--device 0`；只使用已经安装并授权的模型与运行库。每次采用不同的工作目录。配对测试依次执行，期间停止构建及其他测试。
+
+浏览器显示测量使用 `benchmark-selection-browser.mjs`，先启动下列隔离预览入口，再运行测量。第二次运行打开同一个临时项目，测缓存打开。它测 Chrome 图片解码后两次动画帧，不能替代原生 WebView2 验收。
+
+```powershell
+$env:IRIS_REVIEW_DATASET='ppr10k'
+$env:IRIS_REVIEW_PHOTOS=(Resolve-Path 'reference/test-data/portraits/images').Path
+$env:IRIS_REVIEW_COUNT='541'
+$env:IRIS_REVIEW_DAEMON=(Resolve-Path 'target/release/iris-daemon.exe').Path
+node tools/preview-frontend.mjs
+# 在另一终端中执行
+node tools/benchmark-selection-browser.mjs artifacts/selection-browser-fresh.json
+node tools/benchmark-selection-browser.mjs artifacts/selection-browser-cached.json
+```
+
+`benchmark-embedding-batch.py` 检查已安装 DINO 图的 CPU/DirectML 批量输入与吞吐量，使用合成张量，不下载或接受新模型。该探针需要隔离的 `onnxruntime-directml` 和 `numpy` 环境；注册 GPU provider 不能证明所有算子都在 GPU 执行。结果和限制见[性能验收](../docs/performance-plan.md)。
+
 ## 平台边界
 
 核心 Rust、Python 工具和前端命令可以在配置了相应本机工具链的平台上检查；仓库的

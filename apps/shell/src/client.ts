@@ -63,8 +63,16 @@ export class IrisClient {
     );
   };
   photo = (id: number) => this.transport.request<Photo>('GET', `/api/v1/photos/${id}`);
-  media = (id: number, kind: 'thumb' | 'preview' | 'original', signal?: AbortSignal) =>
-    this.transport.blob(`/api/v1/photos/${id}/${kind}`, signal);
+  media = (
+    id: number,
+    kind: 'thumb' | 'preview' | 'original',
+    signal?: AbortSignal,
+    prefetch = false
+  ) =>
+    this.transport.blob(
+      `/api/v1/photos/${id}/${kind}${prefetch && kind === 'preview' ? '?prefetch=true' : ''}`,
+      signal
+    );
   groups = (id: number) => this.transport.request<BurstGroup[]>('GET', `${projectPath(id)}/groups`);
   progress = (id: number) => this.transport.request<Progress>('GET', `${projectPath(id)}/progress`);
   run = (id: number, operation: 'scan' | 'analyze' | 'cancel' | 'pause' | 'resume') =>

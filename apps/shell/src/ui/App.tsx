@@ -6,6 +6,7 @@ import type { IrisStore } from '../store.js';
 import type { Project } from '../types.js';
 import { AnalysisSettings } from './AnalysisSettings.js';
 import { CacheSettings } from './CacheSettings.js';
+import { CloseBehaviorSetting, useDesktopWindow, WindowCloseDialog } from './DesktopWindow.js';
 import { Icon } from './Icon.js';
 import { ModelTaskBar } from './ModelTaskBar.js';
 import { PhotoWorkspace } from './PhotoWorkspace.js';
@@ -57,7 +58,7 @@ export function App({ store, commands }: { store: IrisStore; commands: CommandSy
     };
   }, [tasksOpen]);
   const [settingsDirty, setSettingsDirty] = useState(false);
-  const [closeRequested, setCloseRequested] = useState(false);
+  const desktopWindow = useDesktopWindow();
   const [leaveTarget, setLeaveTarget] = useState<'projects' | 'photos' | null>(null);
   const [savingLeave, setSavingLeave] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -84,15 +85,6 @@ export function App({ store, commands }: { store: IrisStore; commands: CommandSy
       .invoke('set_unsaved_changes', { dirty: settingsDirty })
       .catch((reason) => setError(`关闭保护暂不可用：${String(reason)}`));
   }, [settingsDirty]);
-  useEffect(() => {
-    const listening = window.__TAURI__?.event.listen('iris:close-requested', () =>
-      setCloseRequested(true)
-    );
-    void listening?.catch((reason) => setError(`关闭保护暂不可用：${String(reason)}`));
-    return () => {
-      void listening?.then((unlisten) => unlisten()).catch(() => {});
-    };
-  }, []);
   const openRecent = async (project: Project) => {
     try {
       await store.openRecentProject(project.id);
@@ -127,7 +119,8 @@ export function App({ store, commands }: { store: IrisStore; commands: CommandSy
 
   const running =
     !!state.progress && ['running', 'paused', 'cancelling'].includes(state.progress.state);
-  const modal = !!scanRoot || shortcutsOpen || tasksOpen;
+  const modal =
+    !!scanRoot || shortcutsOpen || tasksOpen || !!desktopWindow.request || !!leaveTarget;
   const photoWorkspace = usePhotoWorkspace({
     store,
     commands,
@@ -140,10 +133,12 @@ export function App({ store, commands }: { store: IrisStore; commands: CommandSy
   });
   return (
     <div className="app">
-      <header className="titlebar">
-        <div className="titlebar-brand">
+      <header className="titlebar" data-tauri-drag-region>
+        <div className="titlebar-brand" data-tauri-drag-region>
           <span className="brand-mark" aria-hidden="true" />
-          <span className="brand">伊人</span>
+          <span className="brand" data-tauri-drag-region>
+            伊人
+          </span>
         </div>
         {state.project && (
           <button
@@ -406,6 +401,7 @@ export function App({ store, commands }: { store: IrisStore; commands: CommandSy
                       ))}
                     </div>
                   </div>
+                  <CloseBehaviorSetting controller={desktopWindow} />
                 </section>
                 <div id="analysis">
                   <AnalysisSettings
@@ -560,29 +556,11 @@ export function App({ store, commands }: { store: IrisStore; commands: CommandSy
           )}
         </Dialog>
       )}
-      {closeRequested && (
-        <Dialog title="关闭伊人？" onClose={() => setCloseRequested(false)}>
-          <p>未保存的分析参数将被放弃。</p>
-          <div className="dialog-actions">
-            <Button onClick={() => setCloseRequested(false)}>继续编辑</Button>
-            <Button
-              primary
-              onClick={() =>
-                attempt(async () => {
-                  await window.__TAURI__?.core.invoke('confirm_close');
-                })
-              }
-            >
-              放弃更改并关闭
-            </Button>
-          </div>
-          {error && (
-            <p role="alert" className="inline-error">
-              {error}
-            </p>
-          )}
-        </Dialog>
-      )}
+      <WindowCloseDialog
+        controller={desktopWindow}
+        dirty={settingsDirty}
+        save={async () => (await saveSettings.current?.()) ?? false}
+      />
     </div>
   );
 }

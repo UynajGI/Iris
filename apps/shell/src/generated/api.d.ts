@@ -1,5 +1,5 @@
 // Generated from iris-daemon OpenAPI. Do not edit.
-// Contract SHA-256: 92f676763c57fe4de9722f776ad5438639d77ea327e893a02c8a955bac25a1f1
+// Contract SHA-256: 2ef3349574932640689ca3d8db2659deb2c0dd5b4d0ce64b91f0e4b0d88f284a
 export interface paths {
     "/api/v1/bootstrap": {
         parameters: {
@@ -1076,7 +1076,10 @@ export interface components {
             found_photos?: number;
             id?: string;
             kind: string;
+            phase?: string;
             previous_execution?: components["schemas"]["ExecutionFeedback"][];
+            /** @description Quality results are committed; optional semantic grouping may still be running. */
+            quality_ready?: boolean;
             result?: unknown;
             root_unavailable?: boolean;
             state: string;
@@ -1519,7 +1522,10 @@ export interface operations {
     };
     preview: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Low-priority speculative preview */
+                prefetch?: boolean;
+            };
             header?: never;
             path: {
                 id: number;

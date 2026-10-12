@@ -23,6 +23,8 @@
 
 Reviewing portrait sessions involves repeated checks for focus, eye state and similar frames. Iris provides local analysis and grouping to help you review those photographs. Models suggest; you make the final selection. Marking a photo as rejected does not delete the original file.
 
+Source is being prepared for **0.1.0-beta3**, covering preview scheduling, parallel import/analysis and Windows background-window behavior. See the [beta3 notes](docs/releases/v0.1.0-beta3.md) and [measured performance](docs/performance-plan.md). Download links retain the existing beta2 release until a new build is published.
+
 ## ✨ Features
 
 | Workflow           | Capabilities                                                                                                   |

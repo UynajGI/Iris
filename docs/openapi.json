@@ -7,7 +7,7 @@
       "name": "GPL-3.0-or-later",
       "identifier": "GPL-3.0-or-later"
     },
-    "version": "0.1.0-beta2"
+    "version": "0.1.0-beta3"
   },
   "paths": {
     "/api/v1/bootstrap": {
@@ -290,6 +290,15 @@
             "schema": {
               "type": "integer",
               "format": "int64"
+            }
+          },
+          {
+            "name": "prefetch",
+            "in": "query",
+            "description": "Low-priority speculative preview",
+            "required": false,
+            "schema": {
+              "type": "boolean"
             }
           }
         ],
@@ -2911,11 +2920,18 @@
           "kind": {
             "type": "string"
           },
+          "phase": {
+            "type": "string"
+          },
           "previous_execution": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ExecutionFeedback"
             }
+          },
+          "quality_ready": {
+            "type": "boolean",
+            "description": "Quality results are committed; optional semantic grouping may still be running."
           },
           "result": {},
           "root_unavailable": {

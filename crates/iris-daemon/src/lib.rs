@@ -26,6 +26,7 @@ pub mod model_installer;
 
 /// Default cap for each project's analysis pool, not a daemon-wide worker cap.
 pub const DEFAULT_WORKER_LIMIT: u8 = 12;
+mod media_queue;
 pub mod ownership;
 
 #[derive(Clone)]
@@ -39,6 +40,7 @@ pub struct AppState {
     pub events: broadcast::Sender<Value>,
     pub installer: model_installer::Installer,
     worker_limit: usize,
+    media_queue: media_queue::MediaQueue,
 }
 #[derive(Clone)]
 pub struct Job {
@@ -77,6 +79,13 @@ pub struct JobProgress {
     #[serde(default)]
     #[schema(required = false)]
     pub found_photos: usize,
+    /// Quality results are committed; optional semantic grouping may still be running.
+    #[serde(default)]
+    #[schema(required = false)]
+    pub quality_ready: bool,
+    #[serde(default)]
+    #[schema(required = false)]
+    pub phase: String,
     #[serde(default)]
     #[schema(required = false)]
     pub execution: Vec<ExecutionFeedback>,
@@ -98,6 +107,8 @@ impl Default for JobProgress {
             failed_scan_paths: vec![],
             root_unavailable: false,
             found_photos: 0,
+            quality_ready: false,
+            phase: String::new(),
             execution: vec![],
             previous_execution: vec![],
             result: None,
@@ -125,6 +136,7 @@ impl AppState {
             events,
             installer: Default::default(),
             worker_limit: usize::from(DEFAULT_WORKER_LIMIT),
+            media_queue: Default::default(),
         })
     }
     /// Per-project analysis resource policy; concurrent projects have separate pools.

@@ -23,13 +23,16 @@ if (
   source.toLowerCase().startsWith(privatePhotos.toLowerCase() + sep)
 )
   throw new Error('Personal test-photos fixtures are disabled. Configure a dataset directory.');
-const samples = (await readdir(source))
+const sampleCount = Number(process.env.IRIS_REVIEW_COUNT ?? 12);
+if (!Number.isInteger(sampleCount) || sampleCount < 12 || sampleCount > 2000)
+  throw new Error('IRIS_REVIEW_COUNT must be an integer from 12 to 2000');
+const samples = (await readdir(source, { recursive: true }))
   .filter((name) => /\.(jpe?g|png|webp)$/i.test(name))
   .sort()
-  .slice(0, 12);
-if (samples.length < 12)
+  .slice(0, sampleCount);
+if (samples.length < sampleCount)
   throw new Error(
-    'Provide at least 12 dataset JPEG/PNG/WebP images; this harness does not convert RAW/TIFF or duplicate samples.'
+    `Provide at least ${sampleCount} dataset JPEG/PNG/WebP images; this harness does not convert RAW/TIFF or duplicate samples.`
   );
 const temporary = await mkdtemp(join(tmpdir(), 'iris-ui-review-'));
 const photos = join(temporary, 'photos');
@@ -38,9 +41,10 @@ await mkdir(photos);
 await mkdir(models);
 // Explicit duplicate copies exercise comparison UI deterministically; not a burst benchmark.
 const repeat = process.env.IRIS_REVIEW_DUPLICATES === '1' ? 3 : 1;
-for (const name of samples.slice(0, 12 / repeat)) {
+for (const name of samples.slice(0, Math.floor(sampleCount / repeat))) {
   for (let index = 0; index < repeat; index++) {
-    const destination = repeat === 1 ? name : `${index}-${name}`;
+    const flatName = name.replaceAll(/[/\\]/g, '_');
+    const destination = repeat === 1 ? flatName : `${index}-${flatName}`;
     await copyFile(join(source, name), join(photos, destination));
   }
 }
@@ -59,7 +63,7 @@ let session;
 let generation = 0;
 async function startDaemon() {
   const child = spawn(
-    join(root, 'target/debug/iris-daemon.exe'),
+    process.env.IRIS_REVIEW_DAEMON ?? join(root, 'target/debug/iris-daemon.exe'),
     ['--data-dir', join(temporary, 'data'), '--model-dir', models, '--port', '0'],
     { windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] }
   );

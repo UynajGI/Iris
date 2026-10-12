@@ -41,7 +41,7 @@ pub(super) fn update(s: &AppState, id: i64, f: impl FnOnce(&mut JobProgress)) {
     }
 }
 pub(super) fn emit_analysis(s: &AppState, project_id: i64, photo_id: i64, analysis: Value) {
-    let mut payload = json!({"photo_id":photo_id});
+    let mut payload = json!({"photo_id":photo_id,"analysis_status":"current"});
     payload["analysis"] = analysis;
     s.emit("verdict:updated", project_id, payload);
 }
@@ -223,7 +223,7 @@ mod cancellation_finish_tests {
         }],"score_breakdown":{"terms":[{"value":null,"weight":0.4}]},
             "warnings":["uncertain"],"structure":vec![0.5;64]});
         let expected = json!({"event":"verdict:updated","project_id":7,
-            "data":{"photo_id":23,"analysis":analysis}});
+            "data":{"photo_id":23,"analysis":analysis,"analysis_status":"current"}});
         emit_analysis(&state, 7, 23, analysis);
         assert_eq!(receiver.try_recv().unwrap(), expected);
         assert!(receiver.try_recv().is_err());

@@ -60,6 +60,19 @@ pub fn decode_preview_with_media(
     max_edge: u32,
     media_dir: Option<&Path>,
 ) -> Result<DecodedPreview> {
+    decode_preview_cancellable(path, max_edge, media_dir, None)
+}
+
+pub(crate) fn decode_preview_cancellable(
+    path: &Path,
+    max_edge: u32,
+    media_dir: Option<&Path>,
+    cancel: Option<&std::sync::atomic::AtomicBool>,
+) -> Result<DecodedPreview> {
+    anyhow::ensure!(
+        !cancel.is_some_and(|flag| flag.load(std::sync::atomic::Ordering::Relaxed)),
+        "preview cancelled"
+    );
     anyhow::ensure!(
         (1..=2560).contains(&max_edge),
         "preview max_edge must be in 1..=2560"
@@ -67,7 +80,7 @@ pub fn decode_preview_with_media(
     match supported_format(path) {
         Some("jpeg") => decode_jpeg_preview(path, max_edge),
         Some("heic") => heic::decode(path, max_edge, media_dir),
-        Some("raw") => raw::decode(path, max_edge, media_dir),
+        Some("raw") => raw::decode(path, max_edge, media_dir, cancel),
         Some("png" | "webp") => {
             let mut reader = image::ImageReader::open(path)?;
             let mut limits = image::Limits::default();

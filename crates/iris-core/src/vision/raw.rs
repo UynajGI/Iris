@@ -43,7 +43,12 @@ fn developer_executable() -> Result<PathBuf> {
     anyhow::bail!("RAW converter missing; keep iris-raw-decoder beside the application")
 }
 
-fn convert(path: &Path, mode: &str, limit: u64) -> Result<Vec<u8>> {
+fn convert(
+    path: &Path,
+    mode: &str,
+    limit: u64,
+    cancel: Option<&std::sync::atomic::AtomicBool>,
+) -> Result<Vec<u8>> {
     let mut command = Command::new(developer_executable()?);
     command
         .arg(mode)
@@ -78,7 +83,7 @@ fn convert(path: &Path, mode: &str, limit: u64) -> Result<Vec<u8>> {
         let mut bytes = Vec::new();
         stderr.take(8192).read_to_end(&mut bytes).map(|_| bytes)
     });
-    let status = wait_for_converter(&mut child);
+    let status = wait_for_converter(&mut child, cancel);
     #[cfg(windows)]
     process_tree.terminate();
     let bytes = reader
@@ -99,9 +104,17 @@ fn convert(path: &Path, mode: &str, limit: u64) -> Result<Vec<u8>> {
     Ok(bytes)
 }
 
-fn wait_for_converter(child: &mut std::process::Child) -> Result<std::process::ExitStatus> {
+fn wait_for_converter(
+    child: &mut std::process::Child,
+    cancel: Option<&std::sync::atomic::AtomicBool>,
+) -> Result<std::process::ExitStatus> {
     let deadline = Instant::now() + Duration::from_secs(120);
     loop {
+        if cancel.is_some_and(|flag| flag.load(std::sync::atomic::Ordering::Relaxed)) {
+            let _ = child.kill();
+            let _ = child.wait();
+            break Err(anyhow::anyhow!("preview cancelled"));
+        }
         match child.try_wait() {
             Ok(Some(status)) => break Ok(status),
             Ok(None) if Instant::now() < deadline => std::thread::sleep(Duration::from_millis(10)),
@@ -147,7 +160,13 @@ fn executable(media: Option<&Path>) -> Result<Option<PathBuf>> {
     Ok(None)
 }
 
-fn extract(executable: &Path, path: &Path, args: &[&str], limit: u64) -> Result<Vec<u8>> {
+fn extract(
+    executable: &Path,
+    path: &Path,
+    args: &[&str],
+    limit: u64,
+    cancel: Option<&std::sync::atomic::AtomicBool>,
+) -> Result<Vec<u8>> {
     // Validate before spawning so invalid paths cannot leave a waiting child.
     let path = path.to_str().context("RAW path must be valid Unicode")?;
     anyhow::ensure!(
@@ -188,6 +207,11 @@ fn extract(executable: &Path, path: &Path, args: &[&str], limit: u64) -> Result<
     });
     let deadline = Instant::now() + Duration::from_secs(15);
     let status = loop {
+        if cancel.is_some_and(|flag| flag.load(std::sync::atomic::Ordering::Relaxed)) {
+            let _ = child.kill();
+            let _ = child.wait();
+            break Err(anyhow::anyhow!("preview cancelled"));
+        }
         match child.try_wait() {
             Ok(Some(status)) => break Ok(status),
             Ok(None) if Instant::now() < deadline => std::thread::sleep(Duration::from_millis(10)),
@@ -214,17 +238,22 @@ fn extract(executable: &Path, path: &Path, args: &[&str], limit: u64) -> Result<
     Ok(bytes)
 }
 
-fn metadata(path: &Path, media: Option<&Path>) -> Result<(u32, u32, u32)> {
+fn metadata(
+    path: &Path,
+    media: Option<&Path>,
+    cancel: Option<&std::sync::atomic::AtomicBool>,
+) -> Result<(u32, u32, u32)> {
     anyhow::ensure!(
         std::fs::metadata(path)?.len() <= MAX_INPUT,
         "RAW exceeds compressed input safety limit"
     );
     if let Some(executable) = executable(media)? {
-        if let Some(dimensions) = exif_metadata(&executable, path)? {
+        if let Some(dimensions) = exif_metadata(&executable, path, cancel)? {
             return Ok(dimensions);
         }
     }
-    let header: serde_json::Value = serde_json::from_slice(&convert(path, "metadata", 64 * 1024)?)?;
+    let header: serde_json::Value =
+        serde_json::from_slice(&convert(path, "metadata", 64 * 1024, cancel)?)?;
     let width = header["width"].as_u64().context("RAW width missing")?;
     let height = header["height"].as_u64().context("RAW height missing")?;
     anyhow::ensure!(
@@ -245,7 +274,11 @@ fn metadata(path: &Path, media: Option<&Path>) -> Result<(u32, u32, u32)> {
     ))
 }
 
-fn exif_metadata(executable: &Path, path: &Path) -> Result<Option<(u32, u32, u32)>> {
+fn exif_metadata(
+    executable: &Path,
+    path: &Path,
+    cancel: Option<&std::sync::atomic::AtomicBool>,
+) -> Result<Option<(u32, u32, u32)>> {
     let bytes = extract(
         executable,
         path,
@@ -259,6 +292,7 @@ fn exif_metadata(executable: &Path, path: &Path) -> Result<Option<(u32, u32, u32
             "-Orientation",
         ],
         64 * 1024,
+        cancel,
     )?;
     let rows: Vec<serde_json::Value> = serde_json::from_slice(&bytes)?;
     if let Some(row) = rows.first() {
@@ -290,15 +324,24 @@ fn exif_metadata(executable: &Path, path: &Path) -> Result<Option<(u32, u32, u32
 }
 
 pub(super) fn dimensions(path: &Path, media: Option<&Path>) -> Result<(u32, u32)> {
-    let (w, h, _) = metadata(path, media)?;
+    let (w, h, _) = metadata(path, media, None)?;
     Ok((w, h))
 }
 
-pub(super) fn decode(path: &Path, max_edge: u32, media: Option<&Path>) -> Result<DecodedPreview> {
-    let (width, height, orientation) = metadata(path, media)?;
+pub(super) fn decode(
+    path: &Path,
+    max_edge: u32,
+    media: Option<&Path>,
+    cancel: Option<&std::sync::atomic::AtomicBool>,
+) -> Result<DecodedPreview> {
+    let (width, height, orientation) = metadata(path, media, cancel)?;
     if let Some(executable) = executable(media)? {
         for tag in ["-JpgFromRaw", "-PreviewImage", "-OtherImage"] {
-            let Ok(bytes) = extract(&executable, path, &["-b", tag], MAX_PREVIEW) else {
+            anyhow::ensure!(
+                !cancel.is_some_and(|flag| flag.load(std::sync::atomic::Ordering::Relaxed)),
+                "preview cancelled"
+            );
+            let Ok(bytes) = extract(&executable, path, &["-b", tag], MAX_PREVIEW, cancel) else {
                 continue;
             };
             if !bytes.starts_with(&[0xff, 0xd8]) {
@@ -330,7 +373,11 @@ pub(super) fn decode(path: &Path, max_edge: u32, media: Option<&Path>) -> Result
         u64::from(width) * u64::from(height) <= MAX_DEVELOP_PIXELS,
         "RAW has no adequate embedded JPEG; full development exceeds 24MP safety limit"
     );
-    let bytes = convert(path, "develop", MAX_DEVELOP_PIXELS * 3 + 1024)?;
+    anyhow::ensure!(
+        !cancel.is_some_and(|flag| flag.load(std::sync::atomic::Ordering::Relaxed)),
+        "preview cancelled"
+    );
+    let bytes = convert(path, "develop", MAX_DEVELOP_PIXELS * 3 + 1024, cancel)?;
     let mut reader =
         image::ImageReader::with_format(std::io::Cursor::new(bytes), image::ImageFormat::Pnm);
     let mut limits = image::Limits::default();
@@ -351,4 +398,31 @@ pub(super) fn decode(path: &Path, max_edge: u32, media: Option<&Path>) -> Result
         original_height: height,
         orientation,
     })
+}
+
+#[cfg(all(test, windows))]
+mod cancellation_tests {
+    use super::*;
+    #[test]
+    fn cancelling_native_converter_terminates_the_owned_child() {
+        use std::os::windows::process::CommandExt;
+        let mut child = Command::new("powershell.exe")
+            .args([
+                "-NoProfile",
+                "-NonInteractive",
+                "-Command",
+                "Start-Sleep -Seconds 30",
+            ])
+            .creation_flags(0x08000000)
+            .spawn()
+            .unwrap();
+        let tree = crate::owned_job::OwnedJob::attach(&mut child).unwrap();
+        let started = Instant::now();
+        let error = wait_for_converter(&mut child, Some(&std::sync::atomic::AtomicBool::new(true)))
+            .unwrap_err();
+        tree.terminate();
+        assert!(error.to_string().contains("cancelled"));
+        assert!(child.try_wait().unwrap().is_some());
+        assert!(started.elapsed() < Duration::from_secs(2));
+    }
 }

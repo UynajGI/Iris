@@ -18,7 +18,7 @@ loads ORT or models, so `inference_verified` is always false. See
 
 Daemon startup accepts `--worker-limit 1..16` (default 12). Each project analysis
 pool is bounded by that limit, available logical CPUs and pending photos; valid
-all-cached requests still create no workers. This startup resource policy is not
+all-cached quality requests still create no quality workers. CPU quality pools reserve logical CPU capacity; semantic CPU pools are capped at four. GPU pools stay at one worker. A startup-confirmed full-runtime CPU fallback expands the quality pool under the CPU bound. This startup resource policy is not
 part of REST analysis settings or their cache fingerprint. Concurrent projects
 have separate pools; the flag is not a daemon-wide process or memory cap.
 
@@ -134,3 +134,11 @@ The headless store serializes settings writes and profile applications in comman
 order. Once a write succeeds it marks cached analysis historical before fetching
 fresh state, including when the refresh fails. Library decisions refresh the
 complete active group as well as the current page, including linked variants.
+
+## Selection progress and media priority
+
+Job progress includes `quality_ready` and `phase` (`quality` / `semantic`). Base scores can be used while grouping continues; readiness is not whole-job completion. Older persisted progress uses defaults. `verdict:updated` carries `analysis_status: "current"`; clients must still match embedded analysis settings to current settings and guard project switches.
+
+`GET /photos/{id}/preview?prefetch=true` marks low-priority background work. Omit it for the focused photo. Priority does not bypass authentication, source checks or cache safety. Dropping the HTTP request cancels its queued work. Execution feedback reports the startup-selected concrete runtime and fallback warnings; DirectML registration does not prove every operator ran on GPU.
+
+For progressive import, refresh photo pages after durable `scan:progress` batches. Limits and measurements are in [selection performance](performance-plan.md).

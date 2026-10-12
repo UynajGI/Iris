@@ -1,7 +1,8 @@
 param(
     [string]$ShellExecutable,
     [string]$DaemonExecutable,
-    [string]$ReportPath
+    [string]$ReportPath,
+    [switch]$CaptureWindow
 )
 $ErrorActionPreference = 'Stop'
 $repositoryRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
@@ -16,6 +17,17 @@ $temporaryRoot = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath())
 $smokeRoot = Join-Path $temporaryRoot ('iris-native-title-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $smokeRoot | Out-Null
 $process = $null
+if ($CaptureWindow) {
+    Add-Type -AssemblyName System.Drawing
+    Add-Type @'
+using System;
+using System.Runtime.InteropServices;
+public static class IrisSmokeWindow {
+    [StructLayout(LayoutKind.Sequential)] public struct Rect { public int Left, Top, Right, Bottom; }
+    [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hwnd, out Rect rect);
+}
+'@
+}
 try {
     $start = New-Object System.Diagnostics.ProcessStartInfo
     $start.FileName = $shellFile
@@ -36,17 +48,45 @@ try {
     if (-not $process.Start()) { throw 'Native smoke application failed to start' }
     $stdout = $process.StandardOutput.ReadToEndAsync()
     $stderr = $process.StandardError.ReadToEndAsync()
-    if (-not $process.WaitForExit(65000)) {
+    $deadline = [DateTime]::UtcNow.AddSeconds(60)
+    $captured = @{}
+    $daemonIds = @()
+    while (-not $process.WaitForExit(100) -and [DateTime]::UtcNow -lt $deadline) {
+        if (-not $CaptureWindow) { continue }
+        foreach ($stage in @('capture', 'dialog')) {
+            $marker = [System.IO.Path]::ChangeExtension($reportFile, ($stage + '-ready'))
+            if ($captured.ContainsKey($stage) -or -not (Test-Path -LiteralPath $marker)) { continue }
+            Start-Sleep -Milliseconds 350
+            if (-not $daemonIds.Count) {
+                $daemonIds = @(Get-CimInstance Win32_Process -Filter "ParentProcessId=$($process.Id) AND Name='iris-daemon.exe'" | Select-Object -ExpandProperty ProcessId)
+                if (-not $daemonIds.Count) { throw 'Test-owned daemon was not running before background checks' }
+            }
+            $process.Refresh()
+            $bounds = New-Object IrisSmokeWindow+Rect
+            if ($process.MainWindowHandle -eq [IntPtr]::Zero -or -not [IrisSmokeWindow]::GetWindowRect($process.MainWindowHandle, [ref]$bounds)) { throw 'Cannot capture the test-owned main window' }
+            $bitmap = New-Object System.Drawing.Bitmap(($bounds.Right - $bounds.Left), ($bounds.Bottom - $bounds.Top))
+            $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+            try {
+                $graphics.CopyFromScreen($bounds.Left, $bounds.Top, 0, 0, $bitmap.Size)
+                $bitmap.Save(($reportFile + '.' + $stage + '.png'), [System.Drawing.Imaging.ImageFormat]::Png)
+                $captured[$stage] = $true
+            } finally { $graphics.Dispose(); $bitmap.Dispose() }
+        }
+    }
+    if (-not $process.HasExited) {
         $process.Kill($true)
         $process.WaitForExit()
-        throw 'Native smoke exceeded 65 seconds; only its own process tree was terminated'
+        throw 'Native smoke exceeded 60 seconds; only its own process tree was terminated'
     }
     $stdout.Result | Set-Content -LiteralPath ($reportFile + '.stdout.log') -Encoding utf8
     $stderr.Result | Set-Content -LiteralPath ($reportFile + '.stderr.log') -Encoding utf8
     if ($process.ExitCode -ne 0) { throw "Native smoke failed with exit $($process.ExitCode); inspect $reportFile and its logs" }
+    foreach ($daemonId in $daemonIds) {
+        if (Get-Process -Id $daemonId -ErrorAction SilentlyContinue) { throw 'Test-owned daemon survived application exit' }
+    }
     $report = Get-Content -LiteralPath $reportFile -Raw | ConvertFrom-Json
-    if (-not $report.ok -or $report.observations.Count -ne 4 -or -not $report.invalid_locale_rejected) { throw 'Native smoke assertions failed' }
-    Write-Output ('Native WebView title smoke passed: ' + $reportFile)
+    if (-not $report.ok -or $report.observations.Count -ne 4 -or -not $report.invalid_locale_rejected -or $report.window_checks.Count -lt 10) { throw 'Native smoke assertions failed' }
+    Write-Output ('Native WebView title and window lifecycle smoke passed: ' + $reportFile)
 } finally {
     if ($null -ne $process -and -not $process.HasExited) { $process.Kill($true); $process.WaitForExit() }
     if ($null -ne $process) { $process.Dispose() }

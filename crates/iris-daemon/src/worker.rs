@@ -35,6 +35,10 @@ struct Ready {
     protocol: String,
     ready: bool,
     error: Option<String>,
+    #[serde(default)]
+    effective_provider: Option<iris_core::vision::ExecutionProvider>,
+    #[serde(default)]
+    warnings: Vec<String>,
 }
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -104,6 +108,8 @@ impl Drop for Process {
 
 pub struct AnalysisWorker {
     execution_provider: iris_core::vision::ExecutionProvider,
+    effective_provider: iris_core::vision::ExecutionProvider,
+    startup_warnings: Vec<String>,
     directml_device_id: u32,
     executable: PathBuf,
     model_dir: PathBuf,
@@ -115,7 +121,7 @@ pub struct AnalysisWorker {
 impl AnalysisWorker {
     /// Worker selection is configuration evidence, not proof of GPU kernel execution.
     pub fn execution_feedback(&self, phase: &str) -> crate::ExecutionFeedback {
-        let gpu = self.execution_provider == iris_core::vision::ExecutionProvider::Directml;
+        let gpu = self.effective_provider == iris_core::vision::ExecutionProvider::Directml;
         let device_name = if gpu {
             iris_core::devices::gpu_devices()
                 .adapters
@@ -127,11 +133,11 @@ impl AnalysisWorker {
         };
         crate::ExecutionFeedback {
             phase: phase.into(),
-            selected_provider: self.execution_provider,
+            selected_provider: self.effective_provider,
             device_id: gpu.then_some(self.directml_device_id),
             device_name,
             completed_items: 0,
-            warnings: Vec::new(),
+            warnings: self.startup_warnings.clone(),
         }
     }
     pub fn new(model_dir: &Path, timeout: Duration) -> Result<Self> {
@@ -173,6 +179,8 @@ impl AnalysisWorker {
             process: None,
             next_id: 1,
             execution_provider: provider,
+            effective_provider: provider,
+            startup_warnings: Vec::new(),
             directml_device_id: device_id,
         };
         worker.start()?;
@@ -201,6 +209,8 @@ impl AnalysisWorker {
         }
         let mut worker = Self {
             execution_provider: iris_core::vision::ExecutionProvider::Cpu,
+            effective_provider: iris_core::vision::ExecutionProvider::Cpu,
+            startup_warnings: Vec::new(),
             directml_device_id: 0,
             executable: std::path::absolute(executable)?,
             model_dir: std::path::absolute(model_dir)?,
@@ -287,7 +297,7 @@ impl AnalysisWorker {
         }
     }
 
-    fn startup_handshake(&self) -> Result<()> {
+    fn startup_handshake(&mut self) -> Result<()> {
         let line = self.receive("startup")?;
         let ready: Ready =
             serde_json::from_str(&line).context("malformed analysis worker handshake")?;
@@ -305,6 +315,11 @@ impl AnalysisWorker {
         if ready.error.is_some() {
             bail!("invalid analysis worker handshake envelope");
         }
+        self.effective_provider = ready.effective_provider.unwrap_or(self.execution_provider);
+        if self.effective_provider == iris_core::vision::ExecutionProvider::Auto {
+            bail!("worker must report a concrete execution provider");
+        }
+        self.startup_warnings = ready.warnings;
         Ok(())
     }
 
@@ -502,6 +517,12 @@ pub fn run(model_dir: &Path) -> Result<()> {
                     protocol: PROTOCOL.into(),
                     ready: true,
                     error: None,
+                    effective_provider: Some(if iris_core::vision::runtime::directml_active() {
+                        iris_core::vision::ExecutionProvider::Directml
+                    } else {
+                        iris_core::vision::ExecutionProvider::Cpu
+                    }),
+                    warnings: iris_core::vision::runtime::warnings(),
                 },
             )?;
             engine
@@ -513,6 +534,8 @@ pub fn run(model_dir: &Path) -> Result<()> {
                     protocol: PROTOCOL.into(),
                     ready: false,
                     error: Some(error.to_string()),
+                    effective_provider: None,
+                    warnings: Vec::new(),
                 },
             )?;
             return Ok(());

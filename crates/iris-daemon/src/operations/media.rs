@@ -1,12 +1,21 @@
 use super::*;
 
+#[derive(Default, Deserialize)]
+pub struct MediaQuery {
+    #[serde(default)]
+    prefetch: bool,
+}
 #[utoipa::path(get,path="/api/v1/photos/{id}/thumb",params(("id"=i64,Path)),responses((status=200,description="JPEG thumbnail",content_type="image/jpeg",body=Vec<u8>)))]
 pub async fn thumb(State(s): State<AppState>, Path(id): Path<i64>) -> Result<Response, ApiError> {
-    media(s, id, 320).await
+    media(s, id, 320, false).await
 }
-#[utoipa::path(get,path="/api/v1/photos/{id}/preview",params(("id"=i64,Path)),responses((status=200,description="JPEG preview",content_type="image/jpeg",body=Vec<u8>)))]
-pub async fn preview(State(s): State<AppState>, Path(id): Path<i64>) -> Result<Response, ApiError> {
-    media(s, id, 2560).await
+#[utoipa::path(get,path="/api/v1/photos/{id}/preview",params(("id"=i64,Path),("prefetch"=Option<bool>,Query,description="Low-priority speculative preview")),responses((status=200,description="JPEG preview",content_type="image/jpeg",body=Vec<u8>)))]
+pub async fn preview(
+    State(s): State<AppState>,
+    Path(id): Path<i64>,
+    Query(query): Query<MediaQuery>,
+) -> Result<Response, ApiError> {
+    media(s, id, 2560, query.prefetch).await
 }
 #[utoipa::path(get,path="/api/v1/photos/{id}/original",params(("id"=i64,Path)),responses((status=200,description="Unmodified source bytes; RAW and HEIC review uses JPEG previews",content((Vec<u8> = "image/jpeg"),(Vec<u8> = "image/png"),(Vec<u8> = "image/webp"),(Vec<u8> = "image/heic"),(Vec<u8> = "application/octet-stream")))))]
 pub async fn original(
@@ -31,8 +40,21 @@ pub async fn original(
         .body(body)
         .map_err(anyhow::Error::from)?)
 }
-async fn media(s: AppState, id: i64, edge: u32) -> Result<Response, ApiError> {
-    let bytes = run(s, move |s| s.cached_image(id, edge)).await?;
+async fn media(s: AppState, id: i64, edge: u32, prefetch: bool) -> Result<Response, ApiError> {
+    let job = run(s.clone(), move |s| s.prepare_cached_image(id, edge)).await?;
+    let priority = if prefetch {
+        2
+    } else if edge == 320 {
+        1
+    } else {
+        0
+    };
+    let bytes = s
+        .media_queue
+        .render(priority, move |cancel| job.render(cancel))
+        .await?;
+    // A quarantine or source change during decoding must not serve an obsolete request.
+    run(s, move |s| s.photo_path(id)).await?;
     Ok((
         [
             (axum::http::header::CONTENT_TYPE, "image/jpeg"),

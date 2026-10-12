@@ -13,6 +13,7 @@ use tauri::{webview::PageLoadEvent, Manager};
 pub struct Smoke {
     report: PathBuf,
     observations: Mutex<Vec<Value>>,
+    window_checks: Mutex<Vec<String>>,
     injected: AtomicBool,
     finished: AtomicBool,
 }
@@ -46,6 +47,7 @@ pub fn configure(
         .manage(Smoke {
             report,
             observations: Mutex::new(Vec::new()),
+            window_checks: Mutex::new(Vec::new()),
             injected: AtomicBool::new(false),
             finished: AtomicBool::new(false),
         })
@@ -103,7 +105,7 @@ pub fn native_title_smoke_observe(
     if stage != *expected_stage
         || document_title != *expected_title
         || native_title != *expected_title
-        || visible
+        || !visible
     {
         return Err(format!(
             "smoke mismatch: stage={stage}, native={native_title}, document={document_title}, visible={visible}"
@@ -127,16 +129,118 @@ fn finish(app: &tauri::AppHandle, error: Option<String>) {
         (observations.len() != 4).then(|| "missing native title observations".to_string())
     });
     let ok = error.is_none();
-    let report = json!({"ok":ok,"error":error,"frontend_entry":"/src/desktop.js",
-        "frontend_ready":ok,"updater_not_configured":ok,"invalid_locale_rejected":ok,"observations":*observations});
+    let checks = state.window_checks.lock().unwrap();
+    let report = json!({"ok":ok,"error":error,"frontend_entry":"/app.js",
+        "frontend_ready":ok,"updater_not_configured":ok,"invalid_locale_rejected":ok,
+        "observations":*observations,"window_checks":*checks});
     let written = std::fs::write(&state.report, serde_json::to_vec_pretty(&report).unwrap());
     if let Err(error) = &written {
         eprintln!("write native smoke report failed: {error}");
     }
-    app.exit(if ok && written.is_ok() { 0 } else { 1 });
+    if ok && written.is_ok() {
+        super::window_lifecycle::request_exit(app);
+    } else {
+        app.exit(1);
+    }
 }
 
 #[tauri::command]
 pub fn native_title_smoke_finish(app: tauri::AppHandle, error: Option<String>) {
     finish(&app, error);
+}
+
+/// Fixed, opt-in actions for testing this application's own native lifecycle.
+#[tauri::command]
+pub fn native_window_smoke(
+    window: tauri::WebviewWindow,
+    state: tauri::State<'_, Smoke>,
+    action: String,
+) -> Result<Value, String> {
+    if window.label() != "main" {
+        return Err("smoke only accepts main".into());
+    }
+    perform_window_action(&window, &state, &action)?;
+    let result = json!({"visible":window.is_visible().map_err(|e| e.to_string())?,
+        "minimized":window.is_minimized().map_err(|e| e.to_string())?,
+        "maximized":window.is_maximized().map_err(|e| e.to_string())?,
+        "tray":window.app_handle().tray_by_id("iris").is_some(),
+        "caption":caption_hit_tests(&window)?});
+    if action != "status" {
+        state.window_checks.lock().unwrap().push(action);
+    }
+    Ok(result)
+}
+
+fn perform_window_action(
+    window: &tauri::WebviewWindow,
+    state: &Smoke,
+    action: &str,
+) -> Result<(), String> {
+    match action {
+        "show" => super::window_lifecycle::show_main(window.app_handle()),
+        "minimize" => window.minimize().map_err(|e| e.to_string())?,
+        "maximize" => window.maximize().map_err(|e| e.to_string())?,
+        "restore" => restore_window(window)?,
+        "close" => window.close().map_err(|e| e.to_string())?,
+        "tray-exit" => super::window_lifecycle::request_exit(window.app_handle()),
+        "capture" | "dialog" => mark_capture(state, action)?,
+        "status" => {}
+        _ => return Err("unknown smoke action".into()),
+    }
+    Ok(())
+}
+
+fn restore_window(window: &tauri::WebviewWindow) -> Result<(), String> {
+    window.unmaximize().map_err(|e| e.to_string())?;
+    window.unminimize().map_err(|e| e.to_string())
+}
+
+fn mark_capture(state: &Smoke, action: &str) -> Result<(), String> {
+    std::fs::write(
+        state.report.with_extension(format!("{action}-ready")),
+        b"ready",
+    )
+    .map_err(|e| e.to_string())
+}
+
+#[cfg(windows)]
+fn caption_hit_tests(window: &tauri::WebviewWindow) -> Result<Vec<isize>, String> {
+    use windows_sys::Win32::{
+        Foundation::RECT,
+        Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_CAPTION_BUTTON_BOUNDS},
+        UI::{
+            HiDpi::GetDpiForWindow,
+            WindowsAndMessaging::{GetWindowRect, SendMessageW, WM_NCHITTEST},
+        },
+    };
+    let hwnd = window.hwnd().map_err(|e| e.to_string())?.0 as _;
+    // SAFETY: fixed system queries against the live test-owned window on its UI thread.
+    unsafe {
+        let mut rect: RECT = std::mem::zeroed();
+        let mut buttons: RECT = std::mem::zeroed();
+        GetWindowRect(hwnd, &mut rect);
+        let hr = DwmGetWindowAttribute(
+            hwnd,
+            DWMWA_CAPTION_BUTTON_BOUNDS as u32,
+            &mut buttons as *mut _ as _,
+            std::mem::size_of::<RECT>() as u32,
+        );
+        if hr < 0 {
+            return Err(format!("caption bounds query failed: {hr}"));
+        }
+        let scale = GetDpiForWindow(hwnd) as i32;
+        let y = rect.top + (buttons.top + buttons.bottom) / 2;
+        Ok([115, 69, 23]
+            .map(|offset| {
+                let x = rect.left + buttons.right - offset * scale / 96;
+                let position = ((y as u16 as u32) << 16) | (x as u16 as u32);
+                SendMessageW(hwnd, WM_NCHITTEST, 0, position as isize)
+            })
+            .to_vec())
+    }
+}
+
+#[cfg(not(windows))]
+fn caption_hit_tests(_window: &tauri::WebviewWindow) -> Result<Vec<isize>, String> {
+    Ok(Vec::new())
 }

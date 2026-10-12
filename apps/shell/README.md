@@ -2,9 +2,10 @@
 
 This package contains the TypeScript application, React presentation, and Tauri
 desktop host. The current shell includes overview, review, group comparison,
-settings, cache, export and update workflows; native directory picking and host
-reconnect are implemented, while the interactive native dialog, close protection,
-and cross-platform native validation remain follow-up work. See
+settings, cache, export and update workflows. Windows includes native caption
+controls, persistent background/exit preferences and tray reopening. Native
+directory picking and host reconnect are implemented; interactive dialogs,
+real settings-draft closure, DPI and cross-platform validation remain follow-up work. See
 `../../docs/frontend-implementation.md` for the current boundary.
 
 From the repository root, `make setup`, `make check-web`, `make test-web`, and
@@ -12,6 +13,12 @@ From the repository root, `make setup`, `make check-web`, `make test-web`, and
 `CommandSystem`, and `EventBus`; `src/react.ts` exports React hooks used by the
 presentation. The Tauri host owns the local daemon and exposes `window.iris` to
 the UI; headless CLI and stdio MCP remain separate entry points.
+
+`media-cache.ts` bounds authenticated requests and reserves foreground capacity;
+offscreen thumbnails load on demand. Scan batches refresh progressively, and
+quality scores remain usable while semantic grouping continues. See the
+[API contract](../../docs/api-contract.md) and
+[performance acceptance](../../docs/performance-plan.md).
 
 `window.iris.openFolder()` opens the native directory picker and passes the
 selection to the project store. Cancellation returns `false` and leaves the

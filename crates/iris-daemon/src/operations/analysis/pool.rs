@@ -16,15 +16,34 @@ pub(super) fn initialize(
     context: &AnalysisContext<'_>,
     workers: usize,
 ) -> anyhow::Result<Vec<AnalysisWorker>> {
-    std::thread::scope(|scope| {
-        let handles: Vec<_> = (0..workers)
+    use iris_core::vision::ExecutionProvider;
+    let mut settings = context.settings.clone();
+    let mut engines = Vec::new();
+    if settings.execution_provider != ExecutionProvider::Cpu {
+        let first = AnalysisWorker::new_with_settings(
+            &context.state.model_dir,
+            std::time::Duration::from_secs(30),
+            context.job.cancel.clone(),
+            &settings,
+        )?;
+        let cpu = first.execution_feedback("quality").selected_provider == ExecutionProvider::Cpu;
+        engines.push(first);
+        if !cpu {
+            return Ok(engines);
+        }
+        settings.execution_provider = ExecutionProvider::Cpu;
+        settings.directml_device_id = None;
+    }
+    let remaining = workers.saturating_sub(engines.len());
+    let extra = std::thread::scope(|scope| {
+        let handles: Vec<_> = (0..remaining)
             .map(|_| {
                 scope.spawn(|| {
                     AnalysisWorker::new_with_settings(
                         &context.state.model_dir,
                         std::time::Duration::from_secs(30),
                         context.job.cancel.clone(),
-                        context.settings,
+                        &settings,
                     )
                 })
             })
@@ -36,8 +55,10 @@ pub(super) fn initialize(
                     .join()
                     .unwrap_or_else(|_| Err(anyhow::anyhow!("worker initialization panicked")))
             })
-            .collect()
-    })
+            .collect::<anyhow::Result<Vec<_>>>()
+    })?;
+    engines.extend(extra);
+    Ok(engines)
 }
 
 fn quality_settings(settings: &AnalysisSettings) -> AnalysisSettings {
@@ -93,15 +114,26 @@ fn run_worker(
     }
 }
 
+#[cfg(test)]
 fn persist_result(
     context: &AnalysisContext<'_>,
     photo: &Photo,
-    mut value: Value,
+    value: Value,
     elapsed_ms: f64,
 ) -> anyhow::Result<(Value, f64)> {
+    let (mut entries, elapsed) = persist_batch(context, vec![(photo.clone(), value, elapsed_ms)])?;
+    Ok((entries.remove(0).1, elapsed))
+}
+
+fn persist_batch(
+    context: &AnalysisContext<'_>,
+    mut entries: Vec<(Photo, Value, f64)>,
+) -> anyhow::Result<(Vec<(i64, Value)>, f64)> {
     let persist_started = std::time::Instant::now();
-    value["settings"] = context.settings_value.clone();
-    value["elapsed_ms"] = json!(elapsed_ms);
+    for (_, value, elapsed_ms) in &mut entries {
+        value["settings"] = context.settings_value.clone();
+        value["elapsed_ms"] = json!(elapsed_ms);
+    }
     let mut service = context
         .state
         .services
@@ -111,10 +143,20 @@ fn persist_result(
         context.job.cancel.store(true, Ordering::Relaxed);
         anyhow::bail!("settings changed during analysis; restart analysis to use the new settings")
     }
-    service.save_analysis(photo.id, &value)?;
+    let values: Vec<_> = entries
+        .iter()
+        .map(|(photo, value, _)| (photo.id, value))
+        .collect();
+    service.save_analysis_batch(&values)?;
     drop(service);
-    record_execution_success(context.state, context.project_id, "quality", &value);
-    Ok((value, persist_started.elapsed().as_secs_f64() * 1000.))
+    let values: Vec<_> = entries
+        .into_iter()
+        .map(|(photo, value, _)| {
+            record_execution_success(context.state, context.project_id, "quality", &value);
+            (photo.id, value)
+        })
+        .collect();
+    Ok((values, persist_started.elapsed().as_secs_f64() * 1000.))
 }
 
 pub(super) fn process(
@@ -145,23 +187,45 @@ pub(super) fn process(
             });
         }
         drop(tx);
-        for (photo, result, elapsed_ms) in rx {
+        while let Ok(first) = rx.recv() {
+            let mut outcomes = vec![first];
+            // The first score is available immediately. Later completions share a durable write,
+            // with a 20 ms deadline so a slow final photo cannot delay already finished scores.
+            if summary.analyzed > 0 {
+                let deadline = std::time::Instant::now() + std::time::Duration::from_millis(20);
+                while outcomes.len() < 16 {
+                    match rx
+                        .recv_timeout(deadline.saturating_duration_since(std::time::Instant::now()))
+                    {
+                        Ok(outcome) => outcomes.push(outcome),
+                        Err(_) => break,
+                    }
+                }
+            }
             if context.job.cancel.load(Ordering::Relaxed) {
                 continue;
             }
-            match result {
-                Ok(value) => {
-                    let (value, persist_ms) = persist_result(context, &photo, value, elapsed_ms)?;
-                    summary.persist_ms += persist_ms;
-                    emit_analysis(context.state, context.project_id, photo.id, value);
-                    summary.analyzed += 1;
+            let mut completed = Vec::new();
+            for (photo, result, elapsed_ms) in outcomes {
+                match result {
+                    Ok(value) => {
+                        completed.push((photo, value, elapsed_ms));
+                    }
+                    Err(error) => {
+                        summary.failures += 1;
+                        update(context.state, context.project_id, |p| {
+                            p.errors.push(format!("{}: {error}", photo.filename));
+                            p.failed_photo_ids.push(photo.id);
+                        });
+                    }
                 }
-                Err(error) => {
-                    summary.failures += 1;
-                    update(context.state, context.project_id, |p| {
-                        p.errors.push(format!("{}: {error}", photo.filename));
-                        p.failed_photo_ids.push(photo.id);
-                    });
+            }
+            if !completed.is_empty() {
+                let (values, persist_ms) = persist_batch(context, completed)?;
+                summary.persist_ms += persist_ms;
+                summary.analyzed += values.len();
+                for (photo_id, value) in values {
+                    emit_analysis(context.state, context.project_id, photo_id, value);
                 }
             }
             update(context.state, context.project_id, |p| {
