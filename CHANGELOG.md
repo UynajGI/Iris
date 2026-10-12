@@ -169,6 +169,8 @@ known limitations are maintained separately in [release notes](docs/releases/).
 
 - **store:** invalidate old engine groups only once ([4d39e6b](https://github.com/UynajGI/Iris/commit/4d39e6b301c11a2911d0cda3a877ae6e1975397c))
 
+- **vision:** avoid automatic device selection on CPU runtimes ([e786965](https://github.com/UynajGI/Iris/commit/e7869650d339b77d9db1272c7ba43f1560f0504a))
+
 ### Other
 
 - Merge pull request #15 from UynajGI/codex/dependency-integration
