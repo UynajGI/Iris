@@ -11,7 +11,7 @@ import {
   type Socket,
 } from '../src/index.js';
 
-function fixture(linkVariants = false) {
+function fixture(linkVariants = false, photoCount = 12) {
   const project = {
     id: 1,
     root: 'C:/photos',
@@ -23,7 +23,7 @@ function fixture(linkVariants = false) {
     hidden: false,
     last_opened_at: '',
   };
-  let photos: Photo[] = Array.from({ length: 12 }, (_, i) => ({
+  let photos: Photo[] = Array.from({ length: photoCount }, (_, i) => ({
     id: i + 1,
     project_id: 1,
     path: `${i}.jpg`,
@@ -141,6 +141,29 @@ test('group loads all off-page members in server order and validates comparison 
   store.closeGroup();
   assert.equal(store.getSnapshot().groupSession, null);
   assert.equal(store.photoAnalysis(8), null);
+});
+
+test('large groups reject a 33rd comparison atomically and allow replacement after removal', async () => {
+  const { store, setGroups } = fixture(false, 40);
+  const ids = Array.from({ length: 40 }, (_, i) => i + 1);
+  setGroups([{ id: 'large', project_id: 1, kind: 'burst', member_photo_ids: ids }]);
+  await store.openProject('C:/photos');
+  await store.openGroup('large');
+  const selected = ids.slice(0, 32);
+  store.setComparisonCandidates([...selected, selected[0]!]);
+  store.focusGroupPhoto(32);
+  const before = store.getSnapshot().groupSession;
+  assert.equal(before?.photos.length, 40);
+  assert.throws(() => store.setComparisonCandidates(ids.slice(0, 33)), /最多同时对比 32/);
+  assert.equal(store.getSnapshot().groupSession, before);
+  assert.deepEqual(before?.comparisonIds, selected);
+  assert.equal(before?.focusedId, 32);
+  store.setComparisonCandidates(selected.slice(1));
+  store.setComparisonCandidates([...selected.slice(1), 33]);
+  assert.equal(store.getSnapshot().groupSession?.comparisonIds.length, 32);
+  assert.ok(store.getSnapshot().groupSession?.comparisonIds.includes(33));
+  store.focusGroupPhoto(40);
+  assert.equal(store.getSnapshot().groupSession?.comparisonIds.length, 32);
 });
 
 test('group navigation and decisions advance within and between groups without changing library focus', async () => {

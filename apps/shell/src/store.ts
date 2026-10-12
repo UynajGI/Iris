@@ -2,7 +2,11 @@ import { IrisClient } from './client.js';
 import { OptimisticMarks } from './optimistic-marks.js';
 import type { MarkRequest } from './types.js';
 import { EventBus, type ConnectionState, type DaemonEvent, type EventOptions } from './events.js';
-import { loadGroupMembers, type GroupSessionState } from './group-session.js';
+import {
+  loadGroupMembers,
+  MAX_COMPARISON_PHOTOS,
+  type GroupSessionState,
+} from './group-session.js';
 import { validatedPhotoFilter, ViewPreferencesRepository } from './view-preferences.js';
 import { readPhotoAnalysis, type PhotoAnalysisReadout } from './analysis-readout.js';
 import type {
@@ -665,6 +669,8 @@ export class IrisStore {
   setComparisonCandidates = (ids: number[]): void => {
     const session = this.requireGroup();
     const comparisonIds = [...new Set(ids)];
+    if (comparisonIds.length > MAX_COMPARISON_PHOTOS)
+      throw new Error(`最多同时对比 ${MAX_COMPARISON_PHOTOS} 张照片，请先移除一张再加入`);
     if (comparisonIds.some((id) => !session.memberIds.includes(id)))
       throw new Error('Comparison candidates must belong to the active group');
     const focusedId =
