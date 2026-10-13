@@ -1,5 +1,6 @@
 //! Process boundary only: no domain logic or source-photo access in the shell.
 pub mod diagnostics;
+pub mod export_location;
 #[cfg(feature = "updater-client")]
 pub mod updater;
 use anyhow::{bail, Context, Result};

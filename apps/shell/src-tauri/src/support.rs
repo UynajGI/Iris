@@ -86,30 +86,48 @@ pub async fn open_support_link(
         SupportLink::Issues => "https://github.com/UynajGI/Iris/issues/new/choose".into(),
         SupportLink::Logs => app.state::<SupportPaths>().0.join("logs").into_os_string(),
     };
+    tauri::async_runtime::spawn_blocking(move || open_system_target(value))
+        .await
+        .map_err(|_| "打开操作未能完成".to_string())?
+}
+
+#[tauri::command]
+pub async fn open_export_folder(
+    window: tauri::WebviewWindow,
+    path: String,
+    file: bool,
+) -> Result<(), String> {
+    main_window(&window)?;
     tauri::async_runtime::spawn_blocking(move || {
-        #[cfg(target_os = "windows")]
-        let mut command = {
-            use std::os::windows::process::CommandExt;
-            let mut command = std::process::Command::new("explorer.exe");
-            command.creation_flags(0x08000000);
-            command
-        };
-        #[cfg(target_os = "macos")]
-        let mut command = std::process::Command::new("open");
-        #[cfg(not(any(target_os = "windows", target_os = "macos")))]
-        let mut command = std::process::Command::new("xdg-open");
-        // The destination is a fixed link or our own log directory, never webview input.
-        let mut child = command
-            .arg(value)
-            .spawn()
-            .map_err(|_| "无法打开，请检查系统默认浏览器或文件管理器".to_string())?;
-        std::thread::spawn(move || {
-            let _ = child.wait();
-        });
-        Ok(())
+        let directory =
+            iris_shell::export_location::export_folder(std::path::Path::new(&path), file)?;
+        open_system_target(directory.into_os_string())
     })
     .await
-    .map_err(|_| "打开操作未能完成".to_string())?
+    .map_err(|_| "打开文件夹未能完成".to_string())?
+}
+
+fn open_system_target(value: std::ffi::OsString) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    let mut command = {
+        use std::os::windows::process::CommandExt;
+        let mut command = std::process::Command::new("explorer.exe");
+        command.creation_flags(0x08000000);
+        command
+    };
+    #[cfg(target_os = "macos")]
+    let mut command = std::process::Command::new("open");
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    let mut command = std::process::Command::new("xdg-open");
+    // Only fixed support links or validated absolute directories reach the launcher.
+    let mut child = command
+        .arg(value)
+        .spawn()
+        .map_err(|_| "无法打开，请检查系统默认浏览器或文件管理器".to_string())?;
+    std::thread::spawn(move || {
+        let _ = child.wait();
+    });
+    Ok(())
 }
 
 #[tauri::command]
