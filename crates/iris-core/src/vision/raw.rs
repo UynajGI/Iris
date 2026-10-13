@@ -12,6 +12,7 @@ use std::{
 const MAX_INPUT: u64 = 512 * 1024 * 1024;
 const MAX_PREVIEW: u64 = 32 * 1024 * 1024;
 const MAX_DEVELOP_PIXELS: u64 = 24_000_000;
+const MAX_FLOAT_PIXELS: u64 = 64_000_000;
 
 /// Native RGB crop plus oriented source geometry, with no preview fallback.
 pub(super) fn native_region(
@@ -124,6 +125,113 @@ fn developer_executable() -> Result<PathBuf> {
         }
     }
     anyhow::bail!("RAW converter missing; keep iris-raw-decoder beside the application")
+}
+
+/// High-precision editing path. Stream directly into FP32 buffers so a complete
+/// serialized copy of the image is not retained alongside the decoded image.
+pub(crate) fn decode_linear(
+    path: &Path,
+    white_balance: Option<[f32; 3]>,
+    context: &iris_render::RenderContext,
+) -> Result<iris_render::source::DecodedSource> {
+    let _worker = float_worker_permit(context)?;
+    anyhow::ensure!(
+        std::fs::metadata(path)?.len() <= MAX_INPUT,
+        "RAW input exceeds safety limit"
+    );
+    context.check_cancelled()?;
+    let mut command = Command::new(developer_executable()?);
+    command.arg("develop-float").arg(path);
+    float_white_balance(&mut command, white_balance)?;
+    command
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x08000000);
+    }
+    let mut child = command.spawn().context("start float RAW decoder")?;
+    #[cfg(windows)]
+    let process_tree = crate::owned_job::OwnedJob::attach(&mut child)?;
+    let stdout = child.stdout.take().context("RAW stdout missing")?;
+    let stderr = child.stderr.take().context("RAW stderr missing")?;
+    let reader_context = context.clone();
+    let reader = std::thread::spawn(move || {
+        let stream = stdout.take(MAX_FLOAT_PIXELS * 16 + 65536 + 13);
+        iris_render::source::decode_raw_stream(stream, &reader_context)
+    });
+    let errors = std::thread::spawn(move || bounded_float_errors(stderr));
+    let status = wait_for_converter(&mut child, Some(context.cancellation_flag()));
+    #[cfg(windows)]
+    process_tree.terminate();
+    finish_float_decode(reader, errors, status)
+}
+
+fn finish_float_decode(
+    reader: std::thread::JoinHandle<Result<iris_render::source::DecodedSource>>,
+    errors: std::thread::JoinHandle<std::io::Result<Vec<u8>>>,
+    status: Result<std::process::ExitStatus>,
+) -> Result<iris_render::source::DecodedSource> {
+    let decoded = reader
+        .join()
+        .map_err(|_| anyhow::anyhow!("RAW float reader panicked"))?;
+    let errors = errors
+        .join()
+        .map_err(|_| anyhow::anyhow!("RAW stderr reader panicked"))??;
+    anyhow::ensure!(
+        status?.success(),
+        "RAW float decode failed: {}",
+        String::from_utf8_lossy(&errors)
+    );
+    decoded
+}
+
+fn bounded_float_errors(mut stderr: std::process::ChildStderr) -> std::io::Result<Vec<u8>> {
+    let mut retained = Vec::new();
+    let mut buffer = [0_u8; 4096];
+    loop {
+        let count = stderr.read(&mut buffer)?;
+        if count == 0 {
+            break;
+        }
+        let keep = count.min(8192_usize.saturating_sub(retained.len()));
+        retained.extend_from_slice(&buffer[..keep]);
+        // Continue draining after the diagnostic cap so a noisy converter
+        // cannot block forever on its stderr pipe while stdout is waiting.
+    }
+    Ok(retained)
+}
+
+// The separate decoder's image buffers are not owned by RenderContext. Admit
+// only one high-precision RAW worker per process; waiters remain cancellable.
+fn float_worker_permit(
+    context: &iris_render::RenderContext,
+) -> Result<std::sync::MutexGuard<'static, ()>> {
+    static WORKER: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    loop {
+        context.check_cancelled()?;
+        match WORKER.try_lock() {
+            Ok(guard) => return Ok(guard),
+            Err(std::sync::TryLockError::Poisoned(_)) => anyhow::bail!("RAW worker gate poisoned"),
+            Err(std::sync::TryLockError::WouldBlock) => {
+                std::thread::sleep(Duration::from_millis(10))
+            }
+        }
+    }
+}
+
+fn float_white_balance(command: &mut Command, white_balance: Option<[f32; 3]>) -> Result<()> {
+    if let Some(wb) = white_balance {
+        anyhow::ensure!(
+            wb.iter()
+                .all(|v| v.is_finite() && (0.01..=100.0).contains(v)),
+            "invalid sensor white balance"
+        );
+        command.arg(format!("--wb={},{},{}", wb[0], wb[1], wb[2]));
+    }
+    Ok(())
 }
 
 fn convert(

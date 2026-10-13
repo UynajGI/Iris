@@ -8,6 +8,8 @@
 
 用户帮助、版本信息、日志与诊断导出见[帮助与反馈](support.md)。
 
+调色与修图的目标见[统一编辑图与高精度渲染设计](color-engine-design.md)，当前源码能力、接口和待验证项见[传统调色后端实现](color-engine-implementation.md)。设计目标不代表已经完成。
+
 | 需要了解                              | 文档                                                                                                                                   |
 | :------------------------------------ | :------------------------------------------------------------------------------------------------------------------------------------- |
 | 模块如何连接、进程和数据边界          | [架构](architecture.md)、[核心服务](core-services.md)                                                                                  |
@@ -29,42 +31,44 @@
 
 以下列出当前公开检出的每份 `docs/` Markdown，避免把专题记录误认为不存在：
 
-| 文件                                                     | 主题                                          |
-| :------------------------------------------------------- | :-------------------------------------------- |
-| [api-contract.md](api-contract.md)                       | HTTP、WS、OpenAPI 和生成类型                  |
-| [architecture.md](architecture.md)                       | 进程、模块和数据边界                          |
-| [beta4-plan.md](beta4-plan.md)                           | beta4 升级范围、实现顺序与验收                |
-| [ci-verification.md](ci-verification.md)                 | CI 工作流和证据边界                           |
-| [contributing.md](contributing.md)                       | 本地开发、提交和公开树约定                    |
-| [core-services.md](core-services.md)                     | 核心领域服务与事务                            |
-| [development-status.md](development-status.md)           | 功能完成度和待办                              |
-| [documentation-review.md](documentation-review.md)       | 2026-10-09 文档复核                           |
-| [github-format-review.md](github-format-review.md)       | GitHub 格式规范复核与适用范围                 |
-| [frontend-implementation.md](frontend-implementation.md) | 前端与原生宿主实现边界                        |
-| [gpu-scale-validation.md](gpu-scale-validation.md)       | GPU 与规模验证记录                            |
-| [HANDOFF.md](HANDOFF.md)                                 | 当前交接和剩余验收                            |
-| [licensing.md](licensing.md)                             | GPL、第三方和模型许可                         |
-| [local-search.md](local-search.md)                       | 可选本地检索配置、模型兼容与性能边界          |
-| [mcp-validation.md](mcp-validation.md)                   | MCP 本机验证                                  |
-| [mcp.md](mcp.md)                                         | stdio MCP 接入和工具策略                      |
-| [media-support.md](media-support.md)                     | 图片、HEIC 和 RAW 支持边界                    |
-| [model-quality-gaps.md](model-quality-gaps.md)           | 模型质量与人工标注缺口                        |
-| [native-updates.md](native-updates.md)                   | 原生更新与打包接口                            |
-| [occlusion-model-options.md](occlusion-model-options.md) | FaceOcc 等可选遮挡模型                        |
-| [performance-plan.md](performance-plan.md)               | beta3 选片流水线、复现与本机速度边界          |
-| [performance.md](performance.md)                         | 性能观测与解释边界                            |
-| [repository-cleanup.md](repository-cleanup.md)           | 公开仓库清理记录                              |
-| [releasing.md](releasing.md)                             | Tag、EXE/PKG/DEB 与便携包、完整附件门禁和发布 |
-| [安装器界面](../apps/shell/installer/README.md)          | 原生平台资源、NSIS 模板来源、升级与验收边界   |
-| [v0.1.0-beta](releases/v0.1.0-beta.md)                   | 首版下载与测试说明                            |
-| [v0.1.0-beta5](releases/v0.1.0-beta5.md)                 | 当前版本、帮助诊断与选片便捷功能              |
-| [v0.1.0-beta4](releases/v0.1.0-beta4.md)                 | beta4 源码阶段的选片升级与验证记录            |
-| [v0.1.0-beta3](releases/v0.1.0-beta3.md)                 | 已发布基线的改动与验收边界                    |
-| [v0.1.0-beta2](releases/v0.1.0-beta2.md)                 | beta2 原生安装包、安全修复与历史测试边界      |
-| [CHANGELOG.md](../CHANGELOG.md)                          | git-cliff 从提交历史自动生成的分类变更记录    |
-| [scoring-v5.md](scoring-v5.md)                           | v5 评分与验证方法                             |
-| [updates.md](updates.md)                                 | 更新检查、下载和安装协议                      |
-| [validation.md](validation.md)                           | 总体验证证据和限制                            |
+| 文件                                                             | 主题                                             |
+| :--------------------------------------------------------------- | :----------------------------------------------- |
+| [api-contract.md](api-contract.md)                               | HTTP、WS、OpenAPI 和生成类型                     |
+| [architecture.md](architecture.md)                               | 进程、模块和数据边界                             |
+| [beta4-plan.md](beta4-plan.md)                                   | beta4 升级范围、实现顺序与验收                   |
+| [ci-verification.md](ci-verification.md)                         | CI 工作流和证据边界                              |
+| [color-engine-design.md](color-engine-design.md)                 | 调色与修图后端提案：高精度、统一节点图及实施顺序 |
+| [color-engine-implementation.md](color-engine-implementation.md) | 传统调色后端源码、接口、验证与限制               |
+| [contributing.md](contributing.md)                               | 本地开发、提交和公开树约定                       |
+| [core-services.md](core-services.md)                             | 核心领域服务与事务                               |
+| [development-status.md](development-status.md)                   | 功能完成度和待办                                 |
+| [documentation-review.md](documentation-review.md)               | 2026-10-09 文档复核                              |
+| [github-format-review.md](github-format-review.md)               | GitHub 格式规范复核与适用范围                    |
+| [frontend-implementation.md](frontend-implementation.md)         | 前端与原生宿主实现边界                           |
+| [gpu-scale-validation.md](gpu-scale-validation.md)               | GPU 与规模验证记录                               |
+| [HANDOFF.md](HANDOFF.md)                                         | 当前交接和剩余验收                               |
+| [licensing.md](licensing.md)                                     | GPL、第三方和模型许可                            |
+| [local-search.md](local-search.md)                               | 可选本地检索配置、模型兼容与性能边界             |
+| [mcp-validation.md](mcp-validation.md)                           | MCP 本机验证                                     |
+| [mcp.md](mcp.md)                                                 | stdio MCP 接入和工具策略                         |
+| [media-support.md](media-support.md)                             | 图片、HEIC 和 RAW 支持边界                       |
+| [model-quality-gaps.md](model-quality-gaps.md)                   | 模型质量与人工标注缺口                           |
+| [native-updates.md](native-updates.md)                           | 原生更新与打包接口                               |
+| [occlusion-model-options.md](occlusion-model-options.md)         | FaceOcc 等可选遮挡模型                           |
+| [performance-plan.md](performance-plan.md)                       | beta3 选片流水线、复现与本机速度边界             |
+| [performance.md](performance.md)                                 | 性能观测与解释边界                               |
+| [repository-cleanup.md](repository-cleanup.md)                   | 公开仓库清理记录                                 |
+| [releasing.md](releasing.md)                                     | Tag、EXE/PKG/DEB 与便携包、完整附件门禁和发布    |
+| [安装器界面](../apps/shell/installer/README.md)                  | 原生平台资源、NSIS 模板来源、升级与验收边界      |
+| [v0.1.0-beta](releases/v0.1.0-beta.md)                           | 首版下载与测试说明                               |
+| [v0.1.0-beta5](releases/v0.1.0-beta5.md)                         | 当前版本、帮助诊断与选片便捷功能                 |
+| [v0.1.0-beta4](releases/v0.1.0-beta4.md)                         | beta4 源码阶段的选片升级与验证记录               |
+| [v0.1.0-beta3](releases/v0.1.0-beta3.md)                         | 已发布基线的改动与验收边界                       |
+| [v0.1.0-beta2](releases/v0.1.0-beta2.md)                         | beta2 原生安装包、安全修复与历史测试边界         |
+| [CHANGELOG.md](../CHANGELOG.md)                                  | git-cliff 从提交历史自动生成的分类变更记录       |
+| [scoring-v5.md](scoring-v5.md)                                   | v5 评分与验证方法                                |
+| [updates.md](updates.md)                                         | 更新检查、下载和安装协议                         |
+| [validation.md](validation.md)                                   | 总体验证证据和限制                               |
 
 全库复核和本轮测试记录见 [repository-review.md](repository-review.md)。
 

@@ -1,7 +1,7 @@
 name: Verify
 on:
   push:
-    branches: ['main']
+    branches: ['main', 'codex/color-workflow']
   pull_request:
   workflow_call:
   workflow_dispatch:
@@ -119,6 +119,18 @@ jobs:
           cargo fmt --all -- --check
           cargo fmt --manifest-path apps/shell/src-tauri/Cargo.toml --all -- --check
           cargo fmt --manifest-path components/raw-decoder/Cargo.toml --all -- --check
+      - name: Generate API contracts on CI
+        id: api_contracts
+        run: node tools/api.mjs
+      - name: Retain generated API contracts for local review
+        if: steps.api_contracts.outcome == 'success'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: generated-api-contracts
+          path: |
+            docs/openapi.json
+            apps/shell/src/generated/api.d.ts
+          if-no-files-found: error
       - name: Test workspace
         run: cargo +stable-x86_64-pc-windows-msvc test --locked --workspace
       - name: Verify bundled model hashes

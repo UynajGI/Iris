@@ -7,6 +7,7 @@ use std::{fs::File, io::BufReader, path::Path};
 mod heic;
 #[path = "raw.rs"]
 mod raw;
+pub(crate) use raw::decode_linear as decode_raw_linear;
 
 pub(crate) fn native_raw_region(
     path: &Path,
@@ -42,6 +43,7 @@ pub fn supported_format(path: &Path) -> Option<&'static str> {
         "jpg" | "jpeg" => Some("jpeg"),
         "png" => Some("png"),
         "webp" => Some("webp"),
+        "tif" | "tiff" => Some("tiff"),
         "heic" | "heif" => Some("heic"),
         "dng" | "cr2" | "cr3" | "nef" | "nrw" | "arw" | "srw" | "orf" | "rw2" | "pef" | "raf"
         | "rwl" | "raw" => Some("raw"),
@@ -53,7 +55,7 @@ pub fn image_dimensions_with_media(path: &Path, media_dir: Option<&Path>) -> Res
     match supported_format(path) {
         Some("heic") => heic::dimensions(path, media_dir),
         Some("raw") => raw::dimensions(path, media_dir),
-        Some("png" | "webp") => {
+        Some("png" | "webp" | "tiff") => {
             let dimensions = image::image_dimensions(path)?;
             check_raster_dimensions(dimensions.0, dimensions.1)?;
             Ok(dimensions)
@@ -93,7 +95,7 @@ pub(crate) fn decode_preview_cancellable(
         Some("jpeg") => decode_jpeg_preview(path, max_edge),
         Some("heic") => heic::decode(path, max_edge, media_dir),
         Some("raw") => raw::decode(path, max_edge, media_dir, cancel),
-        Some("png" | "webp") => {
+        Some("png" | "webp" | "tiff") => {
             let mut reader = image::ImageReader::open(path)?;
             let mut limits = image::Limits::default();
             limits.max_image_width = Some(32768);

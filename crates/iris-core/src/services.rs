@@ -3,12 +3,14 @@ mod catalog;
 mod comparison;
 mod decisions;
 mod detail;
+mod editing;
 mod exports;
 mod group_selection;
 mod media;
 mod photos;
 mod projects;
 mod quarantine;
+mod rendering;
 mod retrieval;
 mod scan;
 mod scan_pipeline;
@@ -17,8 +19,10 @@ mod settings;
 
 pub use comparison::ComparisonRequest;
 pub use detail::DetailJob;
+pub use editing::*;
 pub use group_selection::{FaceChoice, GroupFace, GroupIntent, GroupSelection};
 pub use media::CachedImageJob;
+pub use rendering::*;
 pub use retrieval::{RetrievalCoverage, RetrievalPhoto, SearchHit};
 pub use scenes::{parse_capture_time, SceneCorrection, SceneGroup};
 

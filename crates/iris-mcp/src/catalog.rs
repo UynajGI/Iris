@@ -13,6 +13,15 @@ pub struct Endpoint {
 pub fn catalog(read_only: bool) -> Vec<Endpoint> {
     let api = serde_json::to_value(iris_daemon::ApiDoc::openapi()).expect("OpenAPI serializes");
     let routes = [
+        ("iris_editing_capabilities", "get", "/editing/capabilities", "Read traditional editing precision, operations and explicit unsupported boundaries."),
+        ("iris_list_edits", "get", "/photos/{id}/edits", "List non-destructive versions for an allowed photograph."),
+        ("iris_create_edit", "post", "/photos/{id}/edits", "Create a high-precision edit document from the photograph. No source file is changed."),
+        ("iris_get_edit", "get", "/edits/{id}", "Read the canonical edit graph and current revision before changing it."),
+        ("iris_save_edit", "put", "/edits/{id}", "Save a validated graph with expected_revision and an idempotency request_id in data. Does not render or export."),
+        ("iris_duplicate_edit", "post", "/edits/{id}/duplicate", "Create an independent virtual copy and history; photograph bytes remain unchanged."),
+        ("iris_edit_history", "get", "/edits/{id}/history", "Read edit revision history, separate from culling decisions."),
+        ("iris_undo_edit", "post", "/edits/{id}/undo", "Undo one edit state using an expected revision. Does not undo filesystem exports."),
+        ("iris_redo_edit", "post", "/edits/{id}/redo", "Redo one edit state using an expected revision."),
         ("iris_status", "get", "/bootstrap", "Local engine version and capabilities; no GUI or network listener."),
         ("iris_devices", "get", "/devices/gpu", "Enumerate actual local GPU devices. Registration is not proof of GPU inference."),
         ("iris_list_projects", "get", "/projects", "List permitted projects. offset/limit paginate results."),
@@ -97,6 +106,8 @@ pub fn parameter_name<'a>(path: &str, name: &'a str) -> &'a str {
     if name == "id" {
         if path.starts_with("/photos/") {
             "photo_id"
+        } else if path.starts_with("/edits/") {
+            "edit_id"
         } else {
             "project_id"
         }

@@ -2,7 +2,7 @@ use anyhow::{bail, Context, Result};
 use rusqlite::Connection;
 use std::path::{Path, PathBuf};
 
-pub const SCHEMA_VERSION: i64 = 8;
+pub const SCHEMA_VERSION: i64 = 9;
 pub struct Store {
     pub conn: Connection,
     pub path: PathBuf,
@@ -82,6 +82,7 @@ fn upgrade_database(conn: &Connection, path: &Path, version: i64) -> Result<Opti
         (6, MIGRATION_6),
         (7, MIGRATION_7),
         (8, MIGRATION_8),
+        (9, MIGRATION_9),
     ] {
         if version < target {
             conn.execute_batch(migration)?;
@@ -280,6 +281,64 @@ CREATE TABLE selection_locks(
   photo_id INTEGER PRIMARY KEY REFERENCES photos(id) ON DELETE CASCADE
 );
 PRAGMA user_version=8;
+COMMIT;
+"#;
+
+const MIGRATION_9: &str = r#"
+BEGIN IMMEDIATE;
+CREATE TABLE IF NOT EXISTS edit_documents(
+ id TEXT PRIMARY KEY, photo_id INTEGER NOT NULL REFERENCES photos(id) ON DELETE CASCADE,
+ name TEXT NOT NULL, revision INTEGER NOT NULL CHECK(revision>=0), cursor INTEGER NOT NULL CHECK(cursor>=0),
+ created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS edit_documents_photo ON edit_documents(photo_id,id);
+CREATE TABLE IF NOT EXISTS edit_revisions(
+ document_id TEXT NOT NULL REFERENCES edit_documents(id) ON DELETE CASCADE,
+ revision INTEGER NOT NULL CHECK(revision>=0), document_json TEXT NOT NULL,
+ action TEXT NOT NULL, created_at TEXT NOT NULL, PRIMARY KEY(document_id,revision)
+);
+CREATE TABLE IF NOT EXISTS edit_states(
+ document_id TEXT NOT NULL REFERENCES edit_documents(id) ON DELETE CASCADE,
+ position INTEGER NOT NULL CHECK(position>=0), snapshot_revision INTEGER NOT NULL,
+ PRIMARY KEY(document_id,position),
+ FOREIGN KEY(document_id,snapshot_revision) REFERENCES edit_revisions(document_id,revision)
+);
+CREATE TABLE IF NOT EXISTS edit_commands(
+ document_id TEXT NOT NULL REFERENCES edit_documents(id) ON DELETE CASCADE,
+ request_id TEXT NOT NULL, payload_hash TEXT NOT NULL, result_revision INTEGER NOT NULL,
+ PRIMARY KEY(document_id,request_id),
+ FOREIGN KEY(document_id,result_revision) REFERENCES edit_revisions(document_id,revision)
+);
+CREATE TABLE IF NOT EXISTS edit_resources(
+ hash TEXT PRIMARY KEY, kind TEXT NOT NULL CHECK(kind IN ('lut','icc','lens_profile')),
+ size_bytes INTEGER NOT NULL CHECK(size_bytes>0), created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS edit_resource_pins(
+ document_id TEXT NOT NULL, revision INTEGER NOT NULL, hash TEXT NOT NULL REFERENCES edit_resources(hash),
+ PRIMARY KEY(document_id,revision,hash),
+ FOREIGN KEY(document_id,revision) REFERENCES edit_revisions(document_id,revision) ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS edit_presets(
+ id TEXT PRIMARY KEY, name TEXT NOT NULL, recipe_json TEXT NOT NULL,
+ created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS edit_preset_resources(
+ preset_id TEXT NOT NULL REFERENCES edit_presets(id) ON DELETE CASCADE,
+ hash TEXT NOT NULL REFERENCES edit_resources(hash), PRIMARY KEY(preset_id,hash)
+);
+CREATE TABLE IF NOT EXISTS rendered_export_jobs(
+ id TEXT PRIMARY KEY, batch_id TEXT NOT NULL, document_id TEXT NOT NULL,
+ revision INTEGER NOT NULL CHECK(revision>=0), snapshot_json TEXT NOT NULL,
+ state TEXT NOT NULL CHECK(state IN ('queued','running','publishing','completed','failed','cancelled','interrupted')),
+ created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+ result_hash TEXT, result_bytes INTEGER, error TEXT, temporary_path TEXT
+);
+CREATE INDEX IF NOT EXISTS rendered_export_state ON rendered_export_jobs(state,created_at,id);
+CREATE TABLE IF NOT EXISTS rendered_export_resources(
+ job_id TEXT NOT NULL REFERENCES rendered_export_jobs(id) ON DELETE CASCADE,
+ hash TEXT NOT NULL, bytes BLOB NOT NULL, PRIMARY KEY(job_id,hash)
+);
+PRAGMA user_version=9;
 COMMIT;
 "#;
 

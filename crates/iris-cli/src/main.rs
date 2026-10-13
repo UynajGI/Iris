@@ -1,5 +1,6 @@
 mod args;
 mod commands;
+mod editing;
 
 use args::{Args, Command};
 use clap::Parser;

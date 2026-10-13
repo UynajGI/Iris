@@ -18,6 +18,7 @@ mod semantic;
 mod settings_validation;
 use anyhow::{bail, Result};
 pub(crate) use decode::decode_preview_cancellable;
+pub(crate) use decode::decode_raw_linear;
 pub use decode::{
     decode_jpeg_preview, decode_preview, decode_preview_with_media, image_dimensions_with_media,
     supported_format, DecodedPreview, PreviewDecoder,

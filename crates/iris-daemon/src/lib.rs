@@ -45,6 +45,11 @@ pub struct AppState {
     browse_contexts: Arc<analysis_queue::BrowseContexts>,
     retrieval_index_gate: Arc<tokio::sync::Semaphore>,
     retrieval_search_gate: Arc<tokio::sync::Semaphore>,
+    render_engine: Arc<iris_core::render::engine::RenderEngine>,
+    render_gate: Arc<tokio::sync::Semaphore>,
+    render_memory_bytes: u64,
+    source_cache_bytes: u64,
+    export_queue: Arc<operations::ExportQueue>,
 }
 #[derive(Clone)]
 pub struct Job {
@@ -124,11 +129,24 @@ impl AppState {
         let (events, _) = broadcast::channel(512);
         let store = Store::open(database)?;
         let recovery_notice = store.recovery_notice.clone();
+        let memory_mib = std::env::var("IRIS_RENDER_MEMORY_MIB")
+            .ok()
+            .map(|v| v.parse::<u64>())
+            .transpose()?
+            .unwrap_or(2048);
+        anyhow::ensure!(
+            (256..=65536).contains(&memory_mib),
+            "IRIS_RENDER_MEMORY_MIB must be between 256 and 65536"
+        );
+        let render_memory_bytes = memory_mib * 1024 * 1024;
+        let source_cache_bytes = (512 * 1024 * 1024).min(render_memory_bytes / 4);
+        // Production callers acquire DatabaseOwner before constructing AppState;
+        // a previous process can no longer own in-flight publication work.
+        let mut services = Services::new(store).with_media_runtime_dir(model_dir.join("media"));
+        services.recover_rendered_exports()?;
         Ok(Self {
             decision_source: "human".into(),
-            services: Arc::new(Mutex::new(
-                Services::new(store).with_media_runtime_dir(model_dir.join("media")),
-            )),
+            services: Arc::new(Mutex::new(services)),
             recovery_notice,
             token: format!(
                 "{}{}",
@@ -144,8 +162,29 @@ impl AppState {
             browse_contexts: Default::default(),
             retrieval_index_gate: Arc::new(tokio::sync::Semaphore::new(1)),
             retrieval_search_gate: Arc::new(tokio::sync::Semaphore::new(1)),
+            render_engine: Arc::new(iris_core::render::engine::RenderEngine::new(
+                render_memory_bytes,
+                source_cache_bytes,
+            )?),
+            render_memory_bytes,
+            source_cache_bytes,
+            render_gate: Arc::new(tokio::sync::Semaphore::new(2)),
+            export_queue: Default::default(),
         })
     }
+    /// Request context sharing the daemon render memory budget.
+    pub fn render_context(&self) -> iris_core::render::RenderContext {
+        self.render_engine.request_context()
+    }
+
+    /// Stop queued rendering and cancel work that has not reached publication.
+    pub fn shutdown_rendering(&self) {
+        self.export_queue.shutdown();
+    }
+    pub async fn wait_for_rendered_exports(&self) {
+        self.export_queue.wait_stopped().await;
+    }
+
     /// Per-project analysis resource policy; concurrent projects have separate pools.
     /// Does not change scoring settings or cached results.
     pub fn with_worker_limit(mut self, worker_limit: usize) -> anyhow::Result<Self> {
@@ -484,6 +523,7 @@ pub struct ApiDoc;
 impl OpenApi for ApiDoc {
     fn openapi() -> utoipa::openapi::OpenApi {
         let mut doc = GeneratedApiDoc::openapi();
+        doc.merge(operations::EditingApiDoc::openapi());
         ensure_response_descriptions(&mut doc);
         doc
     }
@@ -529,6 +569,7 @@ impl utoipa::Modify for Security {
     }
 }
 pub fn router(state: AppState) -> Router {
+    operations::start_export_worker(state.clone());
     let cors = tower_http::cors::CorsLayer::new()
         .allow_origin([
             HeaderValue::from_static("http://localhost:1420"),
@@ -536,6 +577,25 @@ pub fn router(state: AppState) -> Router {
             HeaderValue::from_static("tauri://localhost"),
         ])
         .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE])
+        .expose_headers([
+            axum::http::HeaderName::from_static("x-iris-revision"),
+            axum::http::HeaderName::from_static("x-iris-sequence"),
+            axum::http::HeaderName::from_static("x-iris-fingerprint"),
+            axum::http::HeaderName::from_static("x-iris-approximate"),
+            axum::http::HeaderName::from_static("x-iris-render-backend"),
+            axum::http::HeaderName::from_static("x-iris-cpu-nodes"),
+            axum::http::HeaderName::from_static("x-iris-gpu-nodes"),
+            axum::http::HeaderName::from_static("x-iris-gpu-fallback"),
+            axum::http::HeaderName::from_static("x-iris-soft-proof"),
+            axum::http::HeaderName::from_static("x-iris-draft"),
+            axum::http::HeaderName::from_static("x-iris-region-x"),
+            axum::http::HeaderName::from_static("x-iris-region-y"),
+            axum::http::HeaderName::from_static("x-iris-region-width"),
+            axum::http::HeaderName::from_static("x-iris-region-height"),
+            axum::http::HeaderName::from_static("x-iris-full-width"),
+            axum::http::HeaderName::from_static("x-iris-full-height"),
+            axum::http::HeaderName::from_static("x-iris-full-frame-evaluation"),
+        ])
         .allow_headers([
             axum::http::header::AUTHORIZATION,
             axum::http::header::CONTENT_TYPE,

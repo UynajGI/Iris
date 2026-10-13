@@ -5,6 +5,7 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+iris-render = { path = "../iris-render" }
 anyhow.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -13,7 +14,13 @@ uuid.workspace = true
 chrono.workspace = true
 rusqlite = { version = "0.38", features = ["bundled", "backup", "functions"] }
 walkdir = "2"
-image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp", "pnm"] }
+image = { version = "0.25", default-features = false, features = [
+  "jpeg",
+  "png",
+  "webp",
+  "pnm",
+  "tiff"
+] }
 libloading = "0.8"
 jpeg-decoder = "0.3"
 kamadak-exif = "0.6"

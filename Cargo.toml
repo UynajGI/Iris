@@ -1,5 +1,11 @@
 [workspace]
-members = ["crates/iris-core", "crates/iris-daemon", "crates/iris-cli", "crates/iris-mcp"]
+members = [
+  "crates/iris-core",
+  "crates/iris-daemon",
+  "crates/iris-cli",
+  "crates/iris-mcp",
+  "crates/iris-render"
+]
 exclude = ["components/raw-decoder"]
 resolver = "2"
 

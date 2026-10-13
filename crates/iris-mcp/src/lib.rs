@@ -1,4 +1,6 @@
 mod catalog;
+#[cfg(test)]
+mod editing_tests;
 mod invocation;
 mod journal;
 mod policy;

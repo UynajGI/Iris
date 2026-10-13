@@ -1,4 +1,7 @@
 mod contracts;
+mod editing;
+pub(crate) use editing::EditingApiDoc;
+pub(crate) use editing::{start_export_worker, ExportQueue};
 mod group_selection;
 pub use group_selection::{
     __path_accept_group_selection, __path_group_selection, __path_set_group_intent,
@@ -60,6 +63,7 @@ use iris_core::vision::AnalysisSettings;
 
 pub fn routes() -> Router<AppState> {
     Router::new()
+        .merge(editing::routes())
         .route("/api/v1/projects/{id}/scan", post(scan))
         .route(
             "/api/v1/projects/{id}/groups/{group_id}/selection",

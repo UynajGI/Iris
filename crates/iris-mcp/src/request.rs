@@ -10,7 +10,11 @@ impl IrisMcp {
             .services
             .lock()
             .map_err(|_| anyhow::anyhow!("service lock poisoned"))?;
-        let project_id = if let Some(photo_id) = args["photo_id"].as_i64() {
+        let edit_photo = args["edit_id"]
+            .as_str()
+            .map(|id| services.edit_document(id).map(|record| record.photo_id))
+            .transpose()?;
+        let project_id = if let Some(photo_id) = args["photo_id"].as_i64().or(edit_photo) {
             let photo = services.photo(photo_id)?;
             let project = services.project(photo.project_id)?;
             self.policy

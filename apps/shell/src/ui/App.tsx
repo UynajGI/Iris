@@ -20,12 +20,13 @@ import './help.css';
 import { Button, Dialog } from './components.js';
 import { loadAppearance, saveAppearance, type Appearance } from './preferences.js';
 import { usePhotoWorkspace } from './usePhotoWorkspace.js';
+import { WorkflowNav, type AppPage } from './WorkflowNav.js';
+import { EditingWorkspace } from './EditingWorkspace.js';
+import { FileWorkflows } from './FileWorkflows.js';
 
 export function App({ store, commands }: { store: IrisStore; commands: CommandSystem }) {
   const state = useIris(store);
-  const [page, setPage] = useState<'projects' | 'photos' | 'settings' | 'help'>(() =>
-    state.project ? 'photos' : 'projects'
-  );
+  const [page, setPage] = useState<AppPage>(() => (state.project ? 'photos' : 'projects'));
   const [appearance, setAppearance] = useState<Appearance>(loadAppearance);
   const [error, setError] = useState<string | null>(null);
   const [scanRoot, setScanRoot] = useState<string | null>(null);
@@ -88,14 +89,14 @@ export function App({ store, commands }: { store: IrisStore; commands: CommandSy
   }, [tasksOpen]);
   const [settingsDirty, setSettingsDirty] = useState(false);
   const desktopWindow = useDesktopWindow();
-  const [leaveTarget, setLeaveTarget] = useState<'projects' | 'photos' | 'help' | null>(null);
+  const [leaveTarget, setLeaveTarget] = useState<Exclude<AppPage, 'settings'> | null>(null);
   const [savingLeave, setSavingLeave] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const saveSettings = useRef<(() => Promise<boolean>) | null>(null);
   const registerSave = useCallback((save: (() => Promise<boolean>) | null) => {
     saveSettings.current = save;
   }, []);
-  const navigate = (target: 'projects' | 'photos' | 'settings' | 'help') => {
+  const navigate = (target: AppPage) => {
     if (settingsDirty && target !== 'settings') setLeaveTarget(target);
     else setPage(target);
   };
@@ -176,50 +177,26 @@ export function App({ store, commands }: { store: IrisStore; commands: CommandSy
   return (
     <div className="app">
       <header className="titlebar" data-tauri-drag-region>
-        <div className="titlebar-brand" data-tauri-drag-region>
-          <span className="brand-mark" aria-hidden="true" />
-          <span className="brand" data-tauri-drag-region>
-            伊人
-          </span>
+        <div className="titlebar-project" data-tauri-drag-region>
+          <div className="titlebar-brand" data-tauri-drag-region>
+            <span className="brand-mark" aria-hidden="true" />
+            <span className="brand" data-tauri-drag-region>
+              伊人
+            </span>
+          </div>
+          {state.project && (
+            <button
+              type="button"
+              className="crumb"
+              onClick={() => navigate('projects')}
+              title={state.project.root}
+            >
+              <Icon name="folder" />
+              <span className="crumb-name">{state.project.name}</span>
+            </button>
+          )}
         </div>
-        {state.project && (
-          <button
-            type="button"
-            className="crumb"
-            onClick={() => navigate('projects')}
-            title={state.project.root}
-          >
-            <Icon name="folder" />
-            <span className="crumb-name">{state.project.name}</span>
-          </button>
-        )}
-        <nav className="modules" aria-label="主导航">
-          <button
-            type="button"
-            className="module"
-            aria-current={page === 'projects' ? 'page' : undefined}
-            onClick={() => navigate('projects')}
-          >
-            项目
-          </button>
-          <button
-            type="button"
-            className="module"
-            disabled={!state.project}
-            aria-current={page === 'photos' ? 'page' : undefined}
-            onClick={() => navigate('photos')}
-          >
-            选片
-          </button>
-          <button
-            type="button"
-            className="module"
-            aria-current={page === 'settings' ? 'page' : undefined}
-            onClick={() => navigate('settings')}
-          >
-            设置
-          </button>
-        </nav>
+        <WorkflowNav page={page} hasProject={!!state.project} onNavigate={navigate} />
         <div className="titlebar-tools">
           <span
             className={`connection connection-${state.connection}`}
@@ -231,6 +208,15 @@ export function App({ store, commands }: { store: IrisStore; commands: CommandSy
               {state.connection === 'disconnected' ? '服务连接已断开' : '服务已连接'}
             </span>
           </span>
+          <button
+            type="button"
+            className="title-button"
+            title="帮助与关于 (F1)"
+            aria-label="帮助与关于"
+            onClick={() => navigate('help')}
+          >
+            <Icon name="info" />
+          </button>
           <button
             ref={taskTrigger}
             type="button"
@@ -250,11 +236,12 @@ export function App({ store, commands }: { store: IrisStore; commands: CommandSy
           <button
             type="button"
             className="title-button"
-            title="帮助与关于 (F1)"
-            aria-label="帮助与关于"
-            onClick={() => navigate('help')}
+            title="设置"
+            aria-label="设置"
+            aria-current={page === 'settings' ? 'page' : undefined}
+            onClick={() => navigate('settings')}
           >
-            <Icon name="info" />
+            <Icon name="settings" />
           </button>
         </div>
       </header>
@@ -465,6 +452,18 @@ export function App({ store, commands }: { store: IrisStore; commands: CommandSy
       )}
 
       {page === 'photos' && state.project && <PhotoWorkspace model={photoWorkspace} />}
+
+      {(page === 'color' || page === 'retouch') && state.project && (
+        <EditingWorkspace model={photoWorkspace} stage={page} />
+      )}
+      {page === 'export' && state.project && (
+        <main className="page">
+          <div className="page-content export-workspace">
+            <h1>导出</h1>
+            <FileWorkflows store={store} />
+          </div>
+        </main>
+      )}
 
       {page === 'help' && (
         <HelpCenter

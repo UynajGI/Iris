@@ -119,7 +119,10 @@ fn measure_raster(
     cancel: &AtomicBool,
 ) -> Result<DetailEvidence> {
     let region = evidence.region;
-    if !matches!(super::supported_format(path), Some("jpeg" | "png" | "webp")) {
+    if !matches!(
+        super::supported_format(path),
+        Some("jpeg" | "png" | "webp" | "tiff")
+    ) {
         evidence.state = "preview_only".into();
         evidence.reason=Some("Native regional detail is unavailable for this format; preview cannot establish original detail or recoverability".into());
         return Ok(evidence);

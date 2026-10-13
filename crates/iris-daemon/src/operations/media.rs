@@ -37,7 +37,7 @@ pub async fn preview(
 ) -> Result<Response, ApiError> {
     media(s, id, 2560, query.prefetch).await
 }
-#[utoipa::path(get,path="/api/v1/photos/{id}/original",params(("id"=i64,Path)),responses((status=200,description="Unmodified source bytes; RAW and HEIC review uses JPEG previews",content((Vec<u8> = "image/jpeg"),(Vec<u8> = "image/png"),(Vec<u8> = "image/webp"),(Vec<u8> = "image/heic"),(Vec<u8> = "application/octet-stream")))))]
+#[utoipa::path(get,path="/api/v1/photos/{id}/original",params(("id"=i64,Path)),responses((status=200,description="Unmodified source bytes; RAW and HEIC review uses JPEG previews",content((Vec<u8> = "image/jpeg"),(Vec<u8> = "image/png"),(Vec<u8> = "image/webp"),(Vec<u8> = "image/tiff"),(Vec<u8> = "image/heic"),(Vec<u8> = "application/octet-stream")))))]
 pub async fn original(
     State(s): State<AppState>,
     Path(id): Path<i64>,
@@ -46,6 +46,7 @@ pub async fn original(
     let content_type = match iris_core::vision::supported_format(&path) {
         Some("png") => "image/png",
         Some("webp") => "image/webp",
+        Some("tiff") => "image/tiff",
         Some("heic") => "image/heic",
         Some("raw") => "application/octet-stream",
         _ => "image/jpeg",

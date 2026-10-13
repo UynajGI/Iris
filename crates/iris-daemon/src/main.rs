@@ -48,6 +48,7 @@ async fn serve(args: Args) -> anyhow::Result<()> {
         "{}",
         serde_json::json!({"base_url":format!("http://{}",listener.local_addr()?),"token":state.token,"version":env!("CARGO_PKG_VERSION")})
     );
+    let final_state = state.clone();
     axum::serve(listener,router(state.clone())).with_graceful_shutdown(async move {
         use tokio::io::AsyncBufReadExt;
         let mut lines=tokio::io::BufReader::new(tokio::io::stdin()).lines();
@@ -56,7 +57,9 @@ async fn serve(args: Args) -> anyhow::Result<()> {
             _=async {while let Ok(Some(line))=lines.next_line().await {if line.trim()=="shutdown" {return}}std::future::pending::<()>().await;}=>{},
         }
         if let Ok(jobs)=state.jobs.lock(){for job in jobs.values(){job.cancel.store(true,std::sync::atomic::Ordering::Relaxed);job.pause.store(false,std::sync::atomic::Ordering::Relaxed);}}
+        state.shutdown_rendering();
     }).await?;
+    final_state.wait_for_rendered_exports().await;
     Ok(())
 }
 

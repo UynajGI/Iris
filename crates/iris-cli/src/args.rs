@@ -2,7 +2,7 @@ use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
 #[derive(Parser)]
-#[command(about = "Iris headless photo culling")]
+#[command(about = "Iris headless photo culling and editing")]
 pub(crate) struct Args {
     #[arg(long, default_value = ".iris/library.sqlite3")]
     pub database: PathBuf,
@@ -13,6 +13,11 @@ pub(crate) struct Args {
 }
 #[derive(Subcommand)]
 pub(crate) enum Command {
+    /// Non-destructive traditional editing and high-precision rendered exports.
+    Edit {
+        #[command(subcommand)]
+        command: crate::editing::EditArgs,
+    },
     Projects,
     /// Open a known project and move it to the front of recent history.
     Open {

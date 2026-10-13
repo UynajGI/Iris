@@ -11,11 +11,12 @@ import { useWorkspacePanels } from './useWorkspacePanels.js';
 import { useWorkspaceKeyboard } from './workspace-key-handler.js';
 import { usePreviewPrefetch } from './usePreviewPrefetch.js';
 import { useBrowseContext } from './useBrowseContext.js';
+import type { AppPage } from './WorkflowNav.js';
 
 export interface WorkspaceOptions {
   store: IrisStore;
   commands: CommandSystem;
-  page: 'projects' | 'photos' | 'settings' | 'help';
+  page: AppPage;
   modal: boolean;
   attempt(operation: () => Promise<unknown>): void;
   setError(error: string | null): void;

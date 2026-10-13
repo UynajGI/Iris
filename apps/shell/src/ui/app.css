@@ -48,14 +48,22 @@
 .titlebar {
   position: relative;
   z-index: 8;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  gap: 24px;
+  gap: 16px;
   min-height: 60px;
   padding: 0 22px;
   background: var(--chrome);
   border-bottom: 1px solid var(--line-subtle);
   flex-shrink: 0;
+}
+.titlebar-project {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-width: 0;
+  overflow: hidden;
 }
 .titlebar-brand {
   display: flex;
@@ -65,7 +73,10 @@
   flex-shrink: 0;
 }
 [data-window-frame='windows'] .titlebar {
-  padding-right: 160px;
+  padding-right: 22px;
+}
+[data-window-frame='windows'] .titlebar-tools {
+  margin-right: 138px;
 }
 :root[data-window-frame='windows'],
 [data-window-frame='windows'] body {
@@ -97,7 +108,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  max-width: 28%;
+  max-width: 100%;
   min-width: 0;
   border: 0;
   border-left: 1px solid var(--line-subtle);
@@ -121,8 +132,19 @@
 .modules {
   display: flex;
   align-self: stretch;
-  gap: 6px;
-  margin-left: auto;
+  gap: 2px;
+  margin: 0;
+  justify-self: center;
+  align-items: stretch;
+}
+.workflow-divider {
+  align-self: center;
+  color: var(--muted);
+  opacity: 0.5;
+}
+.workflow-divider svg {
+  width: 12px;
+  height: 12px;
 }
 .module {
   position: relative;
@@ -159,6 +181,44 @@
   display: flex;
   align-items: center;
   gap: 5px;
+  justify-self: end;
+}
+.title-button[aria-current='page'] {
+  color: var(--text);
+  background: var(--hover-surface);
+}
+.editing-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  flex: 1;
+  min-height: 0;
+}
+.editing-photo {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  background: var(--photo-canvas, #777);
+}
+.editing-tools {
+  padding: 24px;
+  background: var(--panel);
+}
+.editing-tools h1 {
+  font-size: var(--heading, 20px);
+  font-weight: 500;
+}
+.editing-tools p {
+  margin-top: 20px;
+  color: var(--muted);
+  font-size: var(--small);
+}
+.editing-empty {
+  display: grid;
+  height: 100%;
+  place-items: center;
+}
+.export-workspace {
+  max-width: 880px;
 }
 .title-button {
   display: grid;
@@ -2836,7 +2896,23 @@ details p {
     padding: 0 16px;
   }
   .titlebar .crumb {
-    max-width: 25%;
+    max-width: 100%;
+  }
+}
+@media (max-width: 1100px) {
+  [data-window-frame='windows'] .titlebar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding-top: 8px;
+    gap: 8px;
+  }
+  [data-window-frame='windows'] .workflow-nav {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    min-height: 44px;
+  }
+  [data-window-frame='windows'] .titlebar-tools {
+    grid-column: 2;
+    grid-row: 1;
   }
 }
 @media (max-width: 850px) {
@@ -2863,6 +2939,12 @@ details p {
   .titlebar-tools {
     gap: 1px;
   }
+  .titlebar-project {
+    gap: 10px;
+  }
+  .editing-workspace {
+    grid-template-columns: minmax(0, 1fr) 220px;
+  }
   .settings-layout {
     grid-template-columns: 150px minmax(0, 1fr);
     gap: 22px;
@@ -2886,6 +2968,17 @@ details p {
   }
   .titlebar {
     gap: 8px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding-top: 8px;
+  }
+  .workflow-nav {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    min-height: 44px;
+  }
+  .titlebar-tools {
+    grid-column: 2;
+    grid-row: 1;
   }
   .titlebar-tools .connection {
     display: none;

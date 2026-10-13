@@ -8,5 +8,6 @@ pub mod services;
 pub mod store;
 pub mod vision;
 pub use domain::*;
+pub use iris_render as render;
 pub use services::Services;
 pub use store::Store;

@@ -9,6 +9,11 @@ use std::{
 
 /// Only orchestration lives here; service command families are independently reviewable.
 pub(crate) fn execute(state: &AppState, command: Command) -> anyhow::Result<()> {
+    if let Command::Edit { command } = command {
+        let value = crate::editing::execute(state, command)?;
+        println!("{}", serde_json::to_string_pretty(&value)?);
+        return Ok(());
+    }
     if let Command::Models { project } = command {
         println!(
             "{}",
@@ -72,7 +77,10 @@ fn dispatch(s: &mut Services, command: Command) -> anyhow::Result<Value> {
         | Command::CacheMigrate { .. }
         | Command::CacheHistory { .. }
         | Command::CacheCleanupOld { .. }) => cache(s, c),
-        Command::Analyze { .. } | Command::Models { .. } | Command::Openapi => unreachable!(),
+        Command::Edit { .. }
+        | Command::Analyze { .. }
+        | Command::Models { .. }
+        | Command::Openapi => unreachable!(),
     }
 }
 
