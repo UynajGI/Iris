@@ -5,8 +5,10 @@ use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Manager};
 use tauri_plugin_dialog::DialogExt;
 
+mod support;
 mod window_frame;
 mod window_lifecycle;
+use iris_shell::diagnostics::{self, Event as DiagnosticEvent};
 use window_lifecycle::{close_behavior, confirm_close, set_close_behavior, window_frame_platform};
 
 #[cfg(feature = "native-smoke")]
@@ -205,6 +207,10 @@ fn main() {
         set_app_locale,
         select_project_folder,
         select_export_csv,
+        support::support_info,
+        support::record_diagnostic_event,
+        support::open_support_link,
+        support::export_diagnostics,
         updater::update_status,
         updater::check_for_update,
         updater::download_update,
@@ -222,6 +228,10 @@ fn main() {
         set_app_locale,
         select_project_folder,
         select_export_csv,
+        support::support_info,
+        support::record_diagnostic_event,
+        support::open_support_link,
+        support::export_diagnostics,
         updater::update_status,
         updater::check_for_update,
         updater::download_update,
@@ -239,10 +249,22 @@ fn main() {
                 .map(std::path::PathBuf::from)
                 .unwrap_or(app.path().app_data_dir()?);
             std::fs::create_dir_all(&data_dir)?;
+            diagnostics::initialize(&data_dir);
+            diagnostics::record(DiagnosticEvent::AppStarted);
+            let previous_hook = std::panic::take_hook();
+            std::panic::set_hook(Box::new(move |info| {
+                diagnostics::record(DiagnosticEvent::AppPanicked);
+                previous_hook(info);
+            }));
+            app.manage(support::SupportPaths(data_dir.clone()));
             window_lifecycle::setup(app.handle(), data_dir.clone())?;
             window_frame::setup(app.handle())?;
             let mut host = DaemonHost::new(executable, data_dir);
-            host.start()?;
+            if host.start().is_err() {
+                diagnostics::record(DiagnosticEvent::StartupFailed);
+                // Keep the shell available for retry and diagnostics. The supervisor
+                // can recover the daemon after missing files or runtime issues are fixed.
+            }
             let host = Arc::new(Mutex::new(host));
             app.manage(Host(host.clone()));
             app.manage(updater::initialize(app.handle(), host.clone())?);
@@ -254,9 +276,11 @@ fn main() {
                 let Ok(mut host) = host.lock() else { break };
                 match host.supervise() {
                     Ok(Some(_)) => {
+                        diagnostics::record(DiagnosticEvent::DaemonRestarted);
                         let _ = handle.emit("daemon:restarted", ());
                     }
                     Err(_) => {
+                        diagnostics::record(DiagnosticEvent::DaemonUnavailable);
                         let _ = handle.emit("daemon:unavailable", ());
                     }
                     Ok(None) => {}
@@ -271,6 +295,7 @@ fn main() {
 
 fn stop_host_on_exit(handle: &tauri::AppHandle, event: tauri::RunEvent) {
     if let tauri::RunEvent::Exit = event {
+        diagnostics::record(DiagnosticEvent::AppExited);
         if let Some(host) = handle.try_state::<Host>() {
             if let Ok(mut host) = host.0.lock() {
                 host.stop();

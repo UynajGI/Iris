@@ -1,11 +1,16 @@
 import { Component, type ReactNode } from 'react';
 import { Button } from './components.js';
+import { ErrorDetails } from './ErrorDetails.js';
+import { recordDiagnostic } from '../support.js';
 
 /** Rendering failures stay local; no photographs or diagnostics leave the app. */
 export class AppBoundary extends Component<{ children: ReactNode }, { error: string | null }> {
   state: { error: string | null } = { error: null };
   static getDerivedStateFromError(error: unknown) {
     return { error: error instanceof Error ? error.message : String(error) };
+  }
+  componentDidCatch() {
+    recordDiagnostic('render_failed');
   }
   render() {
     if (this.state.error !== null)
@@ -24,10 +29,7 @@ export class AppBoundary extends Component<{ children: ReactNode }, { error: str
                 关闭应用
               </Button>
             </div>
-            <details>
-              <summary>查看原因</summary>
-              <p>{this.state.error}</p>
-            </details>
+            <ErrorDetails error={this.state.error} />
           </div>
         </main>
       );

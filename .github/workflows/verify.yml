@@ -54,6 +54,8 @@ jobs:
           components: rustfmt
       - run: make setup
       - run: make test-tools
+      - name: Check application version consistency
+        run: node tools/backend.mjs tools/sync-version.py --check
       - name: Build and test native installer theme
         if: runner.os == 'Windows'
         shell: pwsh

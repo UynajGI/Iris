@@ -158,6 +158,11 @@ portable: require-windows require-output ## Build a Windows portable package in 
 	$(NODE) tools/development.mjs portable
 installer-native: require-output ## Build macOS PKG or Linux DEB from PORTABLE (native OS required)
 	$(BACKEND) tools/package-native-installer.py --portable "$(PORTABLE)" --output "$(OUTPUT)"
+.PHONY: version-check version-sync
+version-check: ## Check all application versions against the root Cargo.toml
+	$(BACKEND) tools/sync-version.py --check
+version-sync: ## Synchronize application versions (optional VERSION=1.2.3)
+	$(BACKEND) tools/sync-version.py $(VERSION)
 changelog: ## Regenerate CHANGELOG.md from full Git history and the current version
 	npm run changelog
 changelog-check: ## Fail if the committed changelog is stale

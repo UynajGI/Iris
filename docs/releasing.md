@@ -1,6 +1,6 @@
 # 发布流程
 
-产品为 Iris / 伊人。当前源码版本为 `0.1.0-beta3`，发行说明见 [beta3](releases/v0.1.0-beta3.md)。仓库已有 `v0.1.0-beta2` 的公开发行记录；beta3 尚需对应提交的构建、安装及发布验收，不能沿用旧版 CI 作为新版本通过证明。
+产品为 Iris / 伊人。源码版本以根目录 `Cargo.toml` 为准，运行 `make version-check` 核对全部组件。当前开发说明见 [beta4](releases/v0.1.0-beta4.md)；已发布版本以 [Releases](https://github.com/UynajGI/Iris/releases) 为准。源码版本一致不等于该版本已构建或发布。
 已公开 Tag 和附件不移动、不静默覆盖；历史便携包不因新流程而自动获得安装器。
 本页描述当前源码的发版契约，实际可下载内容以对应 Release 附件为准。
 
@@ -36,6 +36,15 @@ Linux 当前安装器范围是 Ubuntu/Debian DEB，不声称覆盖 RPM、Flatpak
 
 任一必需任务失败都不创建草稿。只有 draft job 有 `contents: write`，构建任务只有读权限。
 照片、数据库、本机报告、签名私钥和可选研究权重不进入发行附件。
+
+## 版本同步
+
+使用 `make version-sync VERSION=0.1.0-beta4`（或 `node tools/backend.mjs tools/sync-version.py 0.1.0-beta4`）
+统一修改应用的 Cargo 清单、三个 Cargo 锁文件中的自有包、前端 package/lock、Tauri 配置与界面版本。
+不带 VERSION 时从根 Cargo.toml 同步；`make version-check` 只检查。工具不升级依赖、不编译、
+不提交、不打 tag 或发布。CI 和发布检查同时覆盖 npm 锁文件根包及 Cargo 锁文件，避免只改顶层数字。
+版本说明仍需维护 `docs/releases/v<版本>.md`；历史发行说明和下载链接不会被批量替换。
+本机界面的版本来自同步生成文件，宿主显示编译时版本和 Git 构建标识；组件不一致会提示重新安装完整包。
 
 ## 自动变更日志
 
@@ -74,7 +83,7 @@ macOS 删除 `Iris.app` 不清理用户应用数据；系统安装收据不是�
 先提交全部公开源码，源码导出拒绝 dirty tree。同步版本后运行：
 
 ```powershell
-python tools/check-release.py v0.1.0-beta3
+python tools/check-release.py v0.1.0-beta4
 make verify
 ```
 

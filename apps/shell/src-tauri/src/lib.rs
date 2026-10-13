@@ -1,4 +1,5 @@
 //! Process boundary only: no domain logic or source-photo access in the shell.
+pub mod diagnostics;
 #[cfg(feature = "updater-client")]
 pub mod updater;
 use anyhow::{bail, Context, Result};
@@ -131,6 +132,7 @@ impl DaemonHost {
     pub fn start(&mut self) -> Result<Session> {
         anyhow::ensure!(!self.update_paused, "daemon is paused for installation");
         self.stop();
+        diagnostics::record(diagnostics::Event::DaemonStarting);
         let executable = self
             .executable
             .canonicalize()
@@ -147,13 +149,14 @@ impl DaemonHost {
             .args(["--port", "0"])
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::inherit());
+            .stderr(Stdio::piped());
         #[cfg(windows)]
         {
             use std::os::windows::process::CommandExt;
             command.creation_flags(0x08000000);
         }
         let mut child = command.spawn().context("start iris-daemon")?;
+        drain_stderr(&mut child);
         let stdout = child
             .stdout
             .take()
@@ -185,11 +188,13 @@ impl DaemonHost {
         })();
         match result {
             Ok(session) => {
+                diagnostics::record(diagnostics::Event::DaemonReady);
                 self.session = Some(session.clone());
                 self.failures = 0;
                 Ok(session)
             }
             Err(error) => {
+                diagnostics::record(diagnostics::Event::DaemonBootstrapFailed);
                 self.stop();
                 Err(error)
             }
@@ -290,6 +295,21 @@ impl DaemonHost {
 impl Drop for DaemonHost {
     fn drop(&mut self) {
         self.stop();
+    }
+}
+
+fn drain_stderr(child: &mut Child) {
+    if let Some(mut stderr) = child.stderr.take() {
+        std::thread::spawn(move || {
+            let mut buffer = [0u8; 2048];
+            while let Ok(count) = stderr.read(&mut buffer) {
+                if count == 0 {
+                    break;
+                }
+                // Preserve evidence of stderr activity, never model paths or image names.
+                diagnostics::record(diagnostics::Event::DaemonStderr);
+            }
+        });
     }
 }
 

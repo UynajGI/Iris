@@ -3,6 +3,10 @@ import { useEffect, type ReactNode } from 'react';
 import { App } from './ui/App.js';
 import { AppBoundary } from './ui/AppBoundary.js';
 import { connectDesktop } from './desktop.js';
+import { ErrorDetails } from './ui/ErrorDetails.js';
+import { recordDiagnostic } from './support.js';
+window.addEventListener('error', () => recordDiagnostic('frontend_failed'));
+window.addEventListener('unhandledrejection', () => recordDiagnostic('frontend_failed'));
 
 const element = document.getElementById('root');
 if (!element) throw new Error('Application root is missing');
@@ -25,11 +29,8 @@ function renderApplication(failure?: string) {
       <AppBoundary>
         {failure && (
           <div className="error-bar" role="alert">
-            <span>照片服务连接未恢复</span>
-            <details>
-              <summary>查看原因</summary>
-              <p>{failure}</p>
-            </details>
+            <span>照片服务未就绪，请检查安装文件或重试连接</span>
+            <ErrorDetails error={failure} />
             <span className="spacer" />
             <button
               className="button"

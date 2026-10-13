@@ -1,0 +1,78 @@
+.help-layout {
+  display: grid;
+  align-items: start;
+  grid-template-columns: 160px minmax(0, 1fr);
+  gap: var(--group-gap, 28px);
+}
+.help-body {
+  max-width: 760px;
+  min-width: 0;
+}
+.help-body p {
+  line-height: 1.75;
+}
+.help-body h3 {
+  margin-top: 16px;
+  margin-bottom: 0;
+}
+.help-body .settings-section {
+  gap: 12px;
+}
+.help-body .settings-section > .button {
+  justify-self: start;
+}
+.help-body p {
+  margin: 0;
+}
+.help-body .row {
+  flex-wrap: wrap;
+}
+.support-facts {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 10px 24px;
+  margin: 8px 0;
+}
+.support-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.help-topic {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line-subtle);
+}
+.help-topic summary {
+  cursor: pointer;
+  font-weight: 500;
+}
+.help-topic p {
+  margin-bottom: 0;
+}
+.error-details {
+  min-width: 0;
+}
+.help-document {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 420px;
+  overflow: auto;
+  font: inherit;
+  line-height: 1.75;
+}
+.error-reason {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 180px;
+  overflow: auto;
+}
+@media (max-width: 850px) {
+  .help-layout {
+    grid-template-columns: 1fr;
+  }
+  .help-layout .settings-nav {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    position: static;
+  }
+}

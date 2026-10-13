@@ -1,6 +1,18 @@
-import { copyFile, mkdir, rm } from 'node:fs/promises';
+import { copyFile, mkdir, rm, readFile } from 'node:fs/promises';
 import { build } from 'esbuild';
 import { fileURLToPath } from 'node:url';
+const { version } = JSON.parse(await readFile(new URL('./package.json', import.meta.url), 'utf8'));
+await mkdir(new URL('./dist/help/', import.meta.url), { recursive: true });
+for (const [source, target] of [
+  [`../../docs/releases/v${version}.md`, 'release-notes.txt'],
+  ['../../LICENSE', 'LICENSE.txt'],
+  ['../../THIRD_PARTY_NOTICES.md', 'THIRD_PARTY_NOTICES.txt'],
+]) {
+  await copyFile(
+    new URL(source, import.meta.url),
+    new URL(`./dist/help/${target}`, import.meta.url)
+  );
+}
 // Remove historical test output from builds made with the development tsconfig.
 await rm(new URL('./dist/test/', import.meta.url), { recursive: true, force: true });
 await mkdir(new URL('./dist/src/generated/', import.meta.url), { recursive: true });
