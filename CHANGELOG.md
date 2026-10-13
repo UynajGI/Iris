@@ -39,6 +39,8 @@ known limitations are maintained separately in [release notes](docs/releases/).
 
 - **xmp:** keep exported subjects free of local directory paths ([0141561](https://github.com/UynajGI/Iris/commit/0141561616da62247e292f9bbc4b5c1b2c811928))
 
+- address beta5 review and contract version drift ([5a93d98](https://github.com/UynajGI/Iris/commit/5a93d9873464fb97c904a74019c40037d0131d7a))
+
 ### Other
 
 - Merge pull request #17 from UynajGI/codex/beta4-selection
