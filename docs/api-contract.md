@@ -21,7 +21,46 @@ All new endpoints use the same authentication and project/source availability ch
 | `POST /projects/{id}/search/index`  | Explicit cancellable image-index job using the existing progress/pause/resume/cancel endpoints.                                        |
 | `POST /projects/{id}/search`        | Local text query and optional limit, 1–200; exact cosine hits and index coverage. Missing models fail explicitly.                      |
 
-Photo filtering additionally accepts transient `scene_id` and `photo_id` scopes. They combine with existing filters/sorts and are applied before full analysis materialization. Frontend preferences do not restore these navigation scopes on project reopen. Retrieval model compatibility and installation boundaries are described in [local-search.md](local-search.md).
+Photo filtering additionally accepts `scene_id` and `photo_id` scopes. They combine with existing filters/sorts and are applied before full analysis materialization. Version 2 frontend preferences restore navigation separately from default filters, validate scene/group membership and discard unavailable focus/candidates. Retrieval model compatibility and installation boundaries are described in [local-search.md](local-search.md).
+
+### Group selection and original detail
+
+`GET /projects/{id}/groups/{group_id}/selection` returns persisted intent, current
+recommended/pending keep ids, shortage/over-target counts and face correspondence
+states. `PUT` replaces the group's target count, main face and manual corrections.
+Echo the returned `lock_baseline` unchanged and edit `locked_photo_ids` to apply
+only explicit additions/removals relative to that snapshot. Omitted baselines
+default to empty (additions only); unrelated or stale group saves cannot erase
+or recreate locks from another group. Echo each face's current `analysis_key`; stale or out-of-group
+choices are rejected before any writes. Changed membership resets group intent;
+photo-level locks survive regrouping. A stale main reference suspends automatic
+main-face recommendations until it is reselected or cleared.
+
+`POST /projects/{id}/groups/{group_id}/selection/accept` explicitly keeps only
+pending recommended photos in one undoable batch. Existing keep/reject/flag
+decisions are preserved; shortages never cause forced rejection. Project-wide
+adoption also observes configured group targets. Unlock a must-keep photo before
+changing its decision to a different non-keep action. Undo remains explicit and
+does not clear the user's lock intent. An implicitly linked locked variant is
+reported as a conflict and skipped; explicitly selecting that locked photo for a
+destructive change still rejects the batch. Group adoption refreshes all loaded
+group members, including those outside the gallery page, without requiring events.
+
+`POST /photos/{id}/detail` now returns optional `image_data_url`, `display_width`
+and `display_height` alongside native crop and measurement dimensions. The image
+is a bounded inline JPEG; the desktop renders it through a revocable Blob URL.
+RAW/DNG native detail uses the limits in [media-support.md](media-support.md).
+It does not update scores, eye classifications or decisions.
+
+XMP export writes actual rating/color and Iris decision separately. Empty subjects
+and filename/file-URI subjects referring to the current photo have their owned
+marks replaced together; unrelated RDF subjects are preserved. Newly written
+subjects use relative references without local directory names. A base URI that
+cannot express the current photo safely is rejected before replacing the sidecar.
+Existing
+unrelated XML properties remain intact; malformed sidecars fail without overwrite,
+and replaced originals are retained in uniquely named backups. Paired RAW/JPEG
+photos can share a sidecar only when decision, rating and color all agree.
 
 `GET /api/v1/devices/gpu` returns `status`, `source`, `default_device_id`,
 `adapters`, `inference_verified` and `reason`. Status is `available`,

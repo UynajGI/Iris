@@ -4,6 +4,7 @@ mod comparison;
 mod decisions;
 mod detail;
 mod exports;
+mod group_selection;
 mod media;
 mod photos;
 mod projects;
@@ -16,6 +17,7 @@ mod settings;
 
 pub use comparison::ComparisonRequest;
 pub use detail::DetailJob;
+pub use group_selection::{FaceChoice, GroupFace, GroupIntent, GroupSelection};
 pub use media::CachedImageJob;
 pub use retrieval::{RetrievalCoverage, RetrievalPhoto, SearchHit};
 pub use scenes::{parse_capture_time, SceneCorrection, SceneGroup};

@@ -1,4 +1,9 @@
 mod contracts;
+mod group_selection;
+pub use group_selection::{
+    __path_accept_group_selection, __path_group_selection, __path_set_group_intent,
+    accept_group_selection, group_selection, set_group_intent,
+};
 mod retrieval;
 pub use retrieval::{
     __path_index_search, __path_search, __path_search_status, index_search, search, search_status,
@@ -56,6 +61,14 @@ use iris_core::vision::AnalysisSettings;
 pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/api/v1/projects/{id}/scan", post(scan))
+        .route(
+            "/api/v1/projects/{id}/groups/{group_id}/selection",
+            get(group_selection).put(set_group_intent),
+        )
+        .route(
+            "/api/v1/projects/{id}/groups/{group_id}/selection/accept",
+            post(accept_group_selection),
+        )
         .route("/api/v1/projects/{id}/search/status", get(search_status))
         .route("/api/v1/projects/{id}/search", post(search))
         .route("/api/v1/projects/{id}/search/index", post(index_search))

@@ -3114,6 +3114,59 @@ details p {
 .detail-evidence p {
   margin-block: 6px;
 }
+.native-detail-crop {
+  overflow: auto;
+  max-height: 320px;
+  margin-block: 8px;
+  background: var(--photo-ground);
+}
+.native-detail-crop img {
+  display: block;
+  height: auto;
+  max-width: 100%;
+}
+.native-detail-crop[data-zoom='true'] img {
+  max-width: none;
+}
+.group-selection-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line-subtle);
+}
+.group-selection-bar form,
+.group-selection-bar label,
+.group-candidate-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.group-selection-bar input {
+  width: 4.5rem;
+}
+.group-selection-bar select {
+  max-width: min(300px, 60vw);
+}
+.group-selection-bar p {
+  width: 100%;
+  margin: 0;
+}
+.compare-candidate {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.compare-candidate > .compare-cell {
+  flex: 1;
+}
+.group-candidate-actions {
+  padding: 6px 8px;
+  font-size: var(--small);
+}
 .evidence-values {
   display: grid;
   grid-template-columns: 1fr auto;

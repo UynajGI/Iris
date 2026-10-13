@@ -13,6 +13,89 @@ const MAX_INPUT: u64 = 512 * 1024 * 1024;
 const MAX_PREVIEW: u64 = 32 * 1024 * 1024;
 const MAX_DEVELOP_PIXELS: u64 = 24_000_000;
 
+/// Native RGB crop plus oriented source geometry, with no preview fallback.
+pub(super) fn native_region(
+    path: &Path,
+    region: [f32; 4],
+    cancel: &std::sync::atomic::AtomicBool,
+) -> Result<(image::RgbImage, u32, u32)> {
+    anyhow::ensure!(
+        std::fs::metadata(path)?.len() <= MAX_INPUT,
+        "RAW input exceeds safety limit"
+    );
+    let mode = format!(
+        "region:{},{},{},{}",
+        region[0], region[1], region[2], region[3]
+    );
+    let bytes = convert(path, &mode, 4_000_000 * 3 + 4096, Some(cancel))?;
+    parse_region(&bytes)
+}
+
+fn parse_region(bytes: &[u8]) -> Result<(image::RgbImage, u32, u32)> {
+    #[derive(serde::Deserialize)]
+    #[serde(deny_unknown_fields)]
+    struct Header {
+        protocol: String,
+        source_width: u32,
+        source_height: u32,
+        orientation: u32,
+    }
+    let split = bytes
+        .iter()
+        .take(1024)
+        .position(|b| *b == b'\n')
+        .context("RAW region protocol header missing")?;
+    let header: Header = serde_json::from_slice(&bytes[..split])?;
+    anyhow::ensure!(
+        header.protocol == "iris-raw-region-v1"
+            && (1..=8).contains(&header.orientation)
+            && header.source_width > 0
+            && header.source_height > 0
+            && u64::from(header.source_width) * u64::from(header.source_height) <= 60_000_000,
+        "invalid RAW region protocol geometry"
+    );
+    let mut reader = image::ImageReader::with_format(
+        std::io::Cursor::new(&bytes[split + 1..]),
+        image::ImageFormat::Pnm,
+    );
+    let mut limits = image::Limits::default();
+    limits.max_alloc = Some(4_000_000 * 3);
+    reader.limits(limits);
+    let decoder = reader.into_decoder()?;
+    let (w, h) = decoder.dimensions();
+    anyhow::ensure!(
+        w >= 16
+            && h >= 16
+            && u64::from(w) * u64::from(h) <= 4_000_000
+            && decoder.color_type() == image::ColorType::Rgb8,
+        "RAW region exceeds native crop safety limit"
+    );
+    let image = orient(
+        image::DynamicImage::from_decoder(decoder)?.to_rgb8(),
+        header.orientation,
+    );
+    anyhow::ensure!(
+        image.width() <= header.source_width && image.height() <= header.source_height,
+        "RAW crop exceeds source geometry"
+    );
+    Ok((image, header.source_width, header.source_height))
+}
+
+pub(super) fn converter_revision() -> String {
+    developer_executable()
+        .and_then(|path| {
+            let metadata = std::fs::metadata(&path)?;
+            let time = metadata.modified()?.duration_since(std::time::UNIX_EPOCH)?;
+            Ok(format!(
+                "{}:{}:{}",
+                path.display(),
+                metadata.len(),
+                time.as_nanos()
+            ))
+        })
+        .unwrap_or_else(|_| "missing-raw-converter".into())
+}
+
 fn developer_executable() -> Result<PathBuf> {
     if let Some(path) = std::env::var_os("IRIS_RAW_DECODER_PATH") {
         let path = PathBuf::from(path);

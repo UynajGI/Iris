@@ -47,7 +47,7 @@ test('corrupt, oversized, future-version and invalid fields degrade to safe pref
   for (const text of [
     '{broken',
     'x'.repeat(9000),
-    JSON.stringify({ version: 2, filter: { sort: 'date' } }),
+    JSON.stringify({ version: 3, filter: { sort: 'date' } }),
   ]) {
     const storage: PreferenceStorage = { getItem: () => text, setItem() {} };
     assert.deepEqual(new ViewPreferencesRepository(storage).load('A'), {

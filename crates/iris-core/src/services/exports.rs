@@ -1,5 +1,7 @@
 use super::*;
 
+mod xmp;
+
 impl Services {
     pub fn export_xmp(
         &self,
@@ -31,6 +33,8 @@ impl Services {
                 anyhow::ensure!(
                     raw_jpeg
                         && previous.decision == photo.decision
+                        && previous.rating == photo.rating
+                        && previous.color_label == photo.color_label
                         && previous.capture_variant_id.is_some()
                         && previous.capture_variant_id == photo.capture_variant_id,
                     "multiple selected photos share XMP destination: {}",
@@ -54,22 +58,7 @@ impl Services {
             paths: vec![],
         };
         for (p, dest) in planned {
-            let rating = match p.decision {
-                Action::Keep => 5,
-                Action::Reject => -1,
-                _ => 0,
-            };
-            let label = if p.decision == Action::Flag {
-                "Select"
-            } else {
-                ""
-            };
-            let body=format!("<?xpacket begin='\u{feff}' id='W5M0MpCehiHzreSzNTczkc9d'?>\n<x:xmpmeta xmlns:x='adobe:ns:meta/'><rdf:RDF xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#'><rdf:Description rdf:about='' xmlns:xmp='http://ns.adobe.com/xap/1.0/' xmp:Rating='{rating}' xmp:Label='{label}'/></rdf:RDF></x:xmpmeta>\n<?xpacket end='w'?>\n");
-            if dest.exists() && !overwrite {
-                report.skipped += 1;
-                continue;
-            }
-            if !write_sidecar(&dest, &body, overwrite)? {
+            if !write_sidecar(&dest, &p, overwrite)? {
                 report.skipped += 1;
                 continue;
             }
@@ -188,32 +177,84 @@ impl Services {
     }
 }
 
-fn write_sidecar(dest: &Path, body: &str, overwrite: bool) -> Result<bool> {
-    // Refuse links even in explicit overwrite mode; sidecars never modify image bytes.
-    if fs::symlink_metadata(dest).is_ok_and(|m| m.file_type().is_symlink()) {
-        bail!("refusing symlink sidecar");
+fn read_sidecar(dest: &Path) -> Result<Option<String>> {
+    let metadata = match fs::symlink_metadata(dest) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => return Err(error.into()),
+    };
+    anyhow::ensure!(
+        metadata.is_file() && !metadata.file_type().is_symlink(),
+        "refusing non-regular or symlink sidecar"
+    );
+    let mut bytes = Vec::new();
+    File::open(dest)?
+        .take(xmp::MAX_BYTES + 1)
+        .read_to_end(&mut bytes)?;
+    anyhow::ensure!(
+        bytes.len() as u64 <= xmp::MAX_BYTES,
+        "XMP sidecar exceeds size limit"
+    );
+    Ok(Some(
+        String::from_utf8(bytes).context("XMP sidecar is not UTF-8")?,
+    ))
+}
+
+fn write_sidecar(dest: &Path, photo: &Photo, overwrite: bool) -> Result<bool> {
+    // Skip existing files without parsing when overwrite was not requested.
+    if !overwrite && fs::symlink_metadata(dest).is_ok() {
+        anyhow::ensure!(
+            !fs::symlink_metadata(dest)?.file_type().is_symlink(),
+            "refusing symlink sidecar"
+        );
+        return Ok(false);
     }
-    let temp = dest.with_extension(format!("{}.tmp", uuid::Uuid::new_v4()));
-    let mut f = OpenOptions::new()
-        .create_new(true)
-        .write(true)
-        .open(&temp)?;
-    f.write_all(body.as_bytes())?;
-    f.sync_all()?;
-    drop(f);
-    if dest.exists() && overwrite {
-        let backup = dest.with_extension(format!("xmp.{}.bak", uuid::Uuid::new_v4()));
-        fs::rename(dest, &backup)?;
-        if let Err(e) = fs::rename(&temp, dest) {
-            let _ = fs::rename(&backup, dest);
-            return Err(e.into());
-        }
-    } else {
-        if dest.exists() {
-            let _ = fs::remove_file(&temp);
-            return Ok(false);
-        }
-        fs::rename(&temp, dest)?;
+    let original = read_sidecar(dest)?;
+    let body = xmp::merge(
+        photo,
+        original.as_deref(),
+        &dest.with_file_name(&photo.filename),
+    )?;
+    let mut temp =
+        tempfile::NamedTempFile::new_in(dest.parent().context("sidecar has no parent")?)?;
+    temp.write_all(body.as_bytes())?;
+    temp.as_file().sync_all()?;
+    if let Some(original) = original {
+        return replace_sidecar(dest, temp, &original);
+    }
+    match temp.persist_noclobber(dest) {
+        Ok(_) => Ok(true),
+        Err(error) if error.error.kind() == std::io::ErrorKind::AlreadyExists => Ok(false),
+        Err(error) => Err(error.error.into()),
+    }
+}
+
+fn replace_sidecar(dest: &Path, temp: tempfile::NamedTempFile, original: &str) -> Result<bool> {
+    anyhow::ensure!(
+        read_sidecar(dest)?.as_deref() == Some(original),
+        "XMP changed during export; retry"
+    );
+    let backup = dest.with_extension(format!("xmp.{}.bak", uuid::Uuid::new_v4()));
+    fs::rename(dest, &backup)?;
+    if read_sidecar(&backup)?.as_deref() != Some(original) {
+        restore_backup_if_absent(&backup, dest)?;
+        bail!("XMP changed during export; retry");
+    }
+    if let Err(error) = temp.persist_noclobber(dest) {
+        // Never replace a file created by another writer during the export.
+        restore_backup_if_absent(&backup, dest)?;
+        return Err(error.error).context("XMP export failed; original retained in backup");
     }
     Ok(true)
+}
+
+fn restore_backup_if_absent(backup: &Path, dest: &Path) -> Result<()> {
+    match fs::symlink_metadata(dest) {
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            fs::rename(backup, dest).context("restore XMP backup after failed export")?
+        }
+        Err(error) => return Err(error.into()),
+        Ok(_) => {}
+    }
+    Ok(())
 }

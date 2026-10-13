@@ -41,6 +41,19 @@ per file. Windows job objects own worker/ExifTool/converter descendants so
 cancellation and timeout also terminate children.
 RAW orientation applies when the JPEG does not already carry its own transform.
 This is preview/scoring support, not a photographic RAW editor or color pipeline.
+The explicit original-detail action additionally requests a versioned native RAW
+region from the converter. Sensor decoding/scaling still reads the full mosaic;
+only the padded ROI is demosaiced and calibrated to RGB. It supports conventional
+CFA layouts (including supported Bayer/X-Trans), up to a 60 MP sensor and a 4 MP
+requested crop, using the RAW default crop and EXIF orientation. Rotated Fuji
+layouts and unsupported CFA arrangements fail explicitly. This does not establish
+color agreement with an embedded JPEG or a photographic RAW editor.
+The result includes a JPEG region for inspection (maximum displayed edge 2048)
+and scale-dependent measurements (maximum edge 1024). The UI reports any display
+reduction and allows pixel-size viewing. Cancellation kills the owned converter;
+successful results are cached by source/region/method/converter revision. Missing
+or unsupported conversion is not cached as a successful native pass. Broad regions
+may require choosing a smaller area or a face; HEIC native detail remains deferred.
 The paired-operation fixture uses a real camera RAW with a JPEG rendered from
 its preview. It validates pairing and linked operations, not a separately
 downloaded camera-card RAW+JPEG pair or color agreement between those captures.

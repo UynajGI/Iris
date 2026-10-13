@@ -2,10 +2,16 @@ use anyhow::{bail, Context, Result};
 use rawler::{decoders::RawDecodeParams, imgop::develop::RawDevelop, rawsource::RawSource};
 use std::{io::Write, path::Path};
 
+mod region;
+
+fn valid_mode(mode: &std::ffi::OsStr) -> bool {
+    mode == "metadata" || mode == "develop" || mode.to_string_lossy().starts_with("region:")
+}
+
 fn run() -> Result<()> {
     let args: Vec<_> = std::env::args_os().collect();
-    if args.len() != 3 || (args[1] != "metadata" && args[1] != "develop") {
-        bail!("usage: iris-raw-decoder metadata|develop <RAW file>");
+    if args.len() != 3 || !valid_mode(&args[1]) {
+        bail!("usage: iris-raw-decoder metadata|develop|region:x,y,w,h <RAW file>");
     }
     let path = Path::new(&args[2]);
     anyhow::ensure!(
@@ -30,6 +36,13 @@ fn run() -> Result<()> {
             })
         );
         return Ok(());
+    }
+    if let Some(request) = args[1].to_string_lossy().strip_prefix("region:") {
+        anyhow::ensure!(
+            pixels <= 60_000_000,
+            "Native regional RAW detail exceeds the 60MP sensor limit"
+        );
+        return region::develop(decoder.raw_image(&input, &params, false)?, request);
     }
     anyhow::ensure!(
         pixels <= 24_000_000,

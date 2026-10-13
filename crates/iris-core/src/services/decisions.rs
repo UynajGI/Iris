@@ -29,7 +29,7 @@ impl Services {
                         if sibling.id != *id
                             && sibling.capture_variant_id.as_ref() == Some(&variant)
                         {
-                            if sibling.decision != Action::Pending && sibling.decision != action {
+                            if self.linked_decision_conflicts(&sibling, action, ids)? {
                                 conflicts.push(sibling.id);
                             } else {
                                 changes.insert(sibling.id, action);
@@ -41,12 +41,26 @@ impl Services {
         }
         self.apply_decisions(project_id, changes, source, conflicts)
     }
+    fn linked_decision_conflicts(
+        &self,
+        photo: &Photo,
+        action: Action,
+        explicit: &[i64],
+    ) -> Result<bool> {
+        Ok(
+            (photo.decision != Action::Pending && photo.decision != action)
+                || (!explicit.contains(&photo.id)
+                    && action != Action::Keep
+                    && action != photo.decision
+                    && self.selection_locked(photo.id)?),
+        )
+    }
     pub(super) fn apply_decisions(
         &mut self,
         project_id: i64,
         changes: HashMap<i64, Action>,
         source: &str,
-        conflicts: Vec<i64>,
+        mut conflicts: Vec<i64>,
     ) -> Result<DecisionBatch> {
         self.project(project_id)?;
         if !["human", "batch_adopt", "csv_import"].contains(&source) {
@@ -57,6 +71,10 @@ impl Services {
             let p = self.photo(id)?;
             if p.project_id != project_id {
                 bail!("photo belongs to another project");
+            }
+            if !self.allow_locked_decision(&p, action, source)? {
+                conflicts.push(id);
+                continue;
             }
             if p.decision != action {
                 actions.push((id, action, p.decision));
@@ -80,6 +98,16 @@ impl Services {
             changed,
             conflicts,
         })
+    }
+    fn allow_locked_decision(&self, photo: &Photo, action: Action, source: &str) -> Result<bool> {
+        if action == Action::Keep || action == photo.decision || !self.selection_locked(photo.id)? {
+            return Ok(true);
+        }
+        anyhow::ensure!(
+            source == "batch_adopt",
+            "unlock this must-keep photo before changing its decision"
+        );
+        Ok(false)
     }
     /// An explicit selection changes only its IDs; all fields share one undo session.
     pub fn mark_photos(&mut self, project_id: i64, request: MarkRequest) -> Result<DecisionBatch> {
@@ -105,6 +133,13 @@ impl Services {
             let photo = self.photo(id)?;
             if photo.project_id != project_id {
                 bail!("photo belongs to another project");
+            }
+            if request
+                .decision
+                .is_some_and(|action| action != Action::Keep && action != photo.decision)
+                && self.selection_locked(id)?
+            {
+                bail!("unlock this must-keep photo before changing its decision");
             }
             if let Some(change) = photo_mark_change(photo, &request) {
                 changes.push(change);
@@ -184,9 +219,15 @@ impl Services {
     ) -> Result<DecisionBatch> {
         let settings = self.settings(project_id)?;
         let candidates = self.accept_candidates(project_id, request.photo_ids)?;
+        let group_limits = self.group_keep_constraints(project_id, &candidates)?;
         let mut changes = HashMap::new();
         for p in candidates {
             if p.decision != Action::Pending {
+                continue;
+            }
+            if self.adopts_locked_keep(p.id, request.category)? {
+                self.verify_adoption_source(&p)?;
+                changes.insert(p.id, Action::Keep);
                 continue;
             }
             let Some(analysis) = p.analysis.as_ref() else {
@@ -202,6 +243,9 @@ impl Services {
                 }
                 _ => continue,
             };
+            if action == Action::Keep && group_limits.get(&p.id) == Some(&false) {
+                continue;
+            }
             let closed = analysis
                 .get("faces")
                 .and_then(Value::as_array)
@@ -220,15 +264,25 @@ impl Services {
             }
             anyhow::ensure!(analysis_matches_settings(analysis, &settings),
                     "{} has stale or unknown analysis; analyze the project before accepting suggestions", p.filename);
-            let metadata = fs::metadata(self.photo_path(p.id)?)?;
-            anyhow::ensure!(
-                metadata.len() == p.size_bytes && modified(&metadata)? == p.mtime,
-                "{} changed since analysis; rescan before accepting suggestions",
-                p.filename
-            );
+            self.verify_adoption_source(&p)?;
             changes.insert(p.id, action);
         }
         self.apply_decisions(project_id, changes, "batch_adopt", vec![])
+    }
+    fn verify_adoption_source(&self, photo: &Photo) -> Result<()> {
+        let metadata = fs::metadata(self.photo_path(photo.id)?)?;
+        anyhow::ensure!(
+            metadata.len() == photo.size_bytes && modified(&metadata)? == photo.mtime,
+            "{} changed since analysis; rescan before accepting suggestions",
+            photo.filename
+        );
+        Ok(())
+    }
+    fn adopts_locked_keep(&self, photo: i64, category: AcceptCategory) -> Result<bool> {
+        Ok(
+            matches!(category, AcceptCategory::All | AcceptCategory::Recommend)
+                && self.selection_locked(photo)?,
+        )
     }
     fn accept_candidates(&self, project_id: i64, ids: Option<Vec<i64>>) -> Result<Vec<Photo>> {
         let Some(ids) = ids else {

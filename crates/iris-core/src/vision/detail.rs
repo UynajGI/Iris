@@ -1,6 +1,7 @@
 //! Independent, on-demand regional evidence; never rewrites preview scores or eye states.
 use super::{metrics, Exposure};
 use anyhow::Result;
+use base64::Engine;
 use image::{GenericImageView, ImageDecoder};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -9,7 +10,11 @@ use std::{
 };
 use utoipa::ToSchema;
 
-pub const DETAIL_METHOD: &str = "iris-region-native-v1";
+pub const DETAIL_METHOD: &str = "iris-region-native-v2";
+
+pub(crate) fn raw_converter_revision() -> String {
+    super::decode::raw_converter_revision()
+}
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, ToSchema)]
 #[serde(default, deny_unknown_fields)]
@@ -34,6 +39,13 @@ pub struct DetailEvidence {
     pub sharpness_lap: Option<f64>,
     pub exposure: Option<Exposure>,
     pub reason: Option<String>,
+    /// Bounded JPEG of this original region; absent when native detail is unavailable.
+    #[serde(default)]
+    pub image_data_url: Option<String>,
+    #[serde(default)]
+    pub display_width: u32,
+    #[serde(default)]
+    pub display_height: u32,
 }
 
 pub fn validate_region(region: [f32; 4]) -> Result<()> {
@@ -68,10 +80,48 @@ pub fn measure(path: &Path, region: [f32; 4], cancel: &AtomicBool) -> Result<Det
         sharpness_lap: None,
         exposure: None,
         reason: None,
+        image_data_url: None,
+        display_width: 0,
+        display_height: 0,
     };
+    if super::supported_format(path) == Some("raw") {
+        return measure_raw(path, evidence, cancel);
+    }
+    measure_raster(path, evidence, cancel)
+}
+
+fn measure_raw(
+    path: &Path,
+    mut evidence: DetailEvidence,
+    cancel: &AtomicBool,
+) -> Result<DetailEvidence> {
+    anyhow::ensure!(!cancel.load(Ordering::Relaxed), "detail cancelled");
+    match super::decode::native_raw_region(path, evidence.region, cancel) {
+        Ok((rgb, width, height)) => {
+            evidence.source_width = width;
+            evidence.source_height = height;
+            evidence.crop_width = rgb.width();
+            evidence.crop_height = rgb.height();
+            measured(evidence, rgb, cancel)
+        }
+        Err(error) => {
+            anyhow::ensure!(!cancel.load(Ordering::Relaxed), "detail cancelled");
+            evidence.state = "preview_only".into();
+            evidence.reason = Some(format!("Native RAW region unavailable: {error:#}"));
+            Ok(evidence)
+        }
+    }
+}
+
+fn measure_raster(
+    path: &Path,
+    mut evidence: DetailEvidence,
+    cancel: &AtomicBool,
+) -> Result<DetailEvidence> {
+    let region = evidence.region;
     if !matches!(super::supported_format(path), Some("jpeg" | "png" | "webp")) {
         evidence.state = "preview_only".into();
-        evidence.reason=Some("Native regional detail is currently available for JPEG, PNG and WebP; RAW/HEIC preview cannot establish original detail or recoverability".into());
+        evidence.reason=Some("Native regional detail is unavailable for this format; preview cannot establish original detail or recoverability".into());
         return Ok(evidence);
     }
     anyhow::ensure!(!cancel.load(Ordering::Relaxed), "detail cancelled");
@@ -116,9 +166,10 @@ pub fn measure(path: &Path, region: [f32; 4], cancel: &AtomicBool) -> Result<Det
         .view(x, y, evidence.crop_width, evidence.crop_height)
         .to_image();
     drop(image);
-    let crop = if crop.width().max(crop.height()) > 1024 {
+    // Bound the displayed crop independently of the smaller measurement buffer.
+    let crop = if crop.width().max(crop.height()) > 2048 {
         image::DynamicImage::ImageRgba8(crop)
-            .resize(1024, 1024, image::imageops::FilterType::Triangle)
+            .resize(2048, 2048, image::imageops::FilterType::Triangle)
             .to_rgba8()
     } else {
         crop
@@ -131,6 +182,44 @@ pub fn measure(path: &Path, region: [f32; 4], cancel: &AtomicBool) -> Result<Det
                 ((u32::from(pixel[channel]) * alpha + 255 * (255 - alpha) + 127) / 255) as u8;
         }
     }
+    measured(evidence, rgb, cancel)
+}
+
+fn measured(
+    mut evidence: DetailEvidence,
+    rgb: image::RgbImage,
+    cancel: &AtomicBool,
+) -> Result<DetailEvidence> {
+    anyhow::ensure!(!cancel.load(Ordering::Relaxed), "detail cancelled");
+    let rgb = if rgb.width().max(rgb.height()) > 2048 {
+        image::imageops::resize(
+            &rgb,
+            (rgb.width() as f64 * 2048. / rgb.width().max(rgb.height()) as f64)
+                .round()
+                .max(1.) as u32,
+            (rgb.height() as f64 * 2048. / rgb.width().max(rgb.height()) as f64)
+                .round()
+                .max(1.) as u32,
+            image::imageops::FilterType::Triangle,
+        )
+    } else {
+        rgb
+    };
+    evidence.display_width = rgb.width();
+    evidence.display_height = rgb.height();
+    let mut jpeg = Vec::new();
+    image::codecs::jpeg::JpegEncoder::new_with_quality(&mut jpeg, 92).encode_image(&rgb)?;
+    evidence.image_data_url = Some(format!(
+        "data:image/jpeg;base64,{}",
+        base64::engine::general_purpose::STANDARD.encode(jpeg)
+    ));
+    let rgb = if rgb.width().max(rgb.height()) > 1024 {
+        image::DynamicImage::ImageRgb8(rgb)
+            .resize(1024, 1024, image::imageops::FilterType::Triangle)
+            .to_rgb8()
+    } else {
+        rgb
+    };
     anyhow::ensure!(!cancel.load(Ordering::Relaxed), "detail cancelled");
     let (lap, exposure) = metrics::spatial_metrics(&rgb);
     evidence.state = "full_detail".into();
@@ -159,6 +248,12 @@ mod tests {
         let b = measure(&path, [0.25, 0.25, 0.5, 0.5], &cancel).unwrap();
         assert_eq!(a.state, "full_detail");
         assert_eq!((a.crop_width, a.measured_width), (128, 128));
+        assert_eq!((a.display_width, a.display_height), (128, 128));
+        assert!(a
+            .image_data_url
+            .as_ref()
+            .unwrap()
+            .starts_with("data:image/jpeg;base64,"));
         assert!(a.sharpness_lap.unwrap() > b.sharpness_lap.unwrap() * 10.);
         assert_eq!(
             measure(&path, [0., 0., 0.01, 0.01], &cancel).unwrap().state,

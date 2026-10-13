@@ -4,6 +4,7 @@ import type { DetailEvidence, Photo } from '../types.js';
 import { faceRegions } from '../selection-readout.js';
 import { mediaRevision } from '../media-cache.js';
 import { Button } from './components.js';
+import { NativeDetailImage } from './NativeDetailImage.js';
 
 /** Expensive original-region evidence is requested explicitly, never on every focus change. */
 export function DetailReview({
@@ -59,12 +60,14 @@ function DetailMeasurement({
   const [result, setResult] = useState<DetailEvidence | null>(null);
   const [error, setError] = useState('');
   const [request, setRequest] = useState<AbortController | null>(null);
+  const [zoom, setZoom] = useState(false);
   useEffect(() => () => request?.abort(), [request]);
   const measure = async () => {
     const controller = new AbortController();
     setRequest(controller);
     setError('');
     setResult(null);
+    setZoom(false);
     try {
       const evidence = await client.detail(
         photo.id,
@@ -80,9 +83,22 @@ function DetailMeasurement({
   };
   return (
     <>
-      <Button className="ghost block" disabled={!!request} onClick={() => void measure()}>
-        {request ? '正在复核细节…' : '复核原始细节'}
+      <Button
+        className="ghost block"
+        onClick={() => {
+          if (request) {
+            request.abort();
+            setRequest(null);
+          } else void measure();
+        }}
+      >
+        {request ? '取消细节复核' : '复核原始细节'}
       </Button>
+      {request && (
+        <p className="muted" role="status">
+          正在读取原图区域…
+        </p>
+      )}
       {error && (
         <p className="inline-error" role="alert">
           细节复核未完成，可重试：{error}
@@ -103,6 +119,23 @@ function DetailMeasurement({
                 区域 {result.crop_width}×{result.crop_height} · 测量 {result.measured_width}×
                 {result.measured_height}
               </p>
+              {result.image_data_url && (
+                <>
+                  <Button className="ghost" aria-pressed={zoom} onClick={() => setZoom(!zoom)}>
+                    {zoom ? '适合窗口' : '按像素查看'}
+                  </Button>
+                  <NativeDetailImage evidence={result} zoom={zoom} />
+                  {result.display_width !== result.crop_width ||
+                  result.display_height !== result.crop_height ? (
+                    <p className="muted">
+                      显示为 {result.display_width}×{result.display_height}
+                      ，区域过大已缩小；选择人脸可查看更细的区域。
+                    </p>
+                  ) : (
+                    <p className="muted">显示图保留区域像素尺寸，使用 JPEG 编码。</p>
+                  )}
+                </>
+              )}
               <dl className="evidence-values">
                 <dt>局部清晰度</dt>
                 <dd>{result.sharpness_lap?.toFixed(1) ?? '未知'}</dd>

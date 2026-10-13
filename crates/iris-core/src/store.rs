@@ -2,7 +2,7 @@ use anyhow::{bail, Context, Result};
 use rusqlite::Connection;
 use std::path::{Path, PathBuf};
 
-pub const SCHEMA_VERSION: i64 = 7;
+pub const SCHEMA_VERSION: i64 = 8;
 pub struct Store {
     pub conn: Connection,
     pub path: PathBuf,
@@ -81,6 +81,7 @@ fn upgrade_database(conn: &Connection, path: &Path, version: i64) -> Result<Opti
         (5, MIGRATION_5),
         (6, MIGRATION_6),
         (7, MIGRATION_7),
+        (8, MIGRATION_8),
     ] {
         if version < target {
             conn.execute_batch(migration)?;
@@ -263,6 +264,22 @@ CREATE TABLE IF NOT EXISTS retrieval_embeddings(
 );
 CREATE INDEX IF NOT EXISTS retrieval_space ON retrieval_embeddings(space_key,photo_id);
 PRAGMA user_version=7;
+COMMIT;
+"#;
+
+const MIGRATION_8: &str = r#"
+BEGIN IMMEDIATE;
+CREATE TABLE group_selection_intents(
+  project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  group_id TEXT NOT NULL,
+  members_key TEXT NOT NULL,
+  data TEXT NOT NULL,
+  PRIMARY KEY(project_id,group_id)
+);
+CREATE TABLE selection_locks(
+  photo_id INTEGER PRIMARY KEY REFERENCES photos(id) ON DELETE CASCADE
+);
+PRAGMA user_version=8;
 COMMIT;
 "#;
 

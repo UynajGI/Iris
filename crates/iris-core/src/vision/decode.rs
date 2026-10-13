@@ -8,6 +8,18 @@ mod heic;
 #[path = "raw.rs"]
 mod raw;
 
+pub(crate) fn native_raw_region(
+    path: &Path,
+    region: [f32; 4],
+    cancel: &std::sync::atomic::AtomicBool,
+) -> Result<(RgbImage, u32, u32)> {
+    raw::native_region(path, region, cancel)
+}
+
+pub(crate) fn raw_converter_revision() -> String {
+    raw::converter_revision()
+}
+
 pub(super) const MAX_RASTER_PIXELS: u64 = 60_000_000;
 const MAX_DECODE_BYTES: u64 = 256 * 1024 * 1024;
 

@@ -268,6 +268,7 @@ fn version_six_upgrade_backfills_catalog_and_preserves_recovery_backup() {
     let database = services.store.path.clone();
     services.store.conn.execute_batch("DROP TRIGGER catalog_analysis_insert; DROP TRIGGER catalog_analysis_update; DROP TRIGGER catalog_analysis_delete;
         DROP VIEW analysis_catalog_source; DROP TABLE analysis_catalog;
+        DROP TABLE group_selection_intents; DROP TABLE selection_locks;
         DROP INDEX photo_catalog_name; DROP INDEX photo_catalog_size; DROP INDEX photo_catalog_date; PRAGMA user_version=6;").unwrap();
     drop(services);
     let store = Store::open(&database).unwrap();

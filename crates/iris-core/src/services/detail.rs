@@ -16,8 +16,13 @@ impl DetailJob {
     pub fn render(&self, cancel: &AtomicBool) -> Result<Vec<u8>> {
         self.verify(cancel)?;
         if self.destination.is_file() {
-            let bytes = fs::read(&self.destination)?;
-            if bytes.len() <= 65536 && serde_json::from_slice::<DetailEvidence>(&bytes).is_ok() {
+            let mut bytes = Vec::new();
+            File::open(&self.destination)?
+                .take(16 * 1024 * 1024 + 1)
+                .read_to_end(&mut bytes)?;
+            if bytes.len() <= 16 * 1024 * 1024
+                && serde_json::from_slice::<DetailEvidence>(&bytes).is_ok()
+            {
                 self.verify(cancel)?;
                 return Ok(bytes);
             }
@@ -26,7 +31,10 @@ impl DetailJob {
         let evidence = detail::measure(&self.source, self.region, cancel)?;
         self.verify(cancel)?;
         let bytes = serde_json::to_vec(&evidence)?;
-        super::media::publish_cached_image(&self.destination, &bytes)?;
+        // Missing/unsupported converters are retried after installation or replacement.
+        if evidence.state == "full_detail" {
+            super::media::publish_cached_image(&self.destination, &bytes)?;
+        }
         Ok(bytes)
     }
     fn verify(&self, cancel: &AtomicBool) -> Result<()> {
@@ -62,12 +70,17 @@ impl Services {
         )?;
         fs::create_dir_all(&cache_root)?;
         let key = format!(
-            "{}:{}:{}:{}:{:?}",
+            "{}:{}:{}:{}:{:?}:{}",
             detail::DETAIL_METHOD,
             photo_id,
             photo.mtime,
             photo.size_bytes,
-            region.map(f32::to_bits)
+            region.map(f32::to_bits),
+            if crate::vision::supported_format(&source) == Some("raw") {
+                crate::vision::detail::raw_converter_revision()
+            } else {
+                String::new()
+            }
         );
         let name = format!("detail-{:x}.json", Sha256::digest(key.as_bytes()));
         Ok(DetailJob {

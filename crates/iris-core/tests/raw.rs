@@ -57,6 +57,41 @@ fn native_raw_previews_and_rawler_fallback_preserve_sources() {
 }
 
 #[test]
+#[ignore = "requires manifest-verified CC0 RAW corpus and standalone RAW converter"]
+fn native_raw_regions_are_original_pixels_and_preserve_sources() {
+    use base64::Engine;
+    use iris_core::vision::detail::measure;
+    use std::sync::atomic::AtomicBool;
+    for name in [
+        "canon-5d3.cr2",
+        "nikon-d7000.nef",
+        "sony-a7r.arw",
+        "iphone-6s.dng",
+    ] {
+        let path = native().join(name);
+        let original = hash(&path);
+        let result = measure(&path, [0.4, 0.4, 0.2, 0.2], &AtomicBool::new(false)).unwrap();
+        assert_eq!(result.state, "full_detail", "{name}: {:?}", result.reason);
+        assert!(result.crop_width >= 320 && result.crop_height >= 320);
+        assert!(
+            result.crop_width <= result.source_width && result.crop_height <= result.source_height
+        );
+        assert!(result.measured_width.max(result.measured_height) <= 1024);
+        let encoded = result.image_data_url.unwrap();
+        let bytes = base64::engine::general_purpose::STANDARD
+            .decode(encoded.strip_prefix("data:image/jpeg;base64,").unwrap())
+            .unwrap();
+        let image = image::load_from_memory(&bytes).unwrap();
+        assert_eq!(
+            (image.width(), image.height()),
+            (result.display_width, result.display_height)
+        );
+        assert_eq!(hash(&path), original);
+        assert!(measure(&path, [0.4, 0.4, 0.2, 0.2], &AtomicBool::new(true)).is_err());
+    }
+}
+
+#[test]
 #[ignore = "requires manifest-verified CC0 RAW corpus and standalone ExifTool"]
 fn raw_jpeg_variants_scan_cache_link_decisions_and_undo() {
     let temp = tempfile::tempdir().unwrap();

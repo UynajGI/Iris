@@ -11,10 +11,15 @@ import { faceRegions, selectionReason } from '../selection-readout.js';
 import { fitCompareView, zoomCompareView, type CompareView } from '../compare-view.js';
 import { CompareViewport, type CompareViewportControl } from './CompareViewport.js';
 import { useComparison } from './useComparison.js';
+import { useGroupSelection } from './useGroupSelection.js';
+import { GroupSelectionBar } from './GroupSelectionBar.js';
+import { GroupCandidateActions } from './GroupCandidateActions.js';
+import type { GroupSelectionControl } from './useGroupSelection.js';
 
 function useCompareController(model: PhotoWorkspaceModel) {
   const { store } = model;
   const group = model.group!;
+  const selectionControl = useGroupSelection(model);
   const [details, setDetails] = useState(false);
   const [linked, setLinked] = useState(true);
   const [reference, setReference] = useState<number | null>(null);
@@ -66,6 +71,7 @@ function useCompareController(model: PhotoWorkspaceModel) {
     focusedId,
     activeView,
     referenceFace,
+    selectionControl,
   };
 }
 function referenceRegion(
@@ -90,6 +96,11 @@ export function CompareCanvas({ model }: { model: PhotoWorkspaceModel }) {
       aria-busy={group.loading}
     >
       <CompareOptions control={control} />
+      <GroupSelectionBar
+        key={`${model.state.project!.id}:${group.groupId}`}
+        control={control.selectionControl}
+        photos={group.photos}
+      />
       {group.loading && !group.photos.length ? (
         <div className="canvas-empty" role="status">
           <span className="activity-ring large" aria-hidden="true" />
@@ -229,6 +240,29 @@ function CompareOptions({ control }: { control: CompareControl }) {
 }
 
 function candidateFace(control: CompareControl, photoId: number) {
+  const main = mainCandidateFace(control.selectionControl, photoId);
+  if (main) return main;
+  return comparisonFace(control, photoId);
+}
+
+function mainCandidateFace(control: GroupSelectionControl, photoId: number) {
+  const selection = control.selection;
+  if (selection?.intent.main_face) {
+    const face = selection.faces.find((face) => face.photo_id === photoId);
+    const labels: Record<string, string> = {
+      reference: '主角参考人脸',
+      manual: '已手动确认主角',
+      absent: '已标记主角未出现',
+      geometry_candidate: '主角位置候选 · 请确认人物',
+      uncertain: '主角对应不确定 · 请手动选择',
+      stale: '旧的人脸选择已失效 · 请重新选择',
+    };
+    return { faceIndex: face?.face_index ?? null, faceStatus: labels[face?.state ?? 'uncertain']! };
+  }
+  return undefined;
+}
+
+function comparisonFace(control: CompareControl, photoId: number) {
   const { faces, referenceId, referenceFace, report } = control;
   const manual = faces[photoId]?.reference === referenceId ? faces[photoId]!.index : undefined;
   if (manual !== undefined) return { faceIndex: manual, faceStatus: '手动选择' };
@@ -244,20 +278,26 @@ function candidateFace(control: CompareControl, photoId: number) {
 function CompareCandidate({ control, photo }: { control: CompareControl; photo: Photo }) {
   const { model, details, referenceId, report, setFaces, viewFor, changeView, assessment } =
     control;
+  const selection = control.selectionControl.selection;
   return (
-    <ComparePhoto
-      photo={photo}
-      model={model}
-      details={details}
-      reference={photo.id === referenceId}
-      report={report}
-      {...candidateFace(control, photo.id)}
-      onFaceChange={(index) =>
-        setFaces((old) => ({ ...old, [photo.id]: { reference: referenceId, index } }))
-      }
-      viewport={{ view: viewFor(photo.id), onChange: (view) => changeView(photo.id, view) }}
-      reasons={assessment?.comparisons.find((item) => item.photo_id === photo.id)?.reasons ?? []}
-    />
+    <div className="compare-candidate">
+      <ComparePhoto
+        photo={photo}
+        model={model}
+        details={details}
+        reference={photo.id === referenceId}
+        report={report}
+        {...candidateFace(control, photo.id)}
+        onFaceChange={(index) => {
+          if (selection?.intent.main_face)
+            void control.selectionControl.chooseFace(photo.id, index);
+          else setFaces((old) => ({ ...old, [photo.id]: { reference: referenceId, index } }));
+        }}
+        viewport={{ view: viewFor(photo.id), onChange: (view) => changeView(photo.id, view) }}
+        reasons={assessment?.comparisons.find((item) => item.photo_id === photo.id)?.reasons ?? []}
+      />
+      <GroupCandidateActions control={control.selectionControl} photo={photo} />
+    </div>
   );
 }
 

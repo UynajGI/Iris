@@ -8,6 +8,7 @@ import {
   type GroupSessionState,
 } from './group-session.js';
 import { validatedPhotoFilter, ViewPreferencesRepository } from './view-preferences.js';
+import type { SelectionResume } from './resume-state.js';
 import { readPhotoAnalysis, type PhotoAnalysisReadout } from './analysis-readout.js';
 import type {
   AcceptCategory,
@@ -104,6 +105,7 @@ export class IrisStore {
   private queue: Promise<unknown> = Promise.resolve();
   private readonly optimisticMarks = new OptimisticMarks();
   private markRevision = 0;
+  private restoringGeneration: number | null = null;
   constructor(
     readonly client: IrisClient,
     private readonly viewPreferences = new ViewPreferencesRepository()
@@ -132,6 +134,13 @@ export class IrisStore {
         };
     }
     this.state = { ...this.state, ...patch };
+    if (
+      'filter' in patch ||
+      'focusedId' in patch ||
+      'reviewOpen' in patch ||
+      'groupSession' in patch
+    )
+      this.saveViewPreferences();
     for (const listener of this.listeners) listener();
   }
   async execute<T>(operation: () => Promise<T>, scope?: ProjectScope): Promise<T> {
@@ -165,40 +174,107 @@ export class IrisStore {
     recordRecent: boolean
   ): Promise<void> =>
     this.execute(async () => {
+      this.saveViewPreferences();
       const generation = ++this.generation;
-      this.optimisticMarks.clear();
-      this.closeGroup();
-      const project = await operation();
-      const [settings, detectorModels] = await Promise.all([
-        this.client.settings(project.id),
-        this.client.models(project.id),
-      ]);
-      if (generation !== this.generation) return;
-      const preferences = this.viewPreferences.load(project.root);
-      if (recordRecent) ++this.recentSequence;
-      this.update({
-        project,
-        settings,
-        detectorModels,
-        photos: [],
-        groups: [],
-        selectedIds: [],
-        focusedId: null,
-        quarantine: null,
-        quarantinePlans: [],
-        cache: null,
-        cacheMigrations: [],
-        cacheMigration: null,
-        progress: null,
-        reanalysisRequired: false,
-        reviewOpen: preferences.reviewOpen,
-        filter: { ...preferences.filter, offset: 0 },
-        projects: recordRecent
-          ? [project, ...this.state.projects.filter((p) => p.id !== project.id)]
-          : this.state.projects,
-      });
-      await this.refresh();
+      this.restoringGeneration = generation;
+      try {
+        this.optimisticMarks.clear();
+        this.closeGroup();
+        const project = await operation();
+        if (generation !== this.generation) return;
+        const [settings, detectorModels] = await Promise.all([
+          this.client.settings(project.id),
+          this.client.models(project.id),
+        ]);
+        if (generation !== this.generation) return;
+        const preferences = this.viewPreferences.load(project.root);
+        if (recordRecent) ++this.recentSequence;
+        this.update({
+          project,
+          settings,
+          detectorModels,
+          photos: [],
+          groups: [],
+          selectedIds: [],
+          focusedId: preferences.resume?.focusedId ?? null,
+          quarantine: null,
+          quarantinePlans: [],
+          cache: null,
+          cacheMigrations: [],
+          cacheMigration: null,
+          progress: null,
+          reanalysisRequired: false,
+          reviewOpen: preferences.reviewOpen,
+          filter: preferences.resume
+            ? { ...preferences.resume.filter, offset: preferences.resume.filter.offset ?? 0 }
+            : { ...preferences.filter, offset: 0 },
+          projects: recordRecent
+            ? [project, ...this.state.projects.filter((p) => p.id !== project.id)]
+            : this.state.projects,
+        });
+        await this.restoreSelection(preferences.resume, { id: project.id, generation });
+        if (generation === this.generation) {
+          this.restoringGeneration = null;
+          this.saveViewPreferences();
+        }
+      } finally {
+        if (generation === this.generation) this.restoringGeneration = null;
+      }
     });
+  private async restoreSelection(
+    resume: SelectionResume | undefined,
+    scope: ProjectScope
+  ): Promise<void> {
+    const revision = this.viewRevision;
+    if (resume && this.state.filter.scene_id) {
+      const scenes = await this.client.scenes(scope.id);
+      if (!this.sameView(scope, revision)) return;
+      if (!scenes.some((scene) => scene.id === this.state.filter.scene_id)) {
+        const { scene_id: _scene, ...filter } = this.state.filter;
+        this.update({ filter: { ...filter, offset: 0 } });
+      }
+    }
+    await this.refresh();
+    if (!resume || !this.sameView(scope, revision)) return;
+    if (!this.state.photos.length && (this.state.filter.offset || this.state.filter.photo_id)) {
+      const { photo_id: _photo, ...filter } = this.state.filter;
+      this.update({ filter: { ...filter, offset: 0 } });
+      await this.refresh();
+      if (!this.sameView(scope, revision)) return;
+    }
+    const available = this.state.photos.filter((photo) => !photo.missing && !photo.quarantined);
+    this.update({
+      focusedId:
+        available.find((photo) => photo.id === resume.focusedId)?.id ?? available[0]?.id ?? null,
+    });
+    const saved = resume.group;
+    if (
+      !saved ||
+      this.state.reanalysisRequired ||
+      !this.state.groups.some((group) => group.id === saved.groupId)
+    )
+      return;
+    const opening = this.openGroup(saved.groupId);
+    const groupRevision = this.viewRevision;
+    try {
+      await opening;
+    } catch (error) {
+      if (this.isCurrent(scope))
+        this.update({
+          error: `无法恢复上次的比较组，已返回照片库：${error instanceof Error ? error.message : String(error)}`,
+        });
+      return;
+    }
+    if (!this.sameView(scope, groupRevision)) return;
+    const group = this.state.groupSession;
+    if (!group || group.loading || group.groupId !== saved.groupId) return;
+    const comparisonIds = saved.comparisonIds.filter((id) => group.memberIds.includes(id));
+    const focusedId =
+      saved.focusedId !== null && comparisonIds.includes(saved.focusedId)
+        ? saved.focusedId
+        : (comparisonIds[0] ?? null);
+    this.update({ groupSession: { ...group, comparisonIds, focusedId } });
+  }
   openProject = (root: string): Promise<void> =>
     this.loadProject(() => this.client.openProject(root), true);
   openRecentProject = (id: number): Promise<void> =>
@@ -302,7 +378,6 @@ export class IrisStore {
       const valid = validatedPhotoFilter(filter, true);
       ++this.viewRevision;
       this.update({ filter: { ...valid, offset: valid.offset ?? 0 }, selectedIds: [] });
-      this.saveViewPreferences();
       await this.refresh();
     });
   select(ids: number[]): void {
@@ -381,15 +456,27 @@ export class IrisStore {
     return this.enqueue(() => this.navigate(delta, scope, revision), scope);
   };
   private saveViewPreferences(): void {
-    if (this.state.project)
+    if (this.state.project && this.restoringGeneration !== this.generation)
       this.viewPreferences.save(this.state.project.root, {
         filter: this.state.filter,
         reviewOpen: this.state.reviewOpen,
+        resume: {
+          filter: this.state.filter,
+          focusedId: this.state.focusedId,
+          ...(this.state.groupSession
+            ? {
+                group: {
+                  groupId: this.state.groupSession.groupId,
+                  focusedId: this.state.groupSession.focusedId,
+                  comparisonIds: this.state.groupSession.comparisonIds,
+                },
+              }
+            : {}),
+        },
       });
   }
   toggleReview(): void {
     this.update({ reviewOpen: !this.state.reviewOpen, selectedIds: [] });
-    this.saveViewPreferences();
   }
   private enqueue(
     operation: () => Promise<void>,
@@ -568,6 +655,7 @@ export class IrisStore {
     );
   }
   closeGroup = (): void => {
+    ++this.viewRevision;
     ++this.groupGeneration;
     ++this.groupLoadSequence;
     this.update({ groupSession: null });
@@ -617,6 +705,7 @@ export class IrisStore {
     }
   }
   openGroup = (groupId: string): Promise<void> => {
+    ++this.viewRevision;
     const scope = this.scope();
     return this.execute(async () => {
       const group = this.state.groups.find((group) => group.id === groupId);
@@ -656,10 +745,25 @@ export class IrisStore {
     if (this.isCurrent(scope) && this.state.groupSession)
       await this.readGroup(scope, this.groupGeneration, true);
   };
+  acceptGroupSelection = (groupId: string, signal?: AbortSignal): Promise<void> => {
+    const scope = this.scope();
+    const generation = this.groupGeneration;
+    return this.enqueue(async () => {
+      if (
+        signal?.aborted ||
+        generation !== this.groupGeneration ||
+        this.state.groupSession?.groupId !== groupId
+      )
+        return;
+      await this.client.acceptGroupSelection(scope.id, groupId, signal);
+      if (this.isCurrent(scope)) await this.refreshWithGroup();
+    }, scope);
+  };
   focusGroupPhoto = (id: number): void => {
     const session = this.requireGroup();
     if (!session.memberIds.includes(id))
       throw new Error('Photo is not a member of the active group');
+    ++this.viewRevision;
     ++this.groupFocusRevision;
     const comparisonIds = session.comparisonIds.includes(id)
       ? session.comparisonIds
@@ -673,6 +777,7 @@ export class IrisStore {
       throw new Error(`最多同时对比 ${MAX_COMPARISON_PHOTOS} 张照片，请先移除一张再加入`);
     if (comparisonIds.some((id) => !session.memberIds.includes(id)))
       throw new Error('Comparison candidates must belong to the active group');
+    ++this.viewRevision;
     const focusedId =
       session.focusedId !== null && comparisonIds.includes(session.focusedId)
         ? session.focusedId

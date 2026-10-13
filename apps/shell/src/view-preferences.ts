@@ -1,4 +1,5 @@
 import type { PhotoFilter } from './types.js';
+import { validatedResume, type SelectionResume } from './resume-state.js';
 
 export interface PreferenceStorage {
   getItem(key: string): string | null;
@@ -7,6 +8,7 @@ export interface PreferenceStorage {
 export interface ViewPreferences {
   filter: PhotoFilter;
   reviewOpen: boolean;
+  resume?: SelectionResume;
 }
 const prefix = 'iris:view-preferences:v1:';
 const defaults = (): ViewPreferences => ({ filter: { limit: 200 }, reviewOpen: false });
@@ -100,6 +102,7 @@ function browserStorage(): PreferenceStorage | undefined {
 /** Storage failures degrade to process-local preferences, never to a failed photo operation. */
 export class ViewPreferencesRepository {
   private memory = new Map<string, ViewPreferences>();
+  private serialized = new Map<string, string>();
   constructor(private readonly storage: PreferenceStorage | undefined = browserStorage()) {}
   load(projectRoot: string): ViewPreferences {
     const cached = this.memory.get(projectRoot);
@@ -109,11 +112,15 @@ export class ViewPreferencesRepository {
       const text = this.storage?.getItem(prefix + encodeURIComponent(projectRoot));
       if (text && text.length <= 8192) {
         const stored = record(JSON.parse(text));
-        if (stored.version === 1)
+        if (stored.version === 1 || stored.version === 2) {
           preferences = {
             filter: validatedPhotoFilter(stored.filter),
             reviewOpen: stored.reviewOpen === true,
           };
+          const resume =
+            stored.version === 2 ? validatedResume(stored.resume, validatedPhotoFilter) : undefined;
+          if (resume) preferences.resume = resume;
+        }
       }
     } catch {
       /* Malformed, unavailable, or blocked storage uses defaults. */
@@ -122,16 +129,18 @@ export class ViewPreferencesRepository {
     return structuredClone(preferences);
   }
   save(projectRoot: string, preferences: ViewPreferences): void {
-    const safe = {
+    const safe: ViewPreferences = {
       filter: validatedPhotoFilter(preferences.filter),
       reviewOpen: preferences.reviewOpen === true,
     };
+    const resume = validatedResume(preferences.resume, validatedPhotoFilter);
+    if (resume) safe.resume = resume;
     this.memory.set(projectRoot, safe);
     try {
-      this.storage?.setItem(
-        prefix + encodeURIComponent(projectRoot),
-        JSON.stringify({ version: 1, ...safe })
-      );
+      const text = JSON.stringify({ version: 2, ...safe });
+      if (this.serialized.get(projectRoot) === text) return;
+      this.storage?.setItem(prefix + encodeURIComponent(projectRoot), text);
+      this.serialized.set(projectRoot, text);
     } catch {
       /* Quota/security failure retains the memory copy. */
     }
