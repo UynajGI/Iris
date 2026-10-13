@@ -1,0 +1,31 @@
+.filter-presets {
+  display: grid;
+  gap: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line-subtle);
+  min-width: 0;
+}
+.filter-presets > .button {
+  justify-self: start;
+}
+.filter-presets select {
+  min-width: 0;
+}
+.filter-preset-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.filter-preset-editor {
+  display: grid;
+  gap: 8px;
+  font-size: var(--small);
+}
+.filter-preset-editor input {
+  width: 100%;
+  min-width: 0;
+}
+.filter-presets p {
+  font-size: var(--small);
+  overflow-wrap: anywhere;
+}

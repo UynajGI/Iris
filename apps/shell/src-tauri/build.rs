@@ -1,4 +1,41 @@
 fn main() {
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../..");
+    let commit = std::process::Command::new("git")
+        .args(["rev-parse", "--short=12", "HEAD"])
+        .current_dir(&root)
+        .output()
+        .ok()
+        .filter(|o| o.status.success())
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .unwrap_or_default();
+    let commit = commit.trim();
+    let id = if !commit.is_empty() && commit.chars().all(|c| c.is_ascii_hexdigit()) {
+        commit
+    } else {
+        "source-archive"
+    };
+    let dirty = std::process::Command::new("git")
+        .args(["status", "--porcelain", "--untracked-files=no"])
+        .current_dir(&root)
+        .output()
+        .is_ok_and(|o| o.status.success() && !o.stdout.is_empty());
+    println!(
+        "cargo:rustc-env=IRIS_BUILD_ID={id}{}",
+        if dirty { "-dirty" } else { "" }
+    );
+    println!(
+        "cargo:rerun-if-changed={}",
+        root.join(".git/HEAD").display()
+    );
+    println!(
+        "cargo:rerun-if-changed={}",
+        root.join(".git/refs").display()
+    );
+    println!(
+        "cargo:rerun-if-changed={}",
+        root.join(".git/index").display()
+    );
+    println!("cargo:rerun-if-changed=src");
     for key in [
         "IRIS_DISTRIBUTION",
         "IRIS_UPDATE_ENDPOINT",

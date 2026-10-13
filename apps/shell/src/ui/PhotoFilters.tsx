@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef } from 'react';
 import type { PhotoFilter } from '../types.js';
 import { Button } from './components.js';
 import { colorNames, decisionNames } from './MarkTools.js';
+import { FilterPresets } from './FilterPresets.js';
 
 export const filterLabels: Partial<Record<keyof PhotoFilter, string>> = {
   decision: '标记',
@@ -86,6 +87,7 @@ export function PhotoFilters({
         {active > 0 && <span className="muted tabular">{active} 项条件</span>}
       </div>
       <div className="popover-body">
+        <FilterPresets filter={filter} onChange={onChange} />
         {choices.map(([key, options]) => (
           <label key={key} className={filter[key] !== undefined ? 'field active' : 'field'}>
             {filterLabels[key]}

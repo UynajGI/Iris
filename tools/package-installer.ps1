@@ -116,6 +116,11 @@ $iconBytes.AddRange([byte[]]@(255,255,255,255))
 [System.IO.File]::WriteAllBytes($iconPath, $iconBytes.ToArray())
 $artwork = Join-Path $stage 'artwork'
 & (Join-Path $PSScriptRoot 'build-installer-artwork.ps1') -OutputDirectory $artwork
+$installerUi = Join-Path $stage 'installer-ui'
+New-Item -ItemType Directory -Force -Path $installerUi | Out-Null
+foreach ($name in @('hooks.nsh','ui.nsh','installer.nsi')) {
+    Copy-Item -LiteralPath (Join-Path $repositoryRoot "apps/shell/installer/$name") -Destination (Join-Path $installerUi $name)
+}
 $config = [ordered]@{
     bundle = [ordered]@{
         active = $true
@@ -130,8 +135,8 @@ $config = [ordered]@{
                 installerIcon=$iconPath; uninstallerIcon=$iconPath
                 sidebarImage=(Join-Path $artwork 'sidebar.bmp')
                 headerImage=(Join-Path $artwork 'header.bmp')
-                installerHooks=(Join-Path $repositoryRoot 'apps/shell/installer/hooks.nsh')
-                template=(Join-Path $repositoryRoot 'apps/shell/installer/installer.nsi')
+                installerHooks=(Join-Path $installerUi 'hooks.nsh')
+                template=(Join-Path $installerUi 'installer.nsi')
             }
         }
     }
@@ -149,6 +154,14 @@ if ($PrepareOnly) {
     New-Item -ItemType Directory -Path $outputRoot | Out-Null
     @{prepared=$true; stage=$stage; config=$configPath; resource_count=$resources.Count; source_shell_sha256=$sourceShellHash} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $outputRoot 'preparation.json') -Encoding utf8
     return
+}
+$themeDirectory = Join-Path $installerUi 'plugins'
+& (Join-Path $PSScriptRoot 'build-installer-theme.ps1') -OutputDirectory $themeDirectory
+if ($CertificateThumbprint) {
+    $themeDll = Join-Path $themeDirectory 'IrisTheme.dll'
+    & $signTool sign /sha1 $CertificateThumbprint /fd SHA256 /tr $TimestampUrl /td SHA256 $themeDll
+    if ($LASTEXITCODE -ne 0) { throw 'Cannot sign the installer theme plug-in.' }
+    Assert-ExpectedSignature $themeDll $CertificateThumbprint
 }
 $previousTarget = $env:CARGO_TARGET_DIR
 $buildEnvironment = @('IRIS_DISTRIBUTION','IRIS_UPDATE_ENDPOINT','IRIS_UPDATE_PUBLIC_KEY')

@@ -1,6 +1,6 @@
 # 原生更新与 Windows 安装包
 
-本轮只实现功能接口及构建工具，不添加选片界面。默认便携构建完全离线，
+更新模块提供功能接口及构建工具；“帮助与关于”提供版本信息和手动下载入口。默认便携构建完全离线，
 `update_status` 返回 `not_configured`；没有在启动时联网检查、自动下载或自动安装。
 签名安装包和公开发布仍是不同的验收项。
 
@@ -14,7 +14,7 @@
 
 状态依次为 `idle` → `checking` → `available` → `downloading` →
 `downloaded` → `installing`；无新版本为 `up_to_date`，错误为 `failed`。
-检查、下载和安装需要各自显式调用。新界面可据此设计交互，当前没有按钮或布局。
+检查、下载和安装需要各自显式调用；当前帮助页只读取已有状态并提供手动下载链接，不触发这些更新操作。
 
 信任配置由构建时的 `IRIS_DISTRIBUTION=nsis`、`IRIS_UPDATE_ENDPOINT` 和
 `IRIS_UPDATE_PUBLIC_KEY` 固化。端点必须为 HTTPS，不含用户凭据或 fragment；

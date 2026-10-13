@@ -1,6 +1,9 @@
 ; SPDX-License-Identifier: GPL-3.0-or-later
 ; Supported MUI customization; retain Tauri's installation and upgrade logic.
 SetFont "Microsoft YaHei UI" 9
+!addplugindir /x86-unicode "${__FILEDIR__}\plugins"
+!define MUI_CUSTOMFUNCTION_GUIINIT IrisGuiInit
+!define MUI_CUSTOMFUNCTION_UNGUIINIT un.IrisGuiInit
 !define MUI_BGCOLOR "242424"
 !define MUI_TEXTCOLOR "EDEDED"
 !define MUI_INSTFILESPAGE_COLORS "EDEDED 303030"
@@ -9,7 +12,7 @@ SetFont "Microsoft YaHei UI" 9
 !define MUI_WELCOMEPAGE_TITLE "$(IrisWelcomeTitle)"
 !define MUI_WELCOMEPAGE_TEXT "$(IrisWelcomeText)"
 !define MUI_FINISHPAGE_TITLE "$(IrisFinishTitle)"
-!define MUI_FINISHPAGE_TEXT "$(IrisFinishText)"
+!define MUI_FINISHPAGE_TEXT ""
 !define MUI_FINISHPAGE_RUN_NOTCHECKED
 !define MUI_DIRECTORYPAGE_TEXT_TOP "$(IrisRequirements)$\r$\n$(IrisScope)"
 
@@ -48,5 +51,3 @@ LangString IrisWelcomeText 2052 "为本地照片，留一处专注的工作空�
 LangString IrisWelcomeText 1033 "A focused workspace for your local photos.$\r$\n$\r$\nBrowse, compare and mark photos, with local analysis when you need it.$\r$\n$\r$\nInstalls for your Windows account. Default analysis models are included.$\r$\n$\r$\nRequires WebView2 and Visual C++ 2015–2022 x64 runtimes.$\r$\n$\r$\nChoose Next to continue."
 LangString IrisFinishTitle 2052 "伊人已安装"
 LangString IrisFinishTitle 1033 "Iris is installed"
-LangString IrisFinishText 2052 "一切就绪，可以开始选片了。$\r$\n$\r$\n打开伊人，选择照片文件夹后开始扫描。扫描完成后，可按需启动分析。$\r$\n$\r$\n安装程序没有移动或修改你的照片。$\r$\n$\r$\n选择“完成”关闭安装程序。"
-LangString IrisFinishText 1033 "Your workspace is ready.$\r$\n$\r$\nOpen Iris and choose a photo folder to scan. Start analysis when you need it.$\r$\n$\r$\nThe installer has not moved or modified your photos.$\r$\n$\r$\nChoose Finish to close setup."

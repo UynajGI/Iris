@@ -6,6 +6,8 @@
 
 ## 按用途查找
 
+用户帮助、版本信息、日志与诊断导出见[帮助与反馈](support.md)。
+
 | 需要了解                              | 文档                                                                                                                                   |
 | :------------------------------------ | :------------------------------------------------------------------------------------------------------------------------------------- |
 | 模块如何连接、进程和数据边界          | [架构](architecture.md)、[核心服务](core-services.md)                                                                                  |
@@ -55,7 +57,8 @@
 | [releasing.md](releasing.md)                             | Tag、EXE/PKG/DEB 与便携包、完整附件门禁和发布 |
 | [安装器界面](../apps/shell/installer/README.md)          | 原生平台资源、NSIS 模板来源、升级与验收边界   |
 | [v0.1.0-beta](releases/v0.1.0-beta.md)                   | 首版下载与测试说明                            |
-| [v0.1.0-beta4](releases/v0.1.0-beta4.md)                 | 当前源码升级、验证与待发行边界                |
+| [v0.1.0-beta5](releases/v0.1.0-beta5.md)                 | 当前版本、帮助诊断与选片便捷功能              |
+| [v0.1.0-beta4](releases/v0.1.0-beta4.md)                 | beta4 源码阶段的选片升级与验证记录            |
 | [v0.1.0-beta3](releases/v0.1.0-beta3.md)                 | 已发布基线的改动与验收边界                    |
 | [v0.1.0-beta2](releases/v0.1.0-beta2.md)                 | beta2 原生安装包、安全修复与历史测试边界      |
 | [CHANGELOG.md](../CHANGELOG.md)                          | git-cliff 从提交历史自动生成的分类变更记录    |

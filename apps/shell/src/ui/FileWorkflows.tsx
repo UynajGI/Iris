@@ -4,6 +4,8 @@ import { useIris } from '../react.js';
 import { selectExportCsv, selectProjectFolder } from '../native-dialog.js';
 import { Button, Dialog } from './components.js';
 import { Icon } from './Icon.js';
+import { openExportLocation } from '../export-location.js';
+import { ExportResult, useFileExport } from './ExportResult.js';
 
 type Flow = 'export' | 'quarantine' | 'restore' | null;
 const recoveryStates: Record<string, string> = {
@@ -37,7 +39,7 @@ export function FileWorkflows({ store }: { store: IrisStore }) {
     reason: string;
     summary: string;
   } | null>(null);
-  const [exportPaths, setExportPaths] = useState<string[]>([]);
+  const exportState = useFileExport(store.client, state.project);
   const run = async (operation: () => Promise<void>) => {
     if (busy) return;
     setBusy(true);
@@ -61,15 +63,8 @@ export function FileWorkflows({ store }: { store: IrisStore }) {
     if (selected) setDestination(selected);
   };
   const exportFiles = async () => {
-    if (!state.project) return;
-    const report =
-      format === 'copy'
-        ? await store.client.exportCopy(state.project.id, destination, scope)
-        : format === 'csv'
-          ? await store.client.exportCsv(state.project.id, destination)
-          : await store.client.exportXmp(state.project.id, scope, false);
-    setExportPaths(report.paths);
-    setMessage(`已导出 ${report.written} 项，跳过 ${report.skipped} 项`);
+    setMessage(null);
+    setMessage(await exportState.run(format, destination, scope));
     setFlow(null);
   };
   const plan = state.quarantine;
@@ -113,17 +108,12 @@ export function FileWorkflows({ store }: { store: IrisStore }) {
         </Button>
       </div>
       {message && <p role="status">{message}</p>}
+      <ExportResult
+        result={exportState.result}
+        busy={busy}
+        onOpen={(location) => void run(() => openExportLocation(location))}
+      />
       {error && !flow && !restoreFailure && <p role="alert">{error}</p>}
-      {exportPaths.length > 0 && (
-        <details>
-          <summary>上次导出位置</summary>
-          {exportPaths.map((path) => (
-            <p className="filename" key={path}>
-              {path}
-            </p>
-          ))}
-        </details>
-      )}
       {restoreFailure && flow !== 'restore' && (
         <div role="alert">
           <p>{restoreFailure.summary}</p>

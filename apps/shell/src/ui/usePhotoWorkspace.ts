@@ -15,7 +15,7 @@ import { useBrowseContext } from './useBrowseContext.js';
 export interface WorkspaceOptions {
   store: IrisStore;
   commands: CommandSystem;
-  page: 'projects' | 'photos' | 'settings';
+  page: 'projects' | 'photos' | 'settings' | 'help';
   modal: boolean;
   attempt(operation: () => Promise<unknown>): void;
   setError(error: string | null): void;

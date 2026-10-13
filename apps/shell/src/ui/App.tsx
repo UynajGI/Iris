@@ -12,14 +12,18 @@ import { ModelTaskBar } from './ModelTaskBar.js';
 import { PhotoWorkspace } from './PhotoWorkspace.js';
 import { ShortcutSheet } from './ShortcutSheet.js';
 import { TaskBar } from './TaskBar.js';
+import { HelpCenter } from './HelpCenter.js';
+import { ErrorDetails } from './ErrorDetails.js';
+import { recordDiagnostic } from '../support.js';
 import './app.css';
+import './help.css';
 import { Button, Dialog } from './components.js';
 import { loadAppearance, saveAppearance, type Appearance } from './preferences.js';
 import { usePhotoWorkspace } from './usePhotoWorkspace.js';
 
 export function App({ store, commands }: { store: IrisStore; commands: CommandSystem }) {
   const state = useIris(store);
-  const [page, setPage] = useState<'projects' | 'photos' | 'settings'>(() =>
+  const [page, setPage] = useState<'projects' | 'photos' | 'settings' | 'help'>(() =>
     state.project ? 'photos' : 'projects'
   );
   const [appearance, setAppearance] = useState<Appearance>(loadAppearance);
@@ -29,6 +33,31 @@ export function App({ store, commands }: { store: IrisStore; commands: CommandSy
     null
   );
   const [busy, setBusy] = useState(false);
+  const observedJob = useRef<string | null>(null);
+  useEffect(() => {
+    const progress = state.progress;
+    if (!progress || progress.kind === 'none') return;
+    const key = `${state.project?.id}:${progress.id}`;
+    if (progress.state === 'running' && observedJob.current !== key) {
+      observedJob.current = key;
+      recordDiagnostic('task_started');
+    } else if (
+      observedJob.current === key &&
+      ['completed', 'failed', 'cancelled'].includes(progress.state)
+    ) {
+      observedJob.current = null;
+      recordDiagnostic(
+        progress.state === 'failed'
+          ? 'task_failed'
+          : progress.state === 'cancelled'
+            ? 'task_cancelled'
+            : 'task_completed'
+      );
+    }
+  }, [state.project?.id, state.progress?.id, state.progress?.state]);
+  useEffect(() => {
+    if (state.connection === 'disconnected') recordDiagnostic('connection_lost');
+  }, [state.connection]);
   const [tasksOpen, setTasksOpen] = useState(false);
   const taskPanel = useRef<HTMLDivElement>(null);
   const taskTrigger = useRef<HTMLButtonElement>(null);
@@ -59,14 +88,14 @@ export function App({ store, commands }: { store: IrisStore; commands: CommandSy
   }, [tasksOpen]);
   const [settingsDirty, setSettingsDirty] = useState(false);
   const desktopWindow = useDesktopWindow();
-  const [leaveTarget, setLeaveTarget] = useState<'projects' | 'photos' | null>(null);
+  const [leaveTarget, setLeaveTarget] = useState<'projects' | 'photos' | 'help' | null>(null);
   const [savingLeave, setSavingLeave] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const saveSettings = useRef<(() => Promise<boolean>) | null>(null);
   const registerSave = useCallback((save: (() => Promise<boolean>) | null) => {
     saveSettings.current = save;
   }, []);
-  const navigate = (target: 'projects' | 'photos' | 'settings') => {
+  const navigate = (target: 'projects' | 'photos' | 'settings' | 'help') => {
     if (settingsDirty && target !== 'settings') setLeaveTarget(target);
     else setPage(target);
   };
@@ -80,6 +109,19 @@ export function App({ store, commands }: { store: IrisStore; commands: CommandSy
   useEffect(() => {
     saveAppearance(appearance);
   }, [appearance]);
+  useEffect(() => {
+    const help = (event: KeyboardEvent) => {
+      if (event.key !== 'F1' || document.querySelector('dialog[open]')) return;
+      event.preventDefault();
+      if (settingsDirty) setLeaveTarget('help');
+      else setPage('help');
+    };
+    window.addEventListener('keydown', help);
+    return () => window.removeEventListener('keydown', help);
+  }, [settingsDirty]);
+  useEffect(() => {
+    if (error || state.error) recordDiagnostic('frontend_failed');
+  }, [error, state.error]);
   useEffect(() => {
     void window.__TAURI__?.core
       .invoke('set_unsaved_changes', { dirty: settingsDirty })
@@ -208,9 +250,9 @@ export function App({ store, commands }: { store: IrisStore; commands: CommandSy
           <button
             type="button"
             className="title-button"
-            title="键盘快捷键 (?)"
-            aria-label="键盘快捷键"
-            onClick={() => setShortcutsOpen(true)}
+            title="帮助与关于 (F1)"
+            aria-label="帮助与关于"
+            onClick={() => navigate('help')}
           >
             <Icon name="info" />
           </button>
@@ -219,7 +261,10 @@ export function App({ store, commands }: { store: IrisStore; commands: CommandSy
       {(error || state.error) && (
         <div role="alert" className="error-bar">
           <Icon name="warning" />
-          <span>{error || state.error}</span>
+          <div>
+            <span>操作未完成</span>
+            <ErrorDetails error={error || state.error || ''} />
+          </div>
           <span className="spacer" />
           <Button
             className="quiet"
@@ -420,6 +465,13 @@ export function App({ store, commands }: { store: IrisStore; commands: CommandSy
       )}
 
       {page === 'photos' && state.project && <PhotoWorkspace model={photoWorkspace} />}
+
+      {page === 'help' && (
+        <HelpCenter
+          onBack={() => navigate(state.project ? 'photos' : 'projects')}
+          onShortcuts={() => setShortcutsOpen(true)}
+        />
+      )}
 
       <div
         ref={taskPanel}

@@ -23,7 +23,7 @@
 
 Reviewing portrait sessions involves repeated checks for focus, eye state and similar frames. Iris provides local analysis and grouping to help you review those photographs. Models suggest; you make the final selection. Marking a photo as rejected does not delete the original file.
 
-Current source version: **0.1.0-beta4**, adding browse-aware analysis, indexed filtering, scene corrections, native-region evidence, linked comparison and optional local text search. See the [beta4 source notes](docs/releases/v0.1.0-beta4.md), [local search guide](docs/local-search.md) and [measured performance](docs/performance-plan.md). The download link remains the published beta3 release; beta4 source validation does not mean its installers have been published.
+Current source version: **0.1.0-beta5**, adding saved filter combinations, export-folder access, offline help and diagnostics, and a unified dark Windows installer. It includes the beta4 selection improvements. See the [beta5 source notes](docs/releases/v0.1.0-beta5.md), [local search guide](docs/local-search.md) and [measured performance](docs/performance-plan.md). The download link remains the published beta3 release; beta5 installers have not been published.
 
 ## ✨ Features
 
