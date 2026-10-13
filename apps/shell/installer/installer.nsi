@@ -299,6 +299,7 @@ Function PageReinstall
     ${EndIf}
 
     ${NSD_SetFocus} $R2
+    IrisTheme::Apply "maintenance"
     nsDialogs::Show
   ${EndIf}
 FunctionEnd
@@ -389,6 +390,7 @@ FunctionEnd
 
 ; 5. Choose install directory page
 !define MUI_PAGE_CUSTOMFUNCTION_PRE SkipIfPassive
+!define MUI_PAGE_CUSTOMFUNCTION_SHOW IrisDirectoryShow
 !insertmacro MUI_PAGE_DIRECTORY
 
 ; 6. Start menu shortcut page
@@ -402,6 +404,7 @@ Var AppStartMenuFolder
 !insertmacro MUI_PAGE_STARTMENU Application $AppStartMenuFolder
 
 ; 7. Installation page
+!define MUI_PAGE_CUSTOMFUNCTION_SHOW IrisProgressShow
 !insertmacro MUI_PAGE_INSTFILES
 
 ; 8. Finish page
@@ -458,6 +461,7 @@ Function un.ConfirmShow ; Add add a `Delete app data` check box
   Pop $DeleteAppDataCheckbox
   SendMessage $HWNDPARENT ${WM_GETFONT} 0 0 $1
   SendMessage $DeleteAppDataCheckbox ${WM_SETFONT} $1 1
+  IrisTheme::Apply "uninstall"
 FunctionEnd
 !define MUI_PAGE_CUSTOMFUNCTION_LEAVE un.ConfirmLeave
 Function un.ConfirmLeave
@@ -467,6 +471,7 @@ FunctionEnd
 !insertmacro MUI_UNPAGE_CONFIRM
 
 ; 2. Uninstalling Page
+!define MUI_PAGE_CUSTOMFUNCTION_SHOW un.IrisProgressShow
 !insertmacro MUI_UNPAGE_INSTFILES
 
 ;Languages

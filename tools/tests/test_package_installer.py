@@ -143,6 +143,15 @@ class InstallerPreflightTests(unittest.TestCase):
         self.assertRegex(stage.name, r"^installer-[0-9a-f]{32}$")
         self.addCleanup(shutil.rmtree, stage)
         config = json.loads(Path(preparation["config"]).read_text("utf-8-sig"))
+        nsis = config["bundle"]["windows"]["nsis"]
+        for key, filename in (("installerHooks", "hooks.nsh"), ("template", "installer.nsi")):
+            staged_ui = Path(nsis[key])
+            self.assertEqual(staged_ui.parent, stage / "installer-ui")
+            self.assertEqual(
+                staged_ui.read_bytes(),
+                (ROOT / "apps/shell/installer" / filename).read_bytes(),
+            )
+        self.assertTrue((stage / "installer-ui/ui.nsh").is_file())
         resources = config["bundle"]["resources"]
         targets = set(resources.values())
         self.assertIn("iris-raw-decoder.exe", targets)

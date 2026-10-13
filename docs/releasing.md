@@ -56,6 +56,9 @@ Linux 当前安装器范围是 Ubuntu/Debian DEB，不声称覆盖 RPM、Flatpak
 
 源码入口与升级规则见[安装器目录](../apps/shell/installer/README.md)。
 Windows 欢迎、路径、进度和完成页随 NSIS 模板编译，BMP 在 CI 生成。
+统一深色控件由 Iris 自有 NSIS 插件绘制；Windows 构建机需要 Visual Studio C++ x86
+工具链。`tools/build-installer-theme.ps1` 构建并测试该插件，打包脚本将它暂存后交给 NSIS，
+配置签名时一并签署。应用本身仍沿用现有 Rust 工具链。
 macOS 介绍/完成 HTML 与许可由 `productbuild` 编入 PKG，系统 Installer 提供导航、认证和进度。
 Linux 使用系统包管理器，DEB 声明 GTK/WebKitGTK 等依赖并安装应用菜单入口。
 

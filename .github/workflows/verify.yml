@@ -54,6 +54,10 @@ jobs:
           components: rustfmt
       - run: make setup
       - run: make test-tools
+      - name: Build and test native installer theme
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./tools/build-installer-theme.ps1 -OutputDirectory artifacts/installer-theme-check
       - run: make fmt-check lint-python complexity-check workflow-check
       - run: make public-check
   security:
