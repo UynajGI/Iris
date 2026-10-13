@@ -30,6 +30,21 @@ pub struct ExecutionTrace {
 }
 
 impl Executor {
+    /// Inspect an already initialized adapter without probing or creating a device.
+    pub fn gpu_status(&self) -> Option<serde_json::Value> {
+        #[cfg(feature = "gpu")]
+        {
+            self.gpu
+                .get()?
+                .as_ref()
+                .ok()
+                .and_then(|gpu| serde_json::to_value(gpu.status()).ok())
+        }
+        #[cfg(not(feature = "gpu"))]
+        {
+            None
+        }
+    }
     pub fn cpu_only() -> Self {
         Self {
             #[cfg(feature = "gpu")]

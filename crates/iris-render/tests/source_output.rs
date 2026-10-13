@@ -347,6 +347,9 @@ fn gray_profile_on_rgb_pixels_is_rejected_without_guessing() {
 fn tiny_tiff_reads_icc_larger_than_pixels_and_applies_orientation_once() {
     let profile = color::profile(OutputSpace::DisplayP3, false).unwrap();
     let icc = profile.icc().unwrap();
+    // ICC persists matrix/TRC parameters as fixed-point values. The reference
+    // must use the embedded profile, not its unquantized in-memory constructor.
+    let embedded_profile = color::validate_icc(&icc).unwrap();
     let samples = [50000_u16, 8000, 4000, 65535, 10000, 45000, 30000, 32768];
     assert!(icc.len() > samples.len() * 2);
     let mut bytes = Cursor::new(Vec::new());
@@ -390,7 +393,7 @@ fn tiny_tiff_reads_icc_larger_than_pixels_and_applies_orientation_once() {
     )
     .unwrap();
     let working = color::profile(OutputSpace::LinearRec2020, true).unwrap();
-    let expected = color::transform(&encoded, &profile, &working, &context()).unwrap();
+    let expected = color::transform(&encoded, &embedded_profile, &working, &context()).unwrap();
     let wrong = color::transform(
         &encoded,
         &color::profile(OutputSpace::Srgb, false).unwrap(),
@@ -399,9 +402,16 @@ fn tiny_tiff_reads_icc_larger_than_pixels_and_applies_orientation_once() {
     )
     .unwrap();
     assert!((expected.pixels[0][0] - wrong.pixels[0][0]).abs() > 0.01);
-    for (actual, expected) in decoded.frame.pixels.iter().zip(expected.pixels) {
+    for (pixel, (actual, expected)) in decoded.frame.pixels.iter().zip(expected.pixels).enumerate()
+    {
         for c in 0..4 {
-            assert!((actual[c] - expected[c]).abs() < 1e-6);
+            assert!(
+                (actual[c] - expected[c]).abs() < 1e-6,
+                "pixel {pixel} channel {c}: actual={} expected={} delta={}",
+                actual[c],
+                expected[c],
+                (actual[c] - expected[c]).abs()
+            );
         }
     }
 }

@@ -139,11 +139,38 @@ async fn daemon_preview_gpu_cpu_backend_prototype() {
             warm.push(sample(&app, &state, &route, seq, !cpu).await.0);
         }
         report(cpu, cold, &mut warm);
+        println!(
+            "{}",
+            json!({"cpu_only":cpu,"initialized_gpu":state.render_gpu_status()})
+        );
         state.shutdown_rendering();
         state.wait_for_rendered_exports().await;
     }
-    // Power-of-two exposure is exactly representable; same encoding configuration.
-    assert_eq!(outputs[0], outputs[1], "CPU/GPU encoded previews differ");
+    compare_decoded_previews(&outputs[0], &outputs[1]);
+}
+fn compare_decoded_previews(cpu: &[u8], gpu: &[u8]) {
+    // ICC creation timestamps can differ; compare image samples, not containers.
+    // This fixture uses exactly representable 2^1 exposure. Unlike the general
+    // FP32 GPU contract test, no rounding tolerance is needed for this operation.
+    let cpu = image::load_from_memory(cpu).unwrap().to_rgb8();
+    let gpu = image::load_from_memory(gpu).unwrap().to_rgb8();
+    assert_eq!(cpu.dimensions(), gpu.dimensions());
+    let mut maximum = 0_u8;
+    let mut squared = 0.0_f64;
+    for (a, b) in cpu.as_raw().iter().zip(gpu.as_raw()) {
+        let delta = a.abs_diff(*b);
+        maximum = maximum.max(delta);
+        squared += f64::from(delta).powi(2);
+    }
+    let rms = (squared / cpu.as_raw().len() as f64).sqrt();
+    println!(
+        "{}",
+        json!({"comparison":"decoded_rgb8","dimensions":cpu.dimensions(),"max_error":maximum,"rms_error":rms,"allowed_max_error":0})
+    );
+    assert_eq!(
+        maximum, 0,
+        "decoded CPU/GPU pixel mismatch: max={maximum}, rms={rms}"
+    );
 }
 async fn export_status(app: &Router, state: &AppState, id: &str) -> Value {
     let response = app

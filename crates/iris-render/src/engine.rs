@@ -127,6 +127,9 @@ pub struct RenderEngine {
     executor: crate::graph::Executor,
 }
 impl RenderEngine {
+    pub fn gpu_status(&self) -> Option<serde_json::Value> {
+        self.executor.gpu_status()
+    }
     /// Explicit CPU baseline; the default constructor still permits GPU execution.
     pub fn new_cpu(memory_limit: u64, source_cache_limit: u64) -> Result<Self> {
         let mut engine = Self::new(memory_limit, source_cache_limit)?;

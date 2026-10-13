@@ -125,6 +125,10 @@ impl Default for JobProgress {
     }
 }
 impl AppState {
+    /// Actual initialized adapter diagnostics; does not create a GPU device.
+    pub fn render_gpu_status(&self) -> Option<serde_json::Value> {
+        self.render_engine.gpu_status()
+    }
     /// Select a CPU baseline before serving requests; preserve configured budgets.
     pub fn with_cpu_rendering(mut self) -> anyhow::Result<Self> {
         self.render_engine = Arc::new(iris_core::render::engine::RenderEngine::new_cpu(
