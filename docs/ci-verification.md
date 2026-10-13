@@ -4,6 +4,27 @@
 
 默认工作流不下载用户照片或可选研究权重。手动 DINO/DirectML 项须按模型许可明确选择；托管 runner 的 CPU 回退不代表真实 GPU 执行。
 
+## 传统调色独立开发分支（2026-10-14）
+
+分支 `codex/color-workflow` 通过 push 直接运行 Verify 与 [Traditional render engine](../.github/workflows/render.yml)，当前不创建 PR、不合并或发布。实现及限制见[传统调色后端](color-engine-implementation.md)。以下是代码提交 `a05a8a63dae805d9c4e825ab1cb510c9a11afbf8` 的证据，不沿用历史选片结果。
+
+- [渲染运行 38437171899](https://github.com/UynajGI/Iris/actions/runs/38437171899)：全部通过。Windows、Linux、macOS 分别运行不含 GPU 依赖的 CPU 合同与默认特性测试；Linux 另显式运行默认忽略的实际 GPU dispatch 数值测试。
+- [Verify 运行 38437171853](https://github.com/UynajGI/Iris/actions/runs/38437171853)：全部通过。包含完整 Rust workspace 回归、生成 API 契约一致性、原生宿主/更新协议、RAW/媒体、前端、三平台工具、依赖与敏感信息审计。
+- Windows MSVC workspace：366 通过、0 失败、29 默认忽略；宿主库：22 通过、3 默认忽略。媒体任务显式运行 core 6 项、daemon 2 项，以及 RAW wrapper/RAW 配对回归共 15 项，均通过。Linux render 无默认特性 83 通过、1 忽略，默认特性 84 通过、3 忽略；另显式运行 GPU 数值 2 项。不同配置存在重复覆盖，不能相加作为独立测试数量。
+- OpenAPI 与 TypeScript 声明来自 CI 生成产物，已回取提交；81 条路径、96 个全局唯一 operation ID。没有手写契约绕过 Rust 生成器。
+- 本地仅保留格式、版本、工作流、复杂度、公开树与前端检查；前端 136 通过、1 项原有检查跳过。首次 push 的既有钩子意外执行并失败的本地 `cargo check` 不计为通过，后续按用户要求由 CI 编译 Rust。
+
+后端压力任务显式运行两个 `iris-daemon` 测试和一个 `iris-render` 大图测试，均通过。预览与导出并发检查覆盖旧请求取消和工作槽公平性。CPU/软件 GPU 对照使用同一合成图和 +1 EV 曝光，解码 RGB8 最大误差和 RMS 均为 0；JPEG 文件字节不作相等判断，因为嵌入 ICC 的创建时间可能不同。该结论仅覆盖测试算子与输入。
+
+| CI 调试构建测量           | 实测结果                                 | 范围                                                      |
+| :------------------------ | :--------------------------------------- | :-------------------------------------------------------- |
+| 1024×768 CPU 预览         | 冷 1642 ms；热 P50 1043 ms / P95 1049 ms | 5 次热样本；进程内 HTTP 路由到 JPEG 响应体，不含网络或 UI |
+| 1024×768 软件 Vulkan 预览 | 冷 2623 ms；热 P50 1227 ms / P95 1236 ms | llvmpipe / Mesa 25.2.8，实际 dispatch；GPU 当前仅曝光     |
+| 45MP 合成帧               | 受管理峰值 1,440,000,000 B；结束后 0     | CPU 调试构建，取消与释放合同                              |
+| 61MP 合成帧               | 受管理峰值 1,952,000,000 B；结束后 0     | 受管理计数，不能当成进程 RSS 或 RAW 子进程峰值            |
+
+这些数值用于暴露基础开销和验证调度/预算，不构成实时调色或消费级 GPU 加速承诺。真实 RAW 拖动、release 构建、原生显示和相机覆盖仍未验收；默认忽略的外部数据/模型检查没有计为通过。
+
 ## beta2 安装器发版（2026-10-10，已通过并公开）
 
 [Release 运行 38042575141](https://github.com/UynajGI/Iris/actions/runs/38042575141) 对提交

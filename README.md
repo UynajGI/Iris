@@ -25,15 +25,17 @@ Reviewing portrait sessions involves repeated checks for focus, eye state and si
 
 Current source version: **0.1.0-beta5**, adding saved filter combinations, export-folder access, offline help and diagnostics, and a unified dark Windows installer. It includes the beta4 selection improvements. See the [beta5 source notes](docs/releases/v0.1.0-beta5.md), [local search guide](docs/local-search.md) and [measured performance](docs/performance-plan.md). The download link remains the published beta3 release; beta5 installers have not been published.
 
+The independent `codex/color-workflow` development branch adds a shared FP32 traditional grading backend, non-destructive edit history, local masks and rendered exports. Grading and retouching pages remain placeholders. See the [implementation and limits](docs/color-engine-implementation.md) and [CI evidence](docs/ci-verification.md); these features are not part of the published beta3 installers.
+
 ## ✨ Features
 
-| Workflow           | Capabilities                                                                                                   |
-| :----------------- | :------------------------------------------------------------------------------------------------------------- |
-| Browse and review  | Overview, single-photo review and group comparison; JPEG, PNG, WebP and platform-dependent HEIC/RAW support    |
-| Assisted culling   | Face and eye observations, sharpness and exposure scores, similar-photo groups and expandable analysis details |
-| Mark and organize  | Keep, undecided and reject decisions, star ratings, color labels, batch changes and undo                       |
-| Export and recover | Copy, CSV and XMP export; quarantine preview, confirmation and restore                                         |
-| Agent access       | Standalone stdio MCP binary with allowed-directory boundaries and write auditing; no desktop window required   |
+| Workflow           | Capabilities                                                                                                      |
+| :----------------- | :---------------------------------------------------------------------------------------------------------------- |
+| Browse and review  | Overview, single-photo review and group comparison; JPEG, PNG, WebP, TIFF and platform-dependent HEIC/RAW support |
+| Assisted culling   | Face and eye observations, sharpness and exposure scores, similar-photo groups and expandable analysis details    |
+| Mark and organize  | Keep, undecided and reject decisions, star ratings, color labels, batch changes and undo                          |
+| Export and recover | Copy, CSV and XMP export; quarantine preview, confirmation and restore                                            |
+| Agent access       | Standalone stdio MCP binary with allowed-directory boundaries and write auditing; no desktop window required      |
 
 Inference runs locally. Release packages include the default models. Optional models require separate installation and license review, and are not enabled automatically. Scores are decision aids; no independently labeled evaluation supports an accuracy claim yet.
 

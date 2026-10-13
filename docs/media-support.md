@@ -1,29 +1,29 @@
 # Local image decoding
 
 The scanner and preview/analysis decoder support JPEG (`jpg`, `jpeg`), PNG,
-WebP, HEVC-in-HEIF (`heic`, `heif`), and RAW (`dng`, `cr2`, `cr3`, `nef`, `nrw`,
+WebP, TIFF (`tif`, `tiff`), HEVC-in-HEIF (`heic`, `heif`), and RAW (`dng`, `cr2`, `cr3`, `nef`, `nrw`,
 `arw`, `srw`, `orf`, `rw2`, `pef`, `raf`, `rwl`, `raw`). A scanned extension does
-not establish support for every camera variant. PNG/WebP use the
+not establish support for every camera variant. PNG/WebP/TIFF use the
 Rust `image` codecs; HEIC uses bundled libheif 1.23.6 and libde265 1.1.3 through
 their C API. No cloud service, Windows Store codec or Python runtime participates
 in product decoding. RAW extraction uses bundled standalone ExifTool. The separate
 `iris-raw-decoder.exe` utility links rawler 0.8.0; the application core does not.
 
 JPEG retains its reduced-IDCT path and existing 120-million-pixel safety check;
-it does not decode a full RGB frame and then resize. PNG/WebP decode the
+it does not decode a full RGB frame and then resize. PNG/WebP/TIFF decode the
 primary still image locally and resize without cropping to the requested edge.
 HEIC first selects the smallest native thumbnail whose edge meets the request,
 is smaller than the primary and matches its aspect ratio within 1%; absent or
 failed thumbnail decoding falls back to the primary. Primary dimensions remain
 in metadata, native transforms apply once, and cache filenames use `v2`.
-These new formats have a 60-million-pixel cap; PNG/WebP also reject decoded
+These raster/HEIC selection paths have a 60-million-pixel cap; PNG/WebP/TIFF also reject decoded
 buffers above 256 MiB. HEIC compressed input is limited to 256 MiB and its native
 context has an approximately 60-million-pixel area limit. Native/codec working
 memory is additional to output buffers; these checks are not a whole-process
 memory guarantee. Animated WebP is represented by its default still frame;
 multi-image HEIF is represented by its primary image.
 
-PNG/WebP EXIF orientation is applied once. HEIF crop/mirror/rotation is applied
+PNG/WebP/TIFF EXIF orientation is applied once. HEIF crop/mirror/rotation is applied
 by libheif; the result is not rotated again from EXIF. Transparent pixels are
 composited onto white before scoring and JPEG cache generation. HEIC files with
 other codecs such as AV1 are outside this HEVC-only runtime's support.
@@ -40,7 +40,8 @@ and the host validates output pixel/allocation limits. Decode errors are isolate
 per file. Windows job objects own worker/ExifTool/converter descendants so
 cancellation and timeout also terminate children.
 RAW orientation applies when the JPEG does not already carry its own transform.
-This is preview/scoring support, not a photographic RAW editor or color pipeline.
+This RGB8 path is for selection previews and scoring. It is separate from the
+high-precision editing path described below.
 The explicit original-detail action additionally requests a versioned native RAW
 region from the converter. Sensor decoding/scaling still reads the full mosaic;
 only the padded ROI is demosaiced and calibrated to RGB. It supports conventional
@@ -68,6 +69,33 @@ rawler). This archive covers only the independent converter; application source 
 Build the converter with `cargo build --release --locked --manifest-path
 components/raw-decoder/Cargo.toml`. Keep its executable beside Iris, or set
 `IRIS_RAW_DECODER_PATH` to an explicit absolute path of a compatible replacement.
+
+## High-precision editing input and output
+
+`iris-render` and the shared core editing services decode the original source
+into linear Rec.2020 D65 FP32, preserving supported raster precision instead of
+reading the selection JPEG cache. TIFF import and native selection preview are
+available; the editing decoder retains supported 16-bit TIFF/PNG samples and
+applies RGB or grayscale ICC input transforms. HEIC high-precision editing and
+CMYK raster decoding are not implied by selection support.
+
+RAW editing uses a separate versioned float protocol from the standalone
+converter, not embedded JPEG or PPM8. Its current boundary is standard RGB 2x2
+Bayer, up to 64 MP full sensor and 512 MiB compressed input, explicit D65
+calibration and PPG demosaicing. X-Trans and complex unsupported DNG calibration
+fail explicitly on this path even when an older selection/detail path can read
+them. Sensor white balance and neutral sampling prepare gains from RAW
+calibration; creative rendered-RGB balance remains a separate operation.
+
+Terminal output supports JPEG8, PNG16 and TIFF16 with explicit color settings.
+The native edited-region endpoint returns 1:1 final output pixels but currently
+renders the entire graph before extraction; it is not the older sensor ROI
+optimization. Manual or explicitly imported Iris lens calibrations do not claim
+Lensfun coverage or automatic profile downloads. Full limits and known memory,
+color-fidelity and hardware-validation gaps are maintained in
+[the traditional editing implementation](color-engine-implementation.md).
+Current float-pipeline results are recorded in [CI evidence](ci-verification.md);
+the historical selection/codec checks below are separate evidence.
 
 ## Runtime provisioning and distribution
 

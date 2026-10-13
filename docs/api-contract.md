@@ -1,10 +1,42 @@
 # Local API contract
 
-All REST paths start with `/api/v1`. JSON bodies and responses; errors use
+All REST paths start with `/api/v1`. Structured requests and responses use JSON;
+media and resource routes use their declared binary content types. Errors use
 `{"error":"..."}` with a non-2xx status. All routes require the session bearer
 token, including bootstrap and media. The daemon binds IPv4 loopback, default
 random port, and prints one startup JSON line `{base_url,token,version}` to stdout.
 Credentials are never served by an unauthenticated HTTP endpoint.
+
+## Non-destructive editing and rendered export
+
+The generated [OpenAPI contract](openapi.json) defines the exact fields and stable,
+globally unique operation IDs. Editing persists in database schema v9, separately
+from culling decisions; migrations retain a pre-upgrade backup.
+
+| Endpoint family                                                                   | Behavior                                                                                                                                                                                        |
+| --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/photos/{id}/edits`, `/edits/{id}`, `/duplicate`, `/history`, `/undo`, `/redo`   | Create from server-decoded source metadata; read/save versioned documents and independent virtual copies. Saves require `expected_revision` and an idempotent `request_id`.                     |
+| `/edits/{id}/preview`, `/preview-draft`, `/proof`                                 | Authenticated binary JPEG. Draft requests include a transient document and saved base revision; they do not append history. Proofing uses an imported ICC resource.                             |
+| `/edits/{id}/histogram`, `/sample`, `/region`                                     | Full scopes measure the full edited output; interactive scopes identify proxy results. Native regions use final edited pixel coordinates and currently evaluate the full frame before cropping. |
+| `/edit-render/{session}/cancel`, `/edit-render/{session}`                         | Cancel a matching sequence or close a session. Preview replies expose revision, sequence, fingerprint and approximation headers; clients must discard superseded replies.                       |
+| `/edits/{id}/recipe`, `/batch`, `/edit-presets`, `/edit-resources`                | Portable settings, explicit mask opt-in, presets and SHA-256 resources. Binary import is `/edit-resources/import/{kind}`; no client filesystem path is accepted.                                |
+| `/edits/{id}/raw-white-balance`, `/lens-profile`                                  | Prepare sensor gains or matched optical coefficients; neither endpoint saves the document.                                                                                                      |
+| `/rendered-exports`, `/rendered-exports/{id}` and `/cancel`, `/retry`, `/recover` | Durable fixed-revision output jobs, status and recovery. Publication never overwrites an existing file; cancellation ends at the publication gate.                                              |
+| `/editing/capabilities`                                                           | Current precision, configured memory budget and explicit implementation limits.                                                                                                                 |
+
+Suffixes in the table are relative to their endpoint family, not root routes.
+A document cannot change its source photo, fingerprint, dimensions or reference
+kind; validated RAW white-balance gains are editable. Reusing a save request ID
+with different content is rejected. Undo/redo increase the revision, and a save
+after undo clears the redo branch. Source bytes remain unchanged.
+
+The working graph uses linear Rec.2020 D65 FP32. Display previews are terminal
+sRGB encodings, while JPEG8/PNG16/TIFF16 exports use explicit output settings.
+Warm interactive source checks may use file metadata; Full requests and exports
+perform strong content verification. The precision, memory and calibration
+limits are documented in [the implementation boundary](color-engine-implementation.md).
+Run-specific validation is recorded in [CI evidence](ci-verification.md).
+This contract does not imply that the grading frontend is implemented.
 
 ## beta4 selection endpoints
 

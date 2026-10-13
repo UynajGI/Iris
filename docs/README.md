@@ -16,7 +16,7 @@
 | 本地开发、命令和提交                  | [贡献指南](contributing.md)、根目录 [Makefile](../Makefile) 与[工具索引](../tools/README.md)                                           |
 | HTTP、WebSocket、OpenAPI 和生成客户端 | [API 契约](api-contract.md)、[MCP 接入](mcp.md)                                                                                        |
 | 桌面前端当前实现与原生托管            | [前端实现](frontend-implementation.md)、[桌面更新](native-updates.md)                                                                  |
-| JPEG/PNG/WebP/HEIC/RAW 边界           | [媒体支持](media-support.md)                                                                                                           |
+| JPEG/PNG/WebP/TIFF/HEIC/RAW 边界      | [媒体支持](media-support.md)                                                                                                           |
 | 模型、评分和可选研究能力              | [评分 v5](scoring-v5.md)、[模型质量缺口](model-quality-gaps.md)、[遮挡模型选项](occlusion-model-options.md)                            |
 | 本机验证证据和未覆盖范围              | [验证总览](validation.md)、[MCP 验证](mcp-validation.md)、[GPU/规模验证](gpu-scale-validation.md)、[选片性能验收](performance-plan.md) |
 | 发布、依赖和模型许可                  | [许可说明](licensing.md)、[更新协议](updates.md)                                                                                       |

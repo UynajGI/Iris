@@ -1,6 +1,6 @@
 # 无界面 MCP
 
-`iris-mcp` 是 Rust 官方 MCP SDK `rmcp 3.5.1` 实现的 stdio 服务。它不启动 Tauri、WebView 或 HTTP 监听器；使用现有服务路由在进程内调用扫描、模型分析、标记、文件操作与任务编排。分析子进程仍由同一二进制的内部 worker 模式承担。
+`iris-mcp` 是 Rust 官方 MCP SDK `rmcp 3.5.1` 实现的 stdio 服务。它不启动 Tauri、WebView 或 HTTP 监听器；使用现有服务路由在进程内调用扫描、模型分析、标记、非破坏编辑文档、文件操作与任务编排。分析子进程仍由同一二进制的内部 worker 模式承担。
 
 ## 构建与接入
 
@@ -67,6 +67,16 @@ Windows 产物为 `target/release/iris-mcp.exe`；其他系统为对应平台的
 
 照片默认每页 40、最多 100；显式批量标记每次最多 1000 个 ID。工具结果含结构化 JSON；预览工具返回真实 MCP 图片内容。Iris 本地推理不上传图像，但返回给云端 Agent 的图片可能进入其模型服务，取图需要对应的用户授权。
 
+## 编辑文档与 CLI 范围
+
+当前 MCP 增加 `iris_editing_capabilities`、`iris_list_edits`、`iris_create_edit`、`iris_get_edit`、`iris_save_edit`、`iris_duplicate_edit`、`iris_edit_history`、`iris_undo_edit`、`iris_redo_edit`。实际可用工具以本次 `tools/list` 为准，不依赖固定工具数量；只读模式隐藏写入入口。编辑 ID 必须追溯到允许目录中的照片，不能用其他库的编辑 ID 绕过来源授权。
+
+编辑保存的 `data` 包含 `expected_revision`、编辑命令的 `request_id` 和完整 `document`；顶层 MCP `request_id` 仍用于调用审计与幂等。编辑撤销与选片标记撤销分别处理。文档保存不自动渲染、导出或向 agent 发送照片。
+
+MCP 当前只公布上述编辑文档子集，尚未映射新增草稿预览、软打样、镜头/白平衡准备或成片导出队列；原有 `iris_get_preview` 仍是选片预览，`iris_export_copy` 是原片复制。HTTP 提供完整新增后端入口。`iris-cli edit` 提供 create/list/get/save/duplicate/history/undo/redo，以及读取固定版本请求 JSON 后同步执行的 export 和 export-status；这些入口复用 core，不另写一套编辑规则。
+
+schema v9 的编辑、资源与成片导出边界见[实现说明](color-engine-implementation.md)，具体 HTTP 字段见[API 契约](api-contract.md)。第五轮 CI 尚在运行，已有选片 MCP 的历史验收不能替代新增编辑路径的验证。
+
 ## 写入、来源与进程所有权
 
 - 每个写操作必须带唯一 `request_id`。相同 ID、相同工具和参数会重放已有结果；同 ID 不同操作会拒绝。`mcp-audit.jsonl` 保存调用来源、参数、执行意图及结果，不写协议令牌。
@@ -81,9 +91,9 @@ Windows 产物为 `target/release/iris-mcp.exe`；其他系统为对应平台的
 ```powershell
 cargo test --workspace
 python -m pip install -r tools/validation-requirements.txt
-python tools/verify-mcp.py --binary target/release/iris-mcp.exe --models models --photos test-photos --output artifacts/mcp-stdio-run
+python tools/verify-mcp.py --binary target/release/iris-mcp.exe --models models --output artifacts/mcp-stdio-run
 ```
 
-输出目录必须不存在；测试只复制最多三张授权 JPG，并添加一张重复副本。无 `--photos` 时生成合成图；无 `--models` 时验证缺模型的显式失败。报告记录二进制哈希、通过项及真实推理结果。原始 `test-photos/` 不被写入。
+输出目录必须不存在；示例省略 `--photos`，使用合成图。需要真实媒体时仅显式配置符合条款的公共测试集，工具复制最多三张 JPG 并添加重复副本；不回退到个人照片或 `test-photos/`。无 `--models` 时验证缺模型的显式失败。报告记录二进制哈希、通过项及实际推理结果。
 
 本机验收记录见 `docs/mcp-validation.md`。既有桌面原生窗口控制阻塞属于另一项验收，不以 MCP 通过来替代。
