@@ -3,6 +3,52 @@
 Generated from Conventional Commits by git-cliff. Installation instructions and
 known limitations are maintained separately in [release notes](docs/releases/).
 
+## v0.1.0-beta5
+
+### Documentation
+
+- **selection:** record five-feature delivery and CI evidence ([32815ce](https://github.com/UynajGI/Iris/commit/32815ce808162f7d51afba758880af157d2783f2))
+
+### Features
+
+- **selection:** upgrade selection workflow to beta4 ([219bf9b](https://github.com/UynajGI/Iris/commit/219bf9bcced0ecf69b3a000ca8bdadc3724e61cf))
+
+- **selection:** complete group intent and original detail workflow ([a26ae97](https://github.com/UynajGI/Iris/commit/a26ae977ff92af46a3caef086a6433e2f211683f))
+
+- **installer:** apply approved dark wizard design ([b6eec20](https://github.com/UynajGI/Iris/commit/b6eec20bc1515a577939e69d56ca135b183a4bea))
+
+- **support:** add help diagnostics and version synchronization ([ecca88e](https://github.com/UynajGI/Iris/commit/ecca88e1dcf718b80407a1436d8d9a4c00921739))
+
+- **selection:** save filter presets and open export folders ([2ada30a](https://github.com/UynajGI/Iris/commit/2ada30a719bb085d4e0d3694ef3b2b8dbf04f438))
+
+### Fixes
+
+- **selection:** bound comparison candidates before requesting evidence ([172aaf9](https://github.com/UynajGI/Iris/commit/172aaf96517c71a0600dc5c70c2fa23e73b1f023))
+
+- **ci:** retry transient quality tool downloads ([e3cbac0](https://github.com/UynajGI/Iris/commit/e3cbac096cd1617f504441e3ac98344904649bb2))
+
+- **selection:** align CI regressions and initialize RAW region decoding ([848bd7c](https://github.com/UynajGI/Iris/commit/848bd7cb370372f0a6813ec020a80342094cc402))
+
+- **selection:** allow direct main-face confirmation and correction reset ([cdc8c9e](https://github.com/UynajGI/Iris/commit/cdc8c9ec079df3080cc93cdbf7ab0280c05e46f9))
+
+- **api:** sync selection contract with CI-generated schema ([b50de3b](https://github.com/UynajGI/Iris/commit/b50de3bb4988d3de5cf16bd4cb495106137ee480))
+
+- **selection:** preserve overlapping intent and refresh adopted groups ([226207c](https://github.com/UynajGI/Iris/commit/226207ce2a04d53310cf1b16ae653bcac2709bd4))
+
+- **xmp:** resolve file subjects without project-relative shortcuts ([5d726ad](https://github.com/UynajGI/Iris/commit/5d726ad35f76f68f662af93a87aeb473e5a0cb93))
+
+- **xmp:** keep exported subjects free of local directory paths ([0141561](https://github.com/UynajGI/Iris/commit/0141561616da62247e292f9bbc4b5c1b2c811928))
+
+### Other
+
+- Merge pull request #17 from UynajGI/codex/beta4-selection
+
+feat(selection): upgrade selection workflow to beta4 ([f3732d8](https://github.com/UynajGI/Iris/commit/f3732d8924ac743a3d5486ef39d6e552aa1c11a2))
+
+- Merge pull request #18 from UynajGI/codex/selection-workflow
+
+feat(selection): 补齐原图细节与组内选片工作流 ([20850bf](https://github.com/UynajGI/Iris/commit/20850bfbe2dcc9070961759598ace56ae87f5d32))
+
 ## v0.1.0-beta3
 
 ### Development

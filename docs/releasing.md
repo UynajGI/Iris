@@ -1,6 +1,6 @@
 # 发布流程
 
-产品为 Iris / 伊人。源码版本以根目录 `Cargo.toml` 为准，运行 `make version-check` 核对全部组件。当前开发说明见 [beta4](releases/v0.1.0-beta4.md)；已发布版本以 [Releases](https://github.com/UynajGI/Iris/releases) 为准。源码版本一致不等于该版本已构建或发布。
+产品为 Iris / 伊人。源码版本以根目录 `Cargo.toml` 为准，运行 `make version-check` 核对全部组件。当前开发说明见 [beta5](releases/v0.1.0-beta5.md)；已发布版本以 [Releases](https://github.com/UynajGI/Iris/releases) 为准。源码版本一致不等于该版本已构建或发布。
 已公开 Tag 和附件不移动、不静默覆盖；历史便携包不因新流程而自动获得安装器。
 本页描述当前源码的发版契约，实际可下载内容以对应 Release 附件为准。
 
@@ -39,7 +39,7 @@ Linux 当前安装器范围是 Ubuntu/Debian DEB，不声称覆盖 RPM、Flatpak
 
 ## 版本同步
 
-使用 `make version-sync VERSION=0.1.0-beta4`（或 `node tools/backend.mjs tools/sync-version.py 0.1.0-beta4`）
+使用 `make version-sync VERSION=0.1.0-beta5`（或 `node tools/backend.mjs tools/sync-version.py 0.1.0-beta5`）
 统一修改应用的 Cargo 清单、三个 Cargo 锁文件中的自有包、前端 package/lock、Tauri 配置与界面版本。
 不带 VERSION 时从根 Cargo.toml 同步；`make version-check` 只检查。工具不升级依赖、不编译、
 不提交、不打 tag 或发布。CI 和发布检查同时覆盖 npm 锁文件根包及 Cargo 锁文件，避免只改顶层数字。

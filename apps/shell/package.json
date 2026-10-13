@@ -1,6 +1,6 @@
 {
   "name": "@iris/application",
-  "version": "0.1.0-beta4",
+  "version": "0.1.0-beta5",
   "private": true,
   "license": "GPL-3.0-or-later",
   "type": "module",
