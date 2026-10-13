@@ -49,7 +49,7 @@ pub fn decode_file(path: &Path, context: &RenderContext) -> Result<DecodedSource
 pub fn decode<R: BufRead + Seek>(mut reader: R, context: &RenderContext) -> Result<DecodedSource> {
     context.check_cancelled()?;
     validate_stream_size(&mut reader)?;
-    let mut reader = ImageReader::new(reader).with_guessed_format()?;
+    let (mut reader, tiff_metadata) = reader_with_metadata(reader, context)?;
     let mut limits = image::Limits::default();
     limits.max_alloc = Some(context.memory_limit());
     reader.limits(limits);
@@ -59,9 +59,8 @@ pub fn decode<R: BufRead + Seek>(mut reader: R, context: &RenderContext) -> Resu
     let color_type = decoder.color_type();
     let depth = color_type.bits_per_pixel() / u16::from(color_type.channel_count());
     let _decode_budget = context.reserve(count as u64 * 32 + decoder.total_bytes())?;
-    let icc = decoder.icc_profile()?;
+    let (icc, orientation) = decoder_metadata(&mut decoder, tiff_metadata)?;
     let _icc_memory = context.reserve(icc.as_ref().map_or(0, |bytes| bytes.len() as u64))?;
-    let orientation = decoder.orientation()?;
     let from = match &icc {
         Some(bytes) => color::validate_icc(bytes)?,
         None => color::profile(OutputSpace::Srgb, false)?,
@@ -253,4 +252,88 @@ fn decode_to_working(
         color::transform(&encoded, &from, &working, context)?
     };
     Ok(frame)
+}
+
+// image 0.25.10 sets tiff's decoding_buffer_size to pixel bytes. tiff 0.11.3
+// also uses it for IFD Value allocations, so even a valid ICC can exceed a tiny
+// image's limit; image then swallows that error as None. Read only TIFF metadata
+// independently with explicit bounds. Pixel decompression still occurs once.
+type RasterMetadata = (Option<Vec<u8>>, image::metadata::Orientation);
+fn reader_with_metadata<R: BufRead + Seek>(
+    reader: R,
+    context: &RenderContext,
+) -> Result<(ImageReader<R>, Option<RasterMetadata>)> {
+    let reader = ImageReader::new(reader).with_guessed_format()?;
+    if reader.format() != Some(image::ImageFormat::Tiff) {
+        return Ok((reader, None));
+    }
+    let mut input = reader.into_inner();
+    let position = input.stream_position()?;
+    let metadata = read_tiff_metadata(&mut input, context)?;
+    input.seek(std::io::SeekFrom::Start(position))?;
+    Ok((
+        ImageReader::with_format(input, image::ImageFormat::Tiff),
+        Some(metadata),
+    ))
+}
+
+fn read_tiff_metadata(
+    reader: &mut (impl BufRead + Seek),
+    context: &RenderContext,
+) -> Result<RasterMetadata> {
+    context.check_cancelled()?;
+    let mut limits = tiff::decoder::Limits::default();
+    let cap = usize::try_from(context.memory_limit().min(16 * 1024 * 1024))?;
+    limits.decoding_buffer_size = cap;
+    limits.ifd_value_size = cap;
+    limits.intermediate_buffer_size = cap;
+    let mut decoder = tiff::decoder::Decoder::new(reader)?.with_limits(limits);
+    let (width, height) = decoder.dimensions()?;
+    pixel_count(width, height)?;
+    let mut ifd = decoder.image_ifd();
+    let orientation = ifd
+        .find_tag_unsigned::<u16>(tiff::tags::Tag::Orientation)?
+        .unwrap_or(1);
+    ensure!((1..=8).contains(&orientation), "invalid TIFF orientation");
+    let orientation = image::metadata::Orientation::from_exif(orientation as u8)
+        .context("invalid TIFF orientation")?;
+    let icc = read_tiff_icc(&mut ifd, context)?;
+    Ok((icc, orientation))
+}
+
+fn read_tiff_icc(
+    ifd: &mut tiff::decoder::IfdDecoder<'_>,
+    context: &RenderContext,
+) -> Result<Option<Vec<u8>>> {
+    use tiff::tags::{Tag, Type};
+    let Some(entry) = ifd.find_entry(Tag::IccProfile) else {
+        return Ok(None);
+    };
+    ensure!(
+        matches!(entry.field_type(), Type::BYTE | Type::UNDEFINED),
+        "TIFF ICC must contain bytes"
+    );
+    let count = entry.count();
+    ensure!(
+        (1..=16 * 1024 * 1024).contains(&count),
+        "TIFF ICC resource exceeds limits"
+    );
+    let _memory = context.reserve(count)?;
+    let mut bytes = vec![0; usize::try_from(count)?];
+    let read = ifd
+        .find_tag_bytes(Tag::IccProfile, &mut bytes, 0)?
+        .context("missing TIFF ICC data")?;
+    ensure!(read == bytes.len(), "truncated TIFF ICC");
+    context.check_cancelled()?;
+    Ok(Some(bytes))
+}
+
+fn decoder_metadata(
+    decoder: &mut impl ImageDecoder,
+    tiff_metadata: Option<RasterMetadata>,
+) -> Result<RasterMetadata> {
+    match tiff_metadata {
+        Some(metadata) => Ok(metadata),
+        None => Ok((decoder.icc_profile()?, decoder.orientation()?)),
+    }
 }

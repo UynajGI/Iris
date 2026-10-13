@@ -2,7 +2,10 @@
 //! CLI orchestration only; document, history and export rules live in core.
 use anyhow::{anyhow, ensure, Result};
 use clap::Subcommand;
-use iris_core::{EditCommand, RenderedExportRequest, SaveEdit, Services};
+use iris_core::{
+    services::{EditCommand, RenderedExportRequest, SaveEdit},
+    Services,
+};
 use iris_daemon::AppState;
 use serde_json::Value;
 use std::{io::Read, path::PathBuf, sync::MutexGuard};

@@ -132,22 +132,24 @@ fn assert_16bit_precision_alpha_and_icc(format: OutputFormat) {
     {
         let bytes =
             output::encode_output(&target, &config(OutputSpace::Srgb), format, &context()).unwrap();
-        if format == OutputFormat::Tiff16 {
-            let mut raw = tiff::decoder::Decoder::new(Cursor::new(bytes.as_slice())).unwrap();
-            let profile = raw
-                .get_tag_u8_vec(tiff::tags::Tag::IccProfile)
-                .expect("TIFF raw IccProfile tag must decode as byte array");
-            color::validate_icc(&profile).unwrap();
-        }
         let mut decoder = ImageReader::new(Cursor::new(&bytes))
             .with_guessed_format()
             .unwrap()
             .into_decoder()
             .unwrap();
-        let icc = decoder
-            .icc_profile()
-            .unwrap()
-            .unwrap_or_else(|| panic!("{format:?}: missing embedded output ICC"));
+        let icc = if format == OutputFormat::Tiff16 {
+            // image's TIFF ICC getter uses the pixel decode budget for tag
+            // Values and silently returns None on tiny images. The file must
+            // still contain a valid ICC; Iris source uses bounded raw metadata.
+            let mut raw = tiff::decoder::Decoder::new(Cursor::new(bytes.as_slice())).unwrap();
+            raw.get_tag_u8_vec(tiff::tags::Tag::IccProfile)
+                .expect("TIFF raw IccProfile tag must decode as byte array")
+        } else {
+            decoder
+                .icc_profile()
+                .unwrap()
+                .unwrap_or_else(|| panic!("{format:?}: missing embedded output ICC"))
+        };
         color::validate_icc(&icc).unwrap();
         assert_eq!(decoder.color_type(), image::ColorType::Rgba16);
         assert_eq!(
@@ -339,4 +341,67 @@ fn gray_profile_on_rgb_pixels_is_rejected_without_guessing() {
         .write_image(&[128, 64, 32], 1, 1, ExtendedColorType::Rgb8)
         .unwrap();
     assert!(source::decode(Cursor::new(bytes), &context()).is_err());
+}
+
+#[test]
+fn tiny_tiff_reads_icc_larger_than_pixels_and_applies_orientation_once() {
+    let profile = color::profile(OutputSpace::DisplayP3, false).unwrap();
+    let icc = profile.icc().unwrap();
+    let samples = [50000_u16, 8000, 4000, 65535, 10000, 45000, 30000, 32768];
+    assert!(icc.len() > samples.len() * 2);
+    let mut bytes = Cursor::new(Vec::new());
+    {
+        let mut encoder = tiff::encoder::TiffEncoder::new(&mut bytes).unwrap();
+        let mut image = encoder
+            .new_image::<tiff::encoder::colortype::RGBA16>(2, 1)
+            .unwrap();
+        image
+            .encoder()
+            .write_tag(tiff::tags::Tag::IccProfile, icc.as_slice())
+            .unwrap();
+        image
+            .encoder()
+            .write_tag(tiff::tags::Tag::Orientation, 6_u16)
+            .unwrap();
+        image
+            .encoder()
+            .write_tag(tiff::tags::Tag::ExtraSamples, &[2_u16][..])
+            .unwrap();
+        image.write_data(&samples).unwrap();
+    }
+    let decoded = source::decode(Cursor::new(bytes.into_inner()), &context()).unwrap();
+    assert_eq!((decoded.frame.width, decoded.frame.height), (1, 2));
+    assert!(decoded.metadata.embedded_icc && !decoded.metadata.assumed_srgb);
+    assert_eq!(decoded.metadata.source_bit_depth, Some(16));
+    let encoded = Frame::new(
+        1,
+        2,
+        samples
+            .chunks_exact(4)
+            .map(|p| {
+                [
+                    p[0] as f32 / 65535.0,
+                    p[1] as f32 / 65535.0,
+                    p[2] as f32 / 65535.0,
+                    p[3] as f32 / 65535.0,
+                ]
+            })
+            .collect(),
+    )
+    .unwrap();
+    let working = color::profile(OutputSpace::LinearRec2020, true).unwrap();
+    let expected = color::transform(&encoded, &profile, &working, &context()).unwrap();
+    let wrong = color::transform(
+        &encoded,
+        &color::profile(OutputSpace::Srgb, false).unwrap(),
+        &working,
+        &context(),
+    )
+    .unwrap();
+    assert!((expected.pixels[0][0] - wrong.pixels[0][0]).abs() > 0.01);
+    for (actual, expected) in decoded.frame.pixels.iter().zip(expected.pixels) {
+        for c in 0..4 {
+            assert!((actual[c] - expected[c]).abs() < 1e-6);
+        }
+    }
 }

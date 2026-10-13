@@ -452,7 +452,8 @@ impl RenderedExportJob {
         recheck_directory(&self.snapshot)?;
         require_absent(&destination(&self.snapshot))?;
         let frame = self.render.full_resolution(context)?;
-        let _source_memory = context.reserve(frame.byte_len())?;
+        // full_resolution already tracks this Arc allocation for its lifetime.
+        // color::output allocates a separate frame, admitted below after return.
         let encoded =
             iris_render::color::output(&frame, &self.snapshot.record.document.output, context)?;
         let _encoded_memory = context.reserve(encoded.byte_len())?;

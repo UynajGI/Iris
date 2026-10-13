@@ -49,6 +49,1226 @@
         }
       }
     },
+    "/api/v1/edit-presets": {
+      "get": {
+        "tags": [],
+        "operationId": "editing_list_presets",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EditPreset"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [],
+        "operationId": "editing_create_preset",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PresetSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EditPreset"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/edit-presets/{id}": {
+      "get": {
+        "tags": [],
+        "operationId": "editing_get_preset",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EditPreset"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [],
+        "operationId": "editing_update_preset",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PresetSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EditPreset"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [],
+        "operationId": "editing_delete_preset",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EditSuccess"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/edit-render/{session}": {
+      "delete": {
+        "tags": [
+          "preview"
+        ],
+        "summary": "End a session and release its sequence watermark. Reopening clients should\nuse a new identifier so abandoned requests cannot collide with new work.",
+        "operationId": "editing_preview_close",
+        "parameters": [
+          {
+            "name": "session",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EditSuccess"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/edit-render/{session}/cancel": {
+      "post": {
+        "tags": [
+          "preview"
+        ],
+        "operationId": "editing_preview_cancel",
+        "parameters": [
+          {
+            "name": "session",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EditSuccess"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/edit-resources/import/{kind}": {
+      "post": {
+        "tags": [],
+        "operationId": "editing_import_resource",
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/EditResourceKind"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "format": "int32",
+                  "minimum": 0
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EditResource"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Resource exceeds byte limit"
+          }
+        }
+      }
+    },
+    "/api/v1/edit-resources/{hash}": {
+      "get": {
+        "tags": [],
+        "operationId": "editing_resource_bytes",
+        "parameters": [
+          {
+            "name": "hash",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "format": "int32",
+                    "minimum": 0
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/editing/capabilities": {
+      "get": {
+        "tags": [],
+        "operationId": "editing_capabilities",
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EditingCapabilities"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/edits/{id}": {
+      "get": {
+        "tags": [],
+        "operationId": "editing_get_edit",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EditRecord"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [],
+        "operationId": "editing_save_edit",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveEdit"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EditRecord"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [],
+        "operationId": "editing_delete_edit",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditRevision"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EditSuccess"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/edits/{id}/batch": {
+      "post": {
+        "tags": [],
+        "operationId": "editing_batch_settings",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EditRecord"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/edits/{id}/duplicate": {
+      "post": {
+        "tags": [],
+        "operationId": "editing_duplicate_edit",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditName"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EditRecord"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/edits/{id}/histogram": {
+      "post": {
+        "tags": [
+          "preview"
+        ],
+        "operationId": "editing_preview_histogram",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HistogramRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistogramResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/edits/{id}/history": {
+      "get": {
+        "tags": [],
+        "operationId": "editing_edit_history",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EditHistoryEntry"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/edits/{id}/lens-profile": {
+      "post": {
+        "tags": [
+          "calibration"
+        ],
+        "summary": "Preparation never writes an edit. The caller saves chosen parameters using\nthe existing expected-revision edit command after reviewing this response.",
+        "operationId": "editing_calibration_lens_profile",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LensSuggestionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LensProfileSuggestion"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/edits/{id}/preview": {
+      "post": {
+        "tags": [
+          "preview"
+        ],
+        "operationId": "editing_preview_preview",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenderRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Response",
+            "headers": {
+              "x-iris-approximate": {
+                "schema": {
+                  "type": "boolean"
+                },
+                "description": "True when proxy evaluation was used"
+              },
+              "x-iris-cpu-nodes": {
+                "schema": {
+                  "type": "integer",
+                  "format": "int32",
+                  "minimum": 0
+                },
+                "description": "Nodes executed on CPU"
+              },
+              "x-iris-fingerprint": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Canonical rendering fingerprint"
+              },
+              "x-iris-gpu-fallback": {
+                "schema": {
+                  "type": "boolean"
+                },
+                "description": "GPU attempt fell back to CPU"
+              },
+              "x-iris-gpu-nodes": {
+                "schema": {
+                  "type": "integer",
+                  "format": "int32",
+                  "minimum": 0
+                },
+                "description": "Nodes executed on GPU"
+              },
+              "x-iris-render-backend": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "cpu, gpu or mixed for this render"
+              },
+              "x-iris-revision": {
+                "schema": {
+                  "type": "integer",
+                  "format": "int64",
+                  "minimum": 0
+                },
+                "description": "Edit revision"
+              },
+              "x-iris-sequence": {
+                "schema": {
+                  "type": "integer",
+                  "format": "int64",
+                  "minimum": 0
+                },
+                "description": "Render sequence"
+              }
+            },
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "format": "int32",
+                    "minimum": 0
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/edits/{id}/preview-draft": {
+      "post": {
+        "tags": [
+          "preview"
+        ],
+        "summary": "Transient slider feedback: validates source binding and resources but writes\nno history. Persist the chosen document separately through SaveEdit.",
+        "operationId": "editing_preview_draft_preview",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftPreviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Response",
+            "headers": {
+              "x-iris-draft": {
+                "schema": {
+                  "type": "boolean"
+                },
+                "description": "Always true; no revision saved"
+              },
+              "x-iris-fingerprint": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Draft graph fingerprint"
+              },
+              "x-iris-revision": {
+                "schema": {
+                  "type": "integer",
+                  "format": "int64",
+                  "minimum": 0
+                },
+                "description": "Saved base revision"
+              },
+              "x-iris-sequence": {
+                "schema": {
+                  "type": "integer",
+                  "format": "int64",
+                  "minimum": 0
+                },
+                "description": "Latest-wins sequence"
+              }
+            },
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "format": "int32",
+                    "minimum": 0
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/edits/{id}/proof": {
+      "post": {
+        "tags": [
+          "preview"
+        ],
+        "operationId": "editing_preview_proof",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProofRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "format": "int32",
+                    "minimum": 0
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/edits/{id}/raw-white-balance": {
+      "post": {
+        "tags": [
+          "calibration"
+        ],
+        "summary": "RAW sensor gains, not a rendered RGB filter. Neutral sampling uses the\noriented/cropped decoded source coordinates before any edit geometry.",
+        "operationId": "editing_calibration_raw_white_balance",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrepareWhiteBalanceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreparedRawWhiteBalance"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/edits/{id}/recipe": {
+      "get": {
+        "tags": [],
+        "operationId": "editing_export_recipe",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "include_masks",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EditRecipe"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [],
+        "operationId": "editing_import_recipe",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportRecipe"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EditRecord"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/edits/{id}/redo": {
+      "post": {
+        "tags": [],
+        "operationId": "editing_redo_edit",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EditRecord"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/edits/{id}/region": {
+      "post": {
+        "tags": [
+          "preview"
+        ],
+        "operationId": "editing_preview_region",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Response",
+            "headers": {
+              "x-iris-approximate": {
+                "schema": {
+                  "type": "boolean"
+                },
+                "description": "Always false: native output pixels"
+              },
+              "x-iris-fingerprint": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Canonical rendering fingerprint"
+              },
+              "x-iris-full-frame-evaluation": {
+                "schema": {
+                  "type": "boolean"
+                },
+                "description": "True: evaluates entire image before crop"
+              },
+              "x-iris-full-height": {
+                "schema": {
+                  "type": "integer",
+                  "format": "int32",
+                  "minimum": 0
+                },
+                "description": "Full edited output height"
+              },
+              "x-iris-full-width": {
+                "schema": {
+                  "type": "integer",
+                  "format": "int32",
+                  "minimum": 0
+                },
+                "description": "Full edited output width"
+              },
+              "x-iris-region-height": {
+                "schema": {
+                  "type": "integer",
+                  "format": "int32",
+                  "minimum": 0
+                },
+                "description": "Native region height"
+              },
+              "x-iris-region-width": {
+                "schema": {
+                  "type": "integer",
+                  "format": "int32",
+                  "minimum": 0
+                },
+                "description": "Native region width"
+              },
+              "x-iris-region-x": {
+                "schema": {
+                  "type": "integer",
+                  "format": "int32",
+                  "minimum": 0
+                },
+                "description": "Output pixel origin x"
+              },
+              "x-iris-region-y": {
+                "schema": {
+                  "type": "integer",
+                  "format": "int32",
+                  "minimum": 0
+                },
+                "description": "Output pixel origin y"
+              },
+              "x-iris-revision": {
+                "schema": {
+                  "type": "integer",
+                  "format": "int64",
+                  "minimum": 0
+                },
+                "description": "Edit revision"
+              },
+              "x-iris-sequence": {
+                "schema": {
+                  "type": "integer",
+                  "format": "int64",
+                  "minimum": 0
+                },
+                "description": "Render sequence"
+              }
+            },
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "format": "int32",
+                    "minimum": 0
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/edits/{id}/sample": {
+      "post": {
+        "tags": [
+          "preview"
+        ],
+        "operationId": "editing_preview_sample",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SampleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SampleResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/edits/{id}/undo": {
+      "post": {
+        "tags": [],
+        "operationId": "editing_undo_edit",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EditRecord"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/models": {
       "get": {
         "tags": [
@@ -241,6 +1461,95 @@
         }
       }
     },
+    "/api/v1/photos/{id}/edits": {
+      "get": {
+        "tags": [],
+        "operationId": "editing_list_edits",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EditRecord"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [],
+        "operationId": "editing_create_edit",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditName"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EditRecord"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/photos/{id}/original": {
       "get": {
         "tags": [
@@ -283,6 +1592,16 @@
                 }
               },
               "image/webp": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "format": "int32",
+                    "minimum": 0
+                  }
+                }
+              },
+              "image/tiff": {
                 "schema": {
                   "type": "array",
                   "items": {
@@ -2073,6 +3392,230 @@
         }
       }
     },
+    "/api/v1/rendered-exports": {
+      "get": {
+        "tags": [
+          "exports"
+        ],
+        "operationId": "editing_exports_list",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RenderedExportStatus"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "exports"
+        ],
+        "operationId": "editing_exports_queue",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QueueExports"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RenderedExportStatus"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/rendered-exports/{id}": {
+      "get": {
+        "tags": [
+          "exports"
+        ],
+        "operationId": "editing_exports_status",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RenderedExportStatus"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "exports"
+        ],
+        "operationId": "editing_exports_delete",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EditSuccess"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/rendered-exports/{id}/cancel": {
+      "post": {
+        "tags": [
+          "exports"
+        ],
+        "operationId": "editing_exports_cancel",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RenderedExportStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/rendered-exports/{id}/recover": {
+      "post": {
+        "tags": [
+          "exports"
+        ],
+        "operationId": "editing_exports_recover",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RenderedExportStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/rendered-exports/{id}/retry": {
+      "post": {
+        "tags": [
+          "exports"
+        ],
+        "operationId": "editing_exports_retry",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RenderedExportStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings": {
       "get": {
         "tags": [
@@ -2184,6 +3727,156 @@
           "pending",
           "flag"
         ]
+      },
+      "Adjustments": {
+        "type": "object",
+        "properties": {
+          "black_and_white": {
+            "$ref": "#/components/schemas/BlackAndWhite",
+            "default": {
+              "enabled": false,
+              "mix": [
+                0.26269999146461487,
+                0.6779999732971191,
+                0.059300001710653305
+              ]
+            }
+          },
+          "blacks": {
+            "type": "number",
+            "format": "float",
+            "default": 0
+          },
+          "blue_curve": {
+            "$ref": "#/components/schemas/Curve",
+            "default": {
+              "points": []
+            }
+          },
+          "color_balance": {
+            "$ref": "#/components/schemas/ColorBalance",
+            "default": {
+              "highlights": [
+                0,
+                0,
+                0
+              ],
+              "midtones": [
+                0,
+                0,
+                0
+              ],
+              "shadows": [
+                0,
+                0,
+                0
+              ]
+            }
+          },
+          "contrast": {
+            "type": "number",
+            "format": "float",
+            "description": "Contrast exponent multiplier 2^contrast around pivot; signed power keeps negatives.",
+            "default": 0
+          },
+          "contrast_pivot": {
+            "type": "number",
+            "format": "float",
+            "default": 0.18000000715255737
+          },
+          "exposure": {
+            "type": "number",
+            "format": "float",
+            "default": 0
+          },
+          "grain": {
+            "$ref": "#/components/schemas/Grain",
+            "default": {
+              "amount": 0,
+              "seed": 0
+            }
+          },
+          "green_curve": {
+            "$ref": "#/components/schemas/Curve",
+            "default": {
+              "points": []
+            }
+          },
+          "highlights": {
+            "type": "number",
+            "format": "float",
+            "description": "Smooth masked log2 gains [-2,2], with separate broad/endpoint masks.",
+            "default": 0
+          },
+          "hsl": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HueBand"
+            },
+            "default": []
+          },
+          "master_curve": {
+            "$ref": "#/components/schemas/Curve",
+            "default": {
+              "points": []
+            }
+          },
+          "red_curve": {
+            "$ref": "#/components/schemas/Curve",
+            "default": {
+              "points": []
+            }
+          },
+          "saturation": {
+            "type": "number",
+            "format": "float",
+            "default": 0
+          },
+          "shadows": {
+            "type": "number",
+            "format": "float",
+            "default": 0
+          },
+          "temperature": {
+            "type": "number",
+            "format": "float",
+            "description": "Creative RGB gains in stops [-1,1]; not Kelvin or RAW illuminant correction.",
+            "default": 0
+          },
+          "tint": {
+            "type": "number",
+            "format": "float",
+            "default": 0
+          },
+          "tone_curve": {
+            "$ref": "#/components/schemas/ToneCurve",
+            "default": {
+              "darks": 0,
+              "highlights": 0,
+              "lights": 0,
+              "shadows": 0
+            }
+          },
+          "vibrance": {
+            "type": "number",
+            "format": "float",
+            "default": 0
+          },
+          "vignette": {
+            "$ref": "#/components/schemas/Vignette",
+            "default": {
+              "amount": 0,
+              "feather": 1,
+              "midpoint": 0.3499999940395355
+            }
+          },
+          "whites": {
+            "type": "number",
+            "format": "float",
+            "default": 0
+          }
+        },
+        "additionalProperties": false
       },
       "AnalysisSettings": {
         "type": "object",
@@ -2325,6 +4018,69 @@
         },
         "additionalProperties": false
       },
+      "BatchEditTarget": {
+        "type": "object",
+        "required": [
+          "id",
+          "expected_revision"
+        ],
+        "properties": {
+          "expected_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "BatchSettings": {
+        "type": "object",
+        "required": [
+          "targets",
+          "request_id"
+        ],
+        "properties": {
+          "include_masks": {
+            "type": "boolean"
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "targets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BatchEditTarget"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "BlackAndWhite": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "default": false
+          },
+          "mix": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "float"
+            },
+            "description": "Linear RGB mix; coefficients in [-2,2], sum must be one.",
+            "default": [
+              0.26269999146461487,
+              0.6779999732971191,
+              0.059300001710653305
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
       "Bootstrap": {
         "type": "object",
         "required": [
@@ -2390,6 +4146,40 @@
           }
         },
         "additionalProperties": false
+      },
+      "BrushStroke": {
+        "type": "object",
+        "required": [
+          "points",
+          "radius",
+          "hardness",
+          "flow"
+        ],
+        "properties": {
+          "flow": {
+            "type": "number",
+            "format": "float"
+          },
+          "hardness": {
+            "type": "number",
+            "format": "float"
+          },
+          "points": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "format": "float"
+              }
+            },
+            "description": "Polyline in normalized image coordinates, connected by continuous capsules."
+          },
+          "radius": {
+            "type": "number",
+            "format": "float"
+          }
+        }
       },
       "BurstGroup": {
         "type": "object",
@@ -2520,6 +4310,63 @@
             "type": "string"
           }
         }
+      },
+      "CancelRequest": {
+        "type": "object",
+        "required": [
+          "sequence"
+        ],
+        "properties": {
+          "sequence": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "ColorBalance": {
+        "type": "object",
+        "properties": {
+          "highlights": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "float"
+            },
+            "default": [
+              0,
+              0,
+              0
+            ]
+          },
+          "midtones": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "float"
+            },
+            "default": [
+              0,
+              0,
+              0
+            ]
+          },
+          "shadows": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "float"
+            },
+            "description": "Per-channel log2 gains [-2,2], smoothly blended by linear Y.",
+            "default": [
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        "additionalProperties": false
       },
       "ColorLabel": {
         "type": "string",
@@ -2673,6 +4520,36 @@
           }
         }
       },
+      "Curve": {
+        "type": "object",
+        "properties": {
+          "points": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CurvePoint"
+            },
+            "description": "Empty means identity. Otherwise 2..=64 points, strictly increasing x,\nnondecreasing y, all coordinates in [0,1]. Endpoints must have x=0 and x=1.",
+            "default": []
+          }
+        },
+        "additionalProperties": false
+      },
+      "CurvePoint": {
+        "type": "object",
+        "properties": {
+          "x": {
+            "type": "number",
+            "format": "float",
+            "default": 0
+          },
+          "y": {
+            "type": "number",
+            "format": "float",
+            "default": 0
+          }
+        },
+        "additionalProperties": false
+      },
       "DecisionBatch": {
         "type": "object",
         "required": [
@@ -2729,6 +4606,63 @@
             "type": "string"
           }
         }
+      },
+      "DetailAdjustments": {
+        "type": "object",
+        "properties": {
+          "atmospheric_light": {
+            "type": "number",
+            "format": "float",
+            "description": "Scalar atmospheric light in linear RGB [0.01,16].",
+            "default": 1
+          },
+          "chroma_denoise": {
+            "type": "number",
+            "format": "float",
+            "default": 0
+          },
+          "clarity": {
+            "type": "number",
+            "format": "float",
+            "default": 0
+          },
+          "dehaze": {
+            "type": "number",
+            "format": "float",
+            "description": "[-1,1]: negative adds veiling light; positive removes it.",
+            "default": 0
+          },
+          "denoise_sigma": {
+            "type": "number",
+            "format": "float",
+            "description": "Range sigma in linear-light units [0.001,1].",
+            "default": 0.03999999910593033
+          },
+          "luminance_denoise": {
+            "type": "number",
+            "format": "float",
+            "description": "Blend with a joint bilateral estimate [0,1].",
+            "default": 0
+          },
+          "sharpening": {
+            "type": "number",
+            "format": "float",
+            "description": "Luminance unsharp gain [0,3].",
+            "default": 0
+          },
+          "sharpening_threshold": {
+            "type": "number",
+            "format": "float",
+            "description": "Suppress differences smaller than this linear-light value [0,0.25].",
+            "default": 0
+          },
+          "texture": {
+            "type": "number",
+            "format": "float",
+            "default": 0
+          }
+        },
+        "additionalProperties": false
       },
       "DetailEvidence": {
         "type": "object",
@@ -2882,6 +4816,391 @@
           },
           "state": {
             "$ref": "#/components/schemas/ModelAvailability"
+          }
+        }
+      },
+      "DraftPreviewRequest": {
+        "type": "object",
+        "required": [
+          "render",
+          "document"
+        ],
+        "properties": {
+          "document": {
+            "$ref": "#/components/schemas/EditDocument"
+          },
+          "render": {
+            "$ref": "#/components/schemas/RenderRequest",
+            "description": "Revision is the saved base revision, not an unsaved counter."
+          }
+        },
+        "additionalProperties": false
+      },
+      "EditCommand": {
+        "type": "object",
+        "required": [
+          "expected_revision",
+          "request_id"
+        ],
+        "properties": {
+          "expected_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "request_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "EditDocument": {
+        "type": "object",
+        "required": [
+          "schema_version",
+          "source",
+          "nodes",
+          "output_node",
+          "output",
+          "panel_bindings",
+          "node_positions"
+        ],
+        "properties": {
+          "node_positions": {
+            "type": "object",
+            "description": "View-only data is excluded from the rendering fingerprint.",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "format": "float"
+              }
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "nodes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Node"
+            }
+          },
+          "output": {
+            "$ref": "#/components/schemas/OutputConfig"
+          },
+          "output_node": {
+            "type": "string"
+          },
+          "panel_bindings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PanelBinding"
+            }
+          },
+          "schema_version": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "source": {
+            "$ref": "#/components/schemas/SourceBinding"
+          }
+        },
+        "additionalProperties": false
+      },
+      "EditHistoryEntry": {
+        "type": "object",
+        "required": [
+          "revision",
+          "action",
+          "created_at"
+        ],
+        "properties": {
+          "action": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "EditName": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "EditPreset": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "recipe",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "recipe": {
+            "$ref": "#/components/schemas/EditRecipe"
+          },
+          "updated_at": {
+            "type": "string"
+          }
+        }
+      },
+      "EditRecipe": {
+        "type": "object",
+        "description": "Portable settings only: no photo identifier, filename or source fingerprint.",
+        "required": [
+          "schema_version",
+          "nodes",
+          "output_node",
+          "output",
+          "panel_bindings",
+          "node_positions"
+        ],
+        "properties": {
+          "node_positions": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "format": "float"
+              }
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "nodes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Node"
+            }
+          },
+          "output": {
+            "$ref": "#/components/schemas/OutputConfig"
+          },
+          "output_node": {
+            "type": "string"
+          },
+          "panel_bindings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PanelBinding"
+            }
+          },
+          "raw_white_balance": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "number",
+              "format": "float"
+            }
+          },
+          "schema_version": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "EditRecord": {
+        "type": "object",
+        "required": [
+          "id",
+          "photo_id",
+          "name",
+          "revision",
+          "document",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string"
+          },
+          "document": {
+            "$ref": "#/components/schemas/EditDocument"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "photo_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "updated_at": {
+            "type": "string"
+          }
+        }
+      },
+      "EditResource": {
+        "type": "object",
+        "required": [
+          "hash",
+          "kind",
+          "size_bytes"
+        ],
+        "properties": {
+          "hash": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/EditResourceKind"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "EditResourceKind": {
+        "type": "string",
+        "enum": [
+          "lut",
+          "icc",
+          "lens_profile"
+        ]
+      },
+      "EditRevision": {
+        "type": "object",
+        "required": [
+          "expected_revision"
+        ],
+        "properties": {
+          "expected_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "EditSuccess": {
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          }
+        }
+      },
+      "EditingCapabilities": {
+        "type": "object",
+        "required": [
+          "engine_version",
+          "document_version",
+          "working_space",
+          "working_precision",
+          "compute_backend",
+          "traditional_masks",
+          "manual_lens_corrections",
+          "preview_formats",
+          "resource_kinds",
+          "max_resource_bytes",
+          "render_memory_bytes",
+          "source_cache_bytes",
+          "max_preview_edge",
+          "limitations"
+        ],
+        "properties": {
+          "compute_backend": {
+            "type": "string"
+          },
+          "document_version": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "engine_version": {
+            "type": "string"
+          },
+          "limitations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "manual_lens_corrections": {
+            "type": "boolean"
+          },
+          "max_preview_edge": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "max_resource_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "preview_formats": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "render_memory_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "resource_kinds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "source_cache_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "traditional_masks": {
+            "type": "boolean"
+          },
+          "working_precision": {
+            "type": "string"
+          },
+          "working_space": {
+            "type": "string"
           }
         }
       },
@@ -3343,6 +5662,81 @@
           }
         }
       },
+      "Geometry": {
+        "type": "object",
+        "properties": {
+          "chromatic_aberration": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "float"
+            },
+            "description": "Additional red/blue radial scale relative to green, bounded to +/- 0.1.",
+            "default": [
+              0,
+              0
+            ]
+          },
+          "crop": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "float"
+            },
+            "description": "[left, top, width, height], normalized to the input frame.",
+            "default": [
+              0,
+              0,
+              1,
+              1
+            ]
+          },
+          "perspective": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "float"
+            },
+            "description": "Row-major inverse homography in normalized image coordinates.",
+            "default": [
+              1,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              1
+            ]
+          },
+          "radial": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "float"
+            },
+            "description": "Inverse radial mapping r -> r*(1+k1*r²+k2*r⁴), radius in half short edge.",
+            "default": [
+              0,
+              0
+            ]
+          },
+          "rotation_degrees": {
+            "type": "number",
+            "format": "float",
+            "description": "Clockwise displayed rotation/straightening, degrees.",
+            "default": 0
+          },
+          "vignette_stops": {
+            "type": "number",
+            "format": "float",
+            "description": "Exposure lift at radius 1 in stops (quadratic radial rolloff).",
+            "default": 0
+          }
+        },
+        "additionalProperties": false
+      },
       "GpuAdapter": {
         "type": "object",
         "required": [
@@ -3462,6 +5856,24 @@
           "unavailable",
           "unsupported"
         ]
+      },
+      "Grain": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "number",
+            "format": "float",
+            "description": "Additive uniform noise amplitude in linear units [0,0.25].",
+            "default": 0
+          },
+          "seed": {
+            "type": "integer",
+            "format": "int32",
+            "default": 0,
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
       },
       "GroupAssessment": {
         "type": "object",
@@ -3688,6 +6100,191 @@
           }
         }
       },
+      "Histogram": {
+        "type": "object",
+        "required": [
+          "domain",
+          "lower",
+          "upper",
+          "bins",
+          "below",
+          "above",
+          "visible_pixels"
+        ],
+        "properties": {
+          "above": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            }
+          },
+          "below": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            }
+          },
+          "bins": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "format": "int64",
+                "minimum": 0
+              }
+            },
+            "description": "RGB and luminance, excluding fully transparent pixels."
+          },
+          "domain": {
+            "$ref": "#/components/schemas/ScopeDomain"
+          },
+          "lower": {
+            "type": "number",
+            "format": "float"
+          },
+          "upper": {
+            "type": "number",
+            "format": "float"
+          },
+          "visible_pixels": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "HistogramRequest": {
+        "type": "object",
+        "required": [
+          "render",
+          "domain",
+          "lower",
+          "upper",
+          "bins"
+        ],
+        "properties": {
+          "bins": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "domain": {
+            "$ref": "#/components/schemas/ScopeDomain"
+          },
+          "lower": {
+            "type": "number",
+            "format": "float"
+          },
+          "render": {
+            "$ref": "#/components/schemas/RenderRequest"
+          },
+          "upper": {
+            "type": "number",
+            "format": "float"
+          }
+        },
+        "additionalProperties": false
+      },
+      "HistogramResponse": {
+        "type": "object",
+        "required": [
+          "revision",
+          "sequence",
+          "fingerprint",
+          "approximate",
+          "preview_width",
+          "preview_height",
+          "histogram"
+        ],
+        "properties": {
+          "approximate": {
+            "type": "boolean"
+          },
+          "fingerprint": {
+            "type": "string"
+          },
+          "histogram": {
+            "$ref": "#/components/schemas/Histogram"
+          },
+          "preview_height": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "preview_width": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Full-quality requests measure every output pixel; interactive requests\nmeasure the displayed proxy. These are the actual measured dimensions.",
+            "minimum": 0
+          },
+          "revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "sequence": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "HueBand": {
+        "type": "object",
+        "properties": {
+          "center": {
+            "type": "number",
+            "format": "float",
+            "description": "Centre in degrees [0,360]; wrap-around is supported.",
+            "default": 0
+          },
+          "hue_shift": {
+            "type": "number",
+            "format": "float",
+            "default": 0
+          },
+          "luminance": {
+            "type": "number",
+            "format": "float",
+            "description": "Additive linear luminance change [-1,1], scaled by chroma selection.",
+            "default": 0
+          },
+          "saturation": {
+            "type": "number",
+            "format": "float",
+            "description": "Relative chroma change [-1,1].",
+            "default": 0
+          },
+          "width": {
+            "type": "number",
+            "format": "float",
+            "description": "Half-width in degrees (1..180), triangular selection weight.",
+            "default": 45
+          }
+        },
+        "additionalProperties": false
+      },
+      "ImportRecipe": {
+        "type": "object",
+        "required": [
+          "command",
+          "recipe"
+        ],
+        "properties": {
+          "command": {
+            "$ref": "#/components/schemas/EditCommand"
+          },
+          "recipe": {
+            "$ref": "#/components/schemas/EditRecipe"
+          }
+        },
+        "additionalProperties": false
+      },
       "InstallProgress": {
         "type": "object",
         "required": [
@@ -3813,6 +6410,259 @@
           }
         }
       },
+      "LensCalibrationModel": {
+        "type": "string",
+        "enum": [
+          "iris_inverse_radial_v1"
+        ]
+      },
+      "LensCaptureMetadata": {
+        "type": "object",
+        "required": [
+          "dimensions"
+        ],
+        "properties": {
+          "camera_make": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "camera_model": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "dimensions": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          },
+          "f_number": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "focal_mm": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "lens_model": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "LensCoordinates": {
+        "type": "string",
+        "enum": [
+          "oriented_uncropped_image_edges_half_short_edge_v1"
+        ]
+      },
+      "LensCorrection": {
+        "type": "object",
+        "required": [
+          "radial",
+          "chromatic_aberration",
+          "vignette_stops"
+        ],
+        "properties": {
+          "chromatic_aberration": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "float"
+            },
+            "description": "Additional red/blue scale relative to green, after the radial mapping."
+          },
+          "radial": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "float"
+            },
+            "description": "Inverse r -> r*(1+k1*r^2+k2*r^4), radius in half the short image edge."
+          },
+          "vignette_stops": {
+            "type": "number",
+            "format": "float",
+            "description": "Exposure lift: 2^(stops * min(r^2,1)), evaluated at mapped input position."
+          }
+        },
+        "additionalProperties": false
+      },
+      "LensProfile": {
+        "type": "object",
+        "required": [
+          "schema_version",
+          "name",
+          "model",
+          "coordinates",
+          "camera_make",
+          "camera_model",
+          "lens_model",
+          "calibrated_dimensions",
+          "focal_mm",
+          "f_number",
+          "correction"
+        ],
+        "properties": {
+          "calibrated_dimensions": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            },
+            "description": "Exact developed source extent; transposed dimensions permit EXIF rotation."
+          },
+          "camera_make": {
+            "type": "string"
+          },
+          "camera_model": {
+            "type": "string"
+          },
+          "coordinates": {
+            "$ref": "#/components/schemas/LensCoordinates"
+          },
+          "correction": {
+            "$ref": "#/components/schemas/LensCorrection"
+          },
+          "f_number": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "focal_mm": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "lens_model": {
+            "type": "string"
+          },
+          "model": {
+            "$ref": "#/components/schemas/LensCalibrationModel"
+          },
+          "name": {
+            "type": "string"
+          },
+          "schema_version": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "LensProfileMatch": {
+        "type": "object",
+        "required": [
+          "applicable",
+          "issues"
+        ],
+        "properties": {
+          "applicable": {
+            "type": "boolean"
+          },
+          "correction": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/LensCorrection",
+                "description": "Optical coefficients only: never replace existing geometry wholesale."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "issues": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Stable reason codes; no fuzzy matching or fallback to file names."
+          }
+        }
+      },
+      "LensProfileSuggestion": {
+        "type": "object",
+        "required": [
+          "document_id",
+          "expected_revision",
+          "source_fingerprint",
+          "resource",
+          "capture",
+          "matching",
+          "placement"
+        ],
+        "properties": {
+          "capture": {
+            "$ref": "#/components/schemas/LensCaptureMetadata"
+          },
+          "document_id": {
+            "type": "string"
+          },
+          "expected_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "matching": {
+            "$ref": "#/components/schemas/LensProfileMatch"
+          },
+          "placement": {
+            "type": "string",
+            "description": "Merge optical coefficients into a node using the uncropped source extent.\nThis response never mutates a document or replaces crop/rotation/perspective."
+          },
+          "resource": {
+            "type": "string"
+          },
+          "source_fingerprint": {
+            "type": "string"
+          }
+        }
+      },
+      "LensSuggestionRequest": {
+        "type": "object",
+        "required": [
+          "expected_revision",
+          "resource"
+        ],
+        "properties": {
+          "expected_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "resource": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "LutDomain": {
+        "type": "string",
+        "enum": [
+          "linear_rec2020",
+          "encoded_srgb"
+        ]
+      },
       "ManifestRequest": {
         "type": "object",
         "required": [
@@ -3869,6 +6719,235 @@
         },
         "additionalProperties": false
       },
+      "MaskDefinition": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "strokes",
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "brush"
+                ]
+              },
+              "strokes": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/BrushStroke"
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "start",
+              "end",
+              "kind"
+            ],
+            "properties": {
+              "end": {
+                "type": "array",
+                "items": {
+                  "type": "number",
+                  "format": "float"
+                }
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "linear_gradient"
+                ]
+              },
+              "start": {
+                "type": "array",
+                "items": {
+                  "type": "number",
+                  "format": "float"
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Elliptical falloff: full weight within hardness, zero at radii.",
+            "required": [
+              "center",
+              "radii",
+              "hardness",
+              "kind"
+            ],
+            "properties": {
+              "center": {
+                "type": "array",
+                "items": {
+                  "type": "number",
+                  "format": "float"
+                }
+              },
+              "hardness": {
+                "type": "number",
+                "format": "float"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "radial_gradient"
+                ]
+              },
+              "radii": {
+                "type": "array",
+                "items": {
+                  "type": "number",
+                  "format": "float"
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Linear Rec.2020 luminance; feather is in linear luminance units.",
+            "required": [
+              "low",
+              "high",
+              "feather",
+              "kind"
+            ],
+            "properties": {
+              "feather": {
+                "type": "number",
+                "format": "float"
+              },
+              "high": {
+                "type": "number",
+                "format": "float"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "luminance_range"
+                ]
+              },
+              "low": {
+                "type": "number",
+                "format": "float"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Euclidean distance in linear Rec.2020 RGB, not perceptual Delta E.",
+            "required": [
+              "color",
+              "radius",
+              "feather",
+              "kind"
+            ],
+            "properties": {
+              "color": {
+                "type": "array",
+                "items": {
+                  "type": "number",
+                  "format": "float"
+                }
+              },
+              "feather": {
+                "type": "number",
+                "format": "float"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "color_range"
+                ]
+              },
+              "radius": {
+                "type": "number",
+                "format": "float"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "mask",
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "invert"
+                ]
+              },
+              "mask": {
+                "$ref": "#/components/schemas/MaskDefinition"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "operation",
+              "left",
+              "right",
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "combine"
+                ]
+              },
+              "left": {
+                "$ref": "#/components/schemas/MaskDefinition"
+              },
+              "operation": {
+                "$ref": "#/components/schemas/MaskOperation"
+              },
+              "right": {
+                "$ref": "#/components/schemas/MaskDefinition"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "mask",
+              "opacity",
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "opacity"
+                ]
+              },
+              "mask": {
+                "$ref": "#/components/schemas/MaskDefinition"
+              },
+              "opacity": {
+                "type": "number",
+                "format": "float"
+              }
+            }
+          }
+        ]
+      },
+      "MaskOperation": {
+        "type": "string",
+        "enum": [
+          "add",
+          "subtract",
+          "intersect"
+        ]
+      },
       "ModelAvailability": {
         "type": "string",
         "enum": [
@@ -3918,6 +6997,43 @@
           }
         }
       },
+      "Node": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "version",
+          "enabled",
+          "operation",
+          "inputs"
+        ],
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "inputs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "name": {
+            "type": "string"
+          },
+          "operation": {
+            "$ref": "#/components/schemas/Operation"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
       "OcclusionModelStatus": {
         "type": "object",
         "required": [
@@ -3951,6 +7067,160 @@
         "enum": [
           "none",
           "faceocc"
+        ]
+      },
+      "Operation": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "source"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "parameters",
+              "type"
+            ],
+            "properties": {
+              "parameters": {
+                "$ref": "#/components/schemas/Adjustments"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "adjustments"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "parameters",
+              "type"
+            ],
+            "properties": {
+              "parameters": {
+                "$ref": "#/components/schemas/DetailAdjustments"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "detail"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "parameters",
+              "type"
+            ],
+            "properties": {
+              "parameters": {
+                "$ref": "#/components/schemas/Geometry"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "geometry"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "parameters",
+              "type"
+            ],
+            "properties": {
+              "parameters": {
+                "$ref": "#/components/schemas/MaskDefinition"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "mask"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Inputs: base Image, adjusted Image, Mask. Linear-light interpolation.",
+            "required": [
+              "parameters",
+              "type"
+            ],
+            "properties": {
+              "parameters": {
+                "type": "object",
+                "description": "Inputs: base Image, adjusted Image, Mask. Linear-light interpolation.",
+                "required": [
+                  "opacity"
+                ],
+                "properties": {
+                  "opacity": {
+                    "type": "number",
+                    "format": "float"
+                  }
+                }
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "blend"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "parameters",
+              "type"
+            ],
+            "properties": {
+              "parameters": {
+                "type": "object",
+                "required": [
+                  "resource",
+                  "strength",
+                  "domain"
+                ],
+                "properties": {
+                  "domain": {
+                    "$ref": "#/components/schemas/LutDomain"
+                  },
+                  "resource": {
+                    "type": "string"
+                  },
+                  "strength": {
+                    "type": "number",
+                    "format": "float"
+                  }
+                }
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "lut"
+                ]
+              }
+            }
+          }
         ]
       },
       "OptionalModel": {
@@ -3988,6 +7258,117 @@
             "type": "string"
           }
         }
+      },
+      "OutputConfig": {
+        "type": "object",
+        "properties": {
+          "background": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "float"
+            },
+            "description": "Opaque JPEG background, specified as encoded sRGB values.",
+            "default": [
+              1,
+              1,
+              1
+            ]
+          },
+          "gamut_compression": {
+            "type": "boolean",
+            "description": "Neutral-axis gamut compression in the target's linear RGB primaries.",
+            "default": true
+          },
+          "space": {
+            "$ref": "#/components/schemas/OutputSpace",
+            "default": "srgb"
+          },
+          "tone_map": {
+            "$ref": "#/components/schemas/ToneMap",
+            "default": {
+              "kind": "none"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "OutputFormat": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "quality",
+              "format"
+            ],
+            "properties": {
+              "format": {
+                "type": "string",
+                "enum": [
+                  "jpeg8"
+                ]
+              },
+              "quality": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": 0
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "format"
+            ],
+            "properties": {
+              "format": {
+                "type": "string",
+                "enum": [
+                  "png16"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "format"
+            ],
+            "properties": {
+              "format": {
+                "type": "string",
+                "enum": [
+                  "tiff16"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "OutputSpace": {
+        "type": "string",
+        "enum": [
+          "srgb",
+          "display_p3",
+          "adobe_rgb",
+          "linear_rec2020"
+        ]
+      },
+      "PanelBinding": {
+        "type": "object",
+        "required": [
+          "role",
+          "node_id"
+        ],
+        "properties": {
+          "node_id": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
       },
       "Photo": {
         "type": "object",
@@ -4180,6 +7561,109 @@
           }
         }
       },
+      "PixelRect": {
+        "type": "object",
+        "required": [
+          "x",
+          "y",
+          "width",
+          "height"
+        ],
+        "properties": {
+          "height": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "width": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "x": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "y": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "PrepareWhiteBalanceRequest": {
+        "type": "object",
+        "required": [
+          "expected_revision",
+          "request"
+        ],
+        "properties": {
+          "expected_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "request": {
+            "$ref": "#/components/schemas/RawWhiteBalanceRequest"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PreparedRawWhiteBalance": {
+        "type": "object",
+        "required": [
+          "gains_rgb",
+          "revision",
+          "source_fingerprint",
+          "calibration"
+        ],
+        "properties": {
+          "calibration": {
+            "$ref": "#/components/schemas/RawCalibration"
+          },
+          "gains_rgb": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "float"
+            }
+          },
+          "revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "sampled_pixels": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "source_fingerprint": {
+            "type": "string"
+          }
+        }
+      },
+      "PresetSettings": {
+        "type": "object",
+        "required": [
+          "name",
+          "recipe"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "recipe": {
+            "$ref": "#/components/schemas/EditRecipe"
+          }
+        },
+        "additionalProperties": false
+      },
       "Profile": {
         "type": "object",
         "required": [
@@ -4255,6 +7739,22 @@
           }
         }
       },
+      "ProofRequest": {
+        "type": "object",
+        "required": [
+          "render",
+          "resource"
+        ],
+        "properties": {
+          "render": {
+            "$ref": "#/components/schemas/RenderRequest"
+          },
+          "resource": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "QuarantineItem": {
         "type": "object",
         "required": [
@@ -4316,6 +7816,313 @@
           }
         }
       },
+      "QueueExports": {
+        "type": "object",
+        "required": [
+          "exports"
+        ],
+        "properties": {
+          "exports": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RenderedExportRequest"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "RawCalibration": {
+        "type": "object",
+        "required": [
+          "version",
+          "xyz_to_camera_d65",
+          "camera_to_working",
+          "applied_gains"
+        ],
+        "properties": {
+          "applied_gains": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "float"
+            }
+          },
+          "as_shot_gains": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "number",
+              "format": "float"
+            }
+          },
+          "camera_to_working": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "format": "double"
+              }
+            },
+            "description": "Maps WB-multiplied camera RGB to linear Rec.2020; D65 neutral row normalized."
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "xyz_to_camera_d65": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "format": "double"
+              }
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "RawWhiteBalanceRequest": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "as_shot"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "kelvin",
+              "tint_delta_v",
+              "locus",
+              "kind"
+            ],
+            "properties": {
+              "kelvin": {
+                "type": "number",
+                "format": "double"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "temperature"
+                ]
+              },
+              "locus": {
+                "$ref": "#/components/schemas/WhiteBalanceLocus"
+              },
+              "tint_delta_v": {
+                "type": "number",
+                "format": "double"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Original orientation-normalized RAW pixels, before edit geometry.",
+            "required": [
+              "rect",
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "neutral"
+                ]
+              },
+              "rect": {
+                "$ref": "#/components/schemas/PixelRect"
+              }
+            }
+          }
+        ]
+      },
+      "ReferenceKind": {
+        "type": "string",
+        "enum": [
+          "scene",
+          "display"
+        ]
+      },
+      "RegionRequest": {
+        "type": "object",
+        "description": "Native 1:1 pixels in final edited-image coordinates. The entire graph is\ncurrently evaluated before cropping; max_edge does not resize this region.",
+        "required": [
+          "render",
+          "rect"
+        ],
+        "properties": {
+          "rect": {
+            "$ref": "#/components/schemas/PixelRect"
+          },
+          "render": {
+            "$ref": "#/components/schemas/RenderRequest"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RenderQuality": {
+        "type": "string",
+        "enum": [
+          "interactive",
+          "full"
+        ]
+      },
+      "RenderRequest": {
+        "type": "object",
+        "required": [
+          "revision",
+          "session",
+          "sequence",
+          "quality",
+          "max_edge"
+        ],
+        "properties": {
+          "max_edge": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "quality": {
+            "$ref": "#/components/schemas/RenderQuality"
+          },
+          "revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "sequence": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "session": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RenderedExportRequest": {
+        "type": "object",
+        "required": [
+          "document_id",
+          "expected_revision",
+          "destination_directory",
+          "filename",
+          "format"
+        ],
+        "properties": {
+          "destination_directory": {
+            "type": "string"
+          },
+          "document_id": {
+            "type": "string"
+          },
+          "expected_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "filename": {
+            "type": "string"
+          },
+          "format": {
+            "$ref": "#/components/schemas/OutputFormat"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RenderedExportState": {
+        "type": "string",
+        "enum": [
+          "queued",
+          "running",
+          "publishing",
+          "completed",
+          "failed",
+          "cancelled",
+          "interrupted"
+        ]
+      },
+      "RenderedExportStatus": {
+        "type": "object",
+        "required": [
+          "id",
+          "batch_id",
+          "document_id",
+          "revision",
+          "state",
+          "destination",
+          "format",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "batch_id": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "destination": {
+            "type": "string"
+          },
+          "document_id": {
+            "type": "string"
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "format": {
+            "$ref": "#/components/schemas/OutputFormat"
+          },
+          "id": {
+            "type": "string"
+          },
+          "result_bytes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "minimum": 0
+          },
+          "result_hash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "state": {
+            "$ref": "#/components/schemas/RenderedExportState"
+          },
+          "updated_at": {
+            "type": "string"
+          }
+        }
+      },
       "RetrievalCoverage": {
         "type": "object",
         "required": [
@@ -4373,6 +8180,99 @@
             "type": "string"
           }
         }
+      },
+      "SampleRequest": {
+        "type": "object",
+        "required": [
+          "render",
+          "rect"
+        ],
+        "properties": {
+          "rect": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "float"
+            }
+          },
+          "render": {
+            "$ref": "#/components/schemas/RenderRequest"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SampleResponse": {
+        "type": "object",
+        "required": [
+          "revision",
+          "sequence",
+          "fingerprint",
+          "approximate",
+          "preview_width",
+          "preview_height",
+          "domain",
+          "rgb"
+        ],
+        "properties": {
+          "approximate": {
+            "type": "boolean"
+          },
+          "domain": {
+            "type": "string"
+          },
+          "fingerprint": {
+            "type": "string"
+          },
+          "preview_height": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "preview_width": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "rgb": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "float"
+            }
+          },
+          "sequence": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "SaveEdit": {
+        "type": "object",
+        "required": [
+          "expected_revision",
+          "request_id",
+          "document"
+        ],
+        "properties": {
+          "document": {
+            "$ref": "#/components/schemas/EditDocument"
+          },
+          "expected_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "request_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
       },
       "ScanRequest": {
         "type": "object",
@@ -4437,6 +8337,13 @@
             "type": "string"
           }
         }
+      },
+      "ScopeDomain": {
+        "type": "string",
+        "enum": [
+          "linear_rec2020",
+          "encoded_srgb"
+        ]
       },
       "ScoreBreakdown": {
         "type": "object",
@@ -4725,6 +8632,49 @@
           }
         }
       },
+      "SourceBinding": {
+        "type": "object",
+        "required": [
+          "photo_id",
+          "fingerprint",
+          "width",
+          "height",
+          "reference_kind"
+        ],
+        "properties": {
+          "fingerprint": {
+            "type": "string"
+          },
+          "height": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "photo_id": {
+            "type": "string"
+          },
+          "raw_white_balance": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "number",
+              "format": "float"
+            },
+            "description": "None means camera as-shot WB. Explicit gains are sensor RGB, not Kelvin."
+          },
+          "reference_kind": {
+            "$ref": "#/components/schemas/ReferenceKind"
+          },
+          "width": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
       "SourceRequest": {
         "type": "object",
         "required": [
@@ -4736,6 +8686,72 @@
           }
         }
       },
+      "ToneCurve": {
+        "type": "object",
+        "properties": {
+          "darks": {
+            "type": "number",
+            "format": "float",
+            "default": 0
+          },
+          "highlights": {
+            "type": "number",
+            "format": "float",
+            "default": 0
+          },
+          "lights": {
+            "type": "number",
+            "format": "float",
+            "default": 0
+          },
+          "shadows": {
+            "type": "number",
+            "format": "float",
+            "description": "Log2 gains in four overlapping bands centred at Y=0, 1/3, 2/3, 1.",
+            "default": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "ToneMap": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "Appropriate for already-rendered inputs and intentionally clipped output.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "none"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Identity up to knee, then exponential shoulder approaching display white.",
+            "required": [
+              "knee",
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "shoulder"
+                ]
+              },
+              "knee": {
+                "type": "number",
+                "format": "float"
+              }
+            }
+          }
+        ]
+      },
       "Verdict": {
         "type": "string",
         "enum": [
@@ -4743,6 +8759,30 @@
           "review",
           "reject_suggest"
         ]
+      },
+      "Vignette": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "number",
+            "format": "float",
+            "description": "Edge exposure in stops [-4,4].",
+            "default": 0
+          },
+          "feather": {
+            "type": "number",
+            "format": "float",
+            "description": "Falloff exponent [0.1,4].",
+            "default": 1
+          },
+          "midpoint": {
+            "type": "number",
+            "format": "float",
+            "description": "Fraction of centre-to-corner radius at which falloff begins [0,0.99].",
+            "default": 0.3499999940395355
+          }
+        },
+        "additionalProperties": false
       },
       "VisionAnalysis": {
         "type": "object",
@@ -4886,6 +8926,13 @@
             "minimum": 0
           }
         }
+      },
+      "WhiteBalanceLocus": {
+        "type": "string",
+        "enum": [
+          "daylight",
+          "planckian"
+        ]
       }
     },
     "securitySchemes": {

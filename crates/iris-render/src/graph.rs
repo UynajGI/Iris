@@ -15,6 +15,8 @@ use utoipa::ToSchema;
 #[derive(Default)]
 pub struct Executor {
     #[cfg(feature = "gpu")]
+    cpu_only: bool,
+    #[cfg(feature = "gpu")]
     gpu: std::sync::OnceLock<std::result::Result<crate::gpu::GpuRenderer, String>>,
 }
 
@@ -28,6 +30,13 @@ pub struct ExecutionTrace {
 }
 
 impl Executor {
+    pub fn cpu_only() -> Self {
+        Self {
+            #[cfg(feature = "gpu")]
+            cpu_only: true,
+            ..Self::default()
+        }
+    }
     fn adjustments(
         &self,
         input: &Frame,
@@ -37,7 +46,8 @@ impl Executor {
     ) -> Result<Frame> {
         context.check_cancelled()?;
         #[cfg(feature = "gpu")]
-        if params.exposure != 0.0
+        if !self.cpu_only
+            && params.exposure != 0.0
             && input.pixels.len() >= 65536
             && crate::gpu::GpuRenderer::supports(params)
         {

@@ -127,6 +127,12 @@ pub struct RenderEngine {
     executor: crate::graph::Executor,
 }
 impl RenderEngine {
+    /// Explicit CPU baseline; the default constructor still permits GPU execution.
+    pub fn new_cpu(memory_limit: u64, source_cache_limit: u64) -> Result<Self> {
+        let mut engine = Self::new(memory_limit, source_cache_limit)?;
+        engine.executor = crate::graph::Executor::cpu_only();
+        Ok(engine)
+    }
     pub fn new(memory_limit: u64, source_cache_limit: u64) -> Result<Self> {
         ensure!(
             (64 * 1024 * 1024..=64 * 1024 * 1024 * 1024).contains(&memory_limit),

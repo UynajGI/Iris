@@ -1,5 +1,5 @@
 // Generated from iris-daemon OpenAPI. Do not edit.
-// Contract SHA-256: 97b0c5f83e124c6efaeeaf05a0f4d876020da0bcf421ef50192958c51a97d1d1
+// Contract SHA-256: 30bb6cf620f62ff0c7ba1b2b2df14129690ba2a3c60c59966283c11d9f215057
 export interface paths {
     "/api/v1/bootstrap": {
         parameters: {
@@ -27,6 +27,374 @@ export interface paths {
         get: operations["gpu_devices"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/edit-presets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["editing_list_presets"];
+        put?: never;
+        post: operations["editing_create_preset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/edit-presets/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["editing_get_preset"];
+        put: operations["editing_update_preset"];
+        post?: never;
+        delete: operations["editing_delete_preset"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/edit-render/{session}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * End a session and release its sequence watermark. Reopening clients should
+         *     use a new identifier so abandoned requests cannot collide with new work.
+         */
+        delete: operations["editing_preview_close"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/edit-render/{session}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["editing_preview_cancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/edit-resources/import/{kind}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["editing_import_resource"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/edit-resources/{hash}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["editing_resource_bytes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/editing/capabilities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["editing_capabilities"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/edits/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["editing_get_edit"];
+        put: operations["editing_save_edit"];
+        post?: never;
+        delete: operations["editing_delete_edit"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/edits/{id}/batch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["editing_batch_settings"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/edits/{id}/duplicate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["editing_duplicate_edit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/edits/{id}/histogram": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["editing_preview_histogram"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/edits/{id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["editing_edit_history"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/edits/{id}/lens-profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preparation never writes an edit. The caller saves chosen parameters using
+         *     the existing expected-revision edit command after reviewing this response.
+         */
+        post: operations["editing_calibration_lens_profile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/edits/{id}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["editing_preview_preview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/edits/{id}/preview-draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Transient slider feedback: validates source binding and resources but writes
+         *     no history. Persist the chosen document separately through SaveEdit.
+         */
+        post: operations["editing_preview_draft_preview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/edits/{id}/proof": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["editing_preview_proof"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/edits/{id}/raw-white-balance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * RAW sensor gains, not a rendered RGB filter. Neutral sampling uses the
+         *     oriented/cropped decoded source coordinates before any edit geometry.
+         */
+        post: operations["editing_calibration_raw_white_balance"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/edits/{id}/recipe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["editing_export_recipe"];
+        put: operations["editing_import_recipe"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/edits/{id}/redo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["editing_redo_edit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/edits/{id}/region": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["editing_preview_region"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/edits/{id}/sample": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["editing_preview_sample"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/edits/{id}/undo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["editing_undo_edit"];
         delete?: never;
         options?: never;
         head?: never;
@@ -123,6 +491,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["detail"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/photos/{id}/edits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["editing_list_edits"];
+        put?: never;
+        post: operations["editing_create_edit"];
         delete?: never;
         options?: never;
         head?: never;
@@ -833,6 +1217,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/rendered-exports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["editing_exports_list"];
+        put?: never;
+        post: operations["editing_exports_queue"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rendered-exports/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["editing_exports_status"];
+        put?: never;
+        post?: never;
+        delete: operations["editing_exports_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rendered-exports/{id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["editing_exports_cancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rendered-exports/{id}/recover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["editing_exports_recover"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rendered-exports/{id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["editing_exports_retry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/settings": {
         parameters: {
             query?: never;
@@ -866,6 +1330,147 @@ export interface components {
         };
         /** @enum {string} */
         Action: "keep" | "reject" | "pending" | "flag";
+        Adjustments: {
+            /**
+             * @default {
+             *       "enabled": false,
+             *       "mix": [
+             *         0.26269999146461487,
+             *         0.6779999732971191,
+             *         0.059300001710653305
+             *       ]
+             *     }
+             */
+            black_and_white: components["schemas"]["BlackAndWhite"];
+            /**
+             * Format: float
+             * @default 0
+             */
+            blacks: number;
+            /**
+             * @default {
+             *       "points": []
+             *     }
+             */
+            blue_curve: components["schemas"]["Curve"];
+            /**
+             * @default {
+             *       "highlights": [
+             *         0,
+             *         0,
+             *         0
+             *       ],
+             *       "midtones": [
+             *         0,
+             *         0,
+             *         0
+             *       ],
+             *       "shadows": [
+             *         0,
+             *         0,
+             *         0
+             *       ]
+             *     }
+             */
+            color_balance: components["schemas"]["ColorBalance"];
+            /**
+             * Format: float
+             * @description Contrast exponent multiplier 2^contrast around pivot; signed power keeps negatives.
+             * @default 0
+             */
+            contrast: number;
+            /**
+             * Format: float
+             * @default 0.18000000715255737
+             */
+            contrast_pivot: number;
+            /**
+             * Format: float
+             * @default 0
+             */
+            exposure: number;
+            /**
+             * @default {
+             *       "amount": 0,
+             *       "seed": 0
+             *     }
+             */
+            grain: components["schemas"]["Grain"];
+            /**
+             * @default {
+             *       "points": []
+             *     }
+             */
+            green_curve: components["schemas"]["Curve"];
+            /**
+             * Format: float
+             * @description Smooth masked log2 gains [-2,2], with separate broad/endpoint masks.
+             * @default 0
+             */
+            highlights: number;
+            /** @default [] */
+            hsl: components["schemas"]["HueBand"][];
+            /**
+             * @default {
+             *       "points": []
+             *     }
+             */
+            master_curve: components["schemas"]["Curve"];
+            /**
+             * @default {
+             *       "points": []
+             *     }
+             */
+            red_curve: components["schemas"]["Curve"];
+            /**
+             * Format: float
+             * @default 0
+             */
+            saturation: number;
+            /**
+             * Format: float
+             * @default 0
+             */
+            shadows: number;
+            /**
+             * Format: float
+             * @description Creative RGB gains in stops [-1,1]; not Kelvin or RAW illuminant correction.
+             * @default 0
+             */
+            temperature: number;
+            /**
+             * Format: float
+             * @default 0
+             */
+            tint: number;
+            /**
+             * @default {
+             *       "darks": 0,
+             *       "highlights": 0,
+             *       "lights": 0,
+             *       "shadows": 0
+             *     }
+             */
+            tone_curve: components["schemas"]["ToneCurve"];
+            /**
+             * Format: float
+             * @default 0
+             */
+            vibrance: number;
+            /**
+             * @default {
+             *       "amount": 0,
+             *       "feather": 1,
+             *       "midpoint": 0.3499999940395355
+             *     }
+             */
+            vignette: components["schemas"]["Vignette"];
+            /**
+             * Format: float
+             * @default 0
+             */
+            whites: number;
+        };
         AnalysisSettings: {
             /**
              * Format: int32
@@ -952,6 +1557,29 @@ export interface components {
             /** @default false */
             retry_failed_only: boolean;
         };
+        BatchEditTarget: {
+            /** Format: int64 */
+            expected_revision: number;
+            id: string;
+        };
+        BatchSettings: {
+            include_masks?: boolean;
+            request_id: string;
+            targets: components["schemas"]["BatchEditTarget"][];
+        };
+        BlackAndWhite: {
+            /** @default false */
+            enabled: boolean;
+            /**
+             * @description Linear RGB mix; coefficients in [-2,2], sum must be one.
+             * @default [
+             *       0.26269999146461487,
+             *       0.6779999732971191,
+             *       0.059300001710653305
+             *     ]
+             */
+            mix: number[];
+        };
         Bootstrap: {
             capabilities: string[];
             recovery_notice?: string | null;
@@ -978,6 +1606,16 @@ export interface components {
              * @default 0
              */
             revision: number;
+        };
+        BrushStroke: {
+            /** Format: float */
+            flow: number;
+            /** Format: float */
+            hardness: number;
+            /** @description Polyline in normalized image coordinates, connected by continuous capsules. */
+            points: number[][];
+            /** Format: float */
+            radius: number;
         };
         BurstGroup: {
             assessment?: components["schemas"]["GroupAssessment"] | null;
@@ -1010,6 +1648,37 @@ export interface components {
             bytes: number;
             files: number;
             root: string;
+        };
+        CancelRequest: {
+            /** Format: int64 */
+            sequence: number;
+        };
+        ColorBalance: {
+            /**
+             * @default [
+             *       0,
+             *       0,
+             *       0
+             *     ]
+             */
+            highlights: number[];
+            /**
+             * @default [
+             *       0,
+             *       0,
+             *       0
+             *     ]
+             */
+            midtones: number[];
+            /**
+             * @description Per-channel log2 gains [-2,2], smoothly blended by linear Y.
+             * @default [
+             *       0,
+             *       0,
+             *       0
+             *     ]
+             */
+            shadows: number[];
         };
         /** @enum {string} */
         ColorLabel: "none" | "red" | "yellow" | "green" | "blue" | "purple";
@@ -1050,6 +1719,26 @@ export interface components {
             auto_device?: boolean;
             root: string;
         };
+        Curve: {
+            /**
+             * @description Empty means identity. Otherwise 2..=64 points, strictly increasing x,
+             *     nondecreasing y, all coordinates in [0,1]. Endpoints must have x=0 and x=1.
+             * @default []
+             */
+            points: components["schemas"]["CurvePoint"][];
+        };
+        CurvePoint: {
+            /**
+             * Format: float
+             * @default 0
+             */
+            x: number;
+            /**
+             * Format: float
+             * @default 0
+             */
+            y: number;
+        };
         DecisionBatch: {
             changed: number;
             conflicts: number[];
@@ -1062,6 +1751,59 @@ export interface components {
         };
         DestinationRequest: {
             destination: string;
+        };
+        DetailAdjustments: {
+            /**
+             * Format: float
+             * @description Scalar atmospheric light in linear RGB [0.01,16].
+             * @default 1
+             */
+            atmospheric_light: number;
+            /**
+             * Format: float
+             * @default 0
+             */
+            chroma_denoise: number;
+            /**
+             * Format: float
+             * @default 0
+             */
+            clarity: number;
+            /**
+             * Format: float
+             * @description [-1,1]: negative adds veiling light; positive removes it.
+             * @default 0
+             */
+            dehaze: number;
+            /**
+             * Format: float
+             * @description Range sigma in linear-light units [0.001,1].
+             * @default 0.03999999910593033
+             */
+            denoise_sigma: number;
+            /**
+             * Format: float
+             * @description Blend with a joint bilateral estimate [0,1].
+             * @default 0
+             */
+            luminance_denoise: number;
+            /**
+             * Format: float
+             * @description Luminance unsharp gain [0,3].
+             * @default 0
+             */
+            sharpening: number;
+            /**
+             * Format: float
+             * @description Suppress differences smaller than this linear-light value [0,0.25].
+             * @default 0
+             */
+            sharpening_threshold: number;
+            /**
+             * Format: float
+             * @default 0
+             */
+            texture: number;
         };
         DetailEvidence: {
             /** Format: int32 */
@@ -1107,6 +1849,105 @@ export interface components {
             /** @description Actual SHA-256 of bytes read; null when no model bytes could be inspected. */
             sha256?: string | null;
             state: components["schemas"]["ModelAvailability"];
+        };
+        DraftPreviewRequest: {
+            document: components["schemas"]["EditDocument"];
+            /** @description Revision is the saved base revision, not an unsaved counter. */
+            render: components["schemas"]["RenderRequest"];
+        };
+        EditCommand: {
+            /** Format: int64 */
+            expected_revision: number;
+            request_id: string;
+        };
+        EditDocument: {
+            /** @description View-only data is excluded from the rendering fingerprint. */
+            node_positions: {
+                [key: string]: number[];
+            };
+            nodes: components["schemas"]["Node"][];
+            output: components["schemas"]["OutputConfig"];
+            output_node: string;
+            panel_bindings: components["schemas"]["PanelBinding"][];
+            /** Format: int32 */
+            schema_version: number;
+            source: components["schemas"]["SourceBinding"];
+        };
+        EditHistoryEntry: {
+            action: string;
+            created_at: string;
+            /** Format: int64 */
+            revision: number;
+        };
+        EditName: {
+            name: string;
+        };
+        EditPreset: {
+            created_at: string;
+            id: string;
+            name: string;
+            recipe: components["schemas"]["EditRecipe"];
+            updated_at: string;
+        };
+        /** @description Portable settings only: no photo identifier, filename or source fingerprint. */
+        EditRecipe: {
+            node_positions: {
+                [key: string]: number[];
+            };
+            nodes: components["schemas"]["Node"][];
+            output: components["schemas"]["OutputConfig"];
+            output_node: string;
+            panel_bindings: components["schemas"]["PanelBinding"][];
+            raw_white_balance?: number[] | null;
+            /** Format: int32 */
+            schema_version: number;
+        };
+        EditRecord: {
+            created_at: string;
+            document: components["schemas"]["EditDocument"];
+            id: string;
+            name: string;
+            /** Format: int64 */
+            photo_id: number;
+            /** Format: int64 */
+            revision: number;
+            updated_at: string;
+        };
+        EditResource: {
+            hash: string;
+            kind: components["schemas"]["EditResourceKind"];
+            /** Format: int64 */
+            size_bytes: number;
+        };
+        /** @enum {string} */
+        EditResourceKind: "lut" | "icc" | "lens_profile";
+        EditRevision: {
+            /** Format: int64 */
+            expected_revision: number;
+        };
+        EditSuccess: {
+            ok: boolean;
+        };
+        EditingCapabilities: {
+            compute_backend: string;
+            /** Format: int32 */
+            document_version: number;
+            engine_version: string;
+            limitations: string[];
+            manual_lens_corrections: boolean;
+            /** Format: int32 */
+            max_preview_edge: number;
+            /** Format: int64 */
+            max_resource_bytes: number;
+            preview_formats: string[];
+            /** Format: int64 */
+            render_memory_bytes: number;
+            resource_kinds: string[];
+            /** Format: int64 */
+            source_cache_bytes: number;
+            traditional_masks: boolean;
+            working_precision: string;
+            working_space: string;
         };
         EmbeddingModelStatus: {
             dimensions: number;
@@ -1222,6 +2063,61 @@ export interface components {
             /** Format: double */
             sharpness_score: number;
         };
+        Geometry: {
+            /**
+             * @description Additional red/blue radial scale relative to green, bounded to +/- 0.1.
+             * @default [
+             *       0,
+             *       0
+             *     ]
+             */
+            chromatic_aberration: number[];
+            /**
+             * @description [left, top, width, height], normalized to the input frame.
+             * @default [
+             *       0,
+             *       0,
+             *       1,
+             *       1
+             *     ]
+             */
+            crop: number[];
+            /**
+             * @description Row-major inverse homography in normalized image coordinates.
+             * @default [
+             *       1,
+             *       0,
+             *       0,
+             *       0,
+             *       1,
+             *       0,
+             *       0,
+             *       0,
+             *       1
+             *     ]
+             */
+            perspective: number[];
+            /**
+             * @description Inverse radial mapping r -> r*(1+k1*r²+k2*r⁴), radius in half short edge.
+             * @default [
+             *       0,
+             *       0
+             *     ]
+             */
+            radial: number[];
+            /**
+             * Format: float
+             * @description Clockwise displayed rotation/straightening, degrees.
+             * @default 0
+             */
+            rotation_degrees: number;
+            /**
+             * Format: float
+             * @description Exposure lift at radius 1 in stops (quadratic radial rolloff).
+             * @default 0
+             */
+            vignette_stops: number;
+        };
         GpuAdapter: {
             /** Format: int64 */
             dedicated_system_memory_bytes: number;
@@ -1265,6 +2161,19 @@ export interface components {
         };
         /** @enum {string} */
         GpuEnumerationStatus: "available" | "unavailable" | "unsupported";
+        Grain: {
+            /**
+             * Format: float
+             * @description Additive uniform noise amplitude in linear units [0,0.25].
+             * @default 0
+             */
+            amount: number;
+            /**
+             * Format: int32
+             * @default 0
+             */
+            seed: number;
+        };
         GroupAssessment: {
             candidate_photo_ids: number[];
             /** Format: double */
@@ -1324,6 +2233,81 @@ export interface components {
             /** Format: float */
             yaw: number;
         };
+        Histogram: {
+            above: number[];
+            below: number[];
+            /** @description RGB and luminance, excluding fully transparent pixels. */
+            bins: number[][];
+            domain: components["schemas"]["ScopeDomain"];
+            /** Format: float */
+            lower: number;
+            /** Format: float */
+            upper: number;
+            /** Format: int64 */
+            visible_pixels: number;
+        };
+        HistogramRequest: {
+            /** Format: int32 */
+            bins: number;
+            domain: components["schemas"]["ScopeDomain"];
+            /** Format: float */
+            lower: number;
+            render: components["schemas"]["RenderRequest"];
+            /** Format: float */
+            upper: number;
+        };
+        HistogramResponse: {
+            approximate: boolean;
+            fingerprint: string;
+            histogram: components["schemas"]["Histogram"];
+            /** Format: int32 */
+            preview_height: number;
+            /**
+             * Format: int32
+             * @description Full-quality requests measure every output pixel; interactive requests
+             *     measure the displayed proxy. These are the actual measured dimensions.
+             */
+            preview_width: number;
+            /** Format: int64 */
+            revision: number;
+            /** Format: int64 */
+            sequence: number;
+        };
+        HueBand: {
+            /**
+             * Format: float
+             * @description Centre in degrees [0,360]; wrap-around is supported.
+             * @default 0
+             */
+            center: number;
+            /**
+             * Format: float
+             * @default 0
+             */
+            hue_shift: number;
+            /**
+             * Format: float
+             * @description Additive linear luminance change [-1,1], scaled by chroma selection.
+             * @default 0
+             */
+            luminance: number;
+            /**
+             * Format: float
+             * @description Relative chroma change [-1,1].
+             * @default 0
+             */
+            saturation: number;
+            /**
+             * Format: float
+             * @description Half-width in degrees (1..180), triangular selection weight.
+             * @default 45
+             */
+            width: number;
+        };
+        ImportRecipe: {
+            command: components["schemas"]["EditCommand"];
+            recipe: components["schemas"]["EditRecipe"];
+        };
         InstallProgress: {
             completed_bytes: number;
             error?: string | null;
@@ -1354,6 +2338,73 @@ export interface components {
             state: string;
             total: number;
         };
+        /** @enum {string} */
+        LensCalibrationModel: "iris_inverse_radial_v1";
+        LensCaptureMetadata: {
+            camera_make?: string | null;
+            camera_model?: string | null;
+            dimensions: number[];
+            /** Format: double */
+            f_number?: number | null;
+            /** Format: double */
+            focal_mm?: number | null;
+            lens_model?: string | null;
+        };
+        /** @enum {string} */
+        LensCoordinates: "oriented_uncropped_image_edges_half_short_edge_v1";
+        LensCorrection: {
+            /** @description Additional red/blue scale relative to green, after the radial mapping. */
+            chromatic_aberration: number[];
+            /** @description Inverse r -> r*(1+k1*r^2+k2*r^4), radius in half the short image edge. */
+            radial: number[];
+            /**
+             * Format: float
+             * @description Exposure lift: 2^(stops * min(r^2,1)), evaluated at mapped input position.
+             */
+            vignette_stops: number;
+        };
+        LensProfile: {
+            /** @description Exact developed source extent; transposed dimensions permit EXIF rotation. */
+            calibrated_dimensions: number[];
+            camera_make: string;
+            camera_model: string;
+            coordinates: components["schemas"]["LensCoordinates"];
+            correction: components["schemas"]["LensCorrection"];
+            f_number: number[];
+            focal_mm: number[];
+            lens_model: string;
+            model: components["schemas"]["LensCalibrationModel"];
+            name: string;
+            /** Format: int32 */
+            schema_version: number;
+        };
+        LensProfileMatch: {
+            applicable: boolean;
+            correction?: components["schemas"]["LensCorrection"] | null;
+            /** @description Stable reason codes; no fuzzy matching or fallback to file names. */
+            issues: string[];
+        };
+        LensProfileSuggestion: {
+            capture: components["schemas"]["LensCaptureMetadata"];
+            document_id: string;
+            /** Format: int64 */
+            expected_revision: number;
+            matching: components["schemas"]["LensProfileMatch"];
+            /**
+             * @description Merge optical coefficients into a node using the uncropped source extent.
+             *     This response never mutates a document or replaces crop/rotation/perspective.
+             */
+            placement: string;
+            resource: string;
+            source_fingerprint: string;
+        };
+        LensSuggestionRequest: {
+            /** Format: int64 */
+            expected_revision: number;
+            resource: string;
+        };
+        /** @enum {string} */
+        LutDomain: "linear_rec2020" | "encoded_srgb";
         ManifestRequest: {
             manifest_id: string;
         };
@@ -1364,6 +2415,58 @@ export interface components {
             /** Format: int32 */
             rating?: number | null;
         };
+        MaskDefinition: {
+            /** @enum {string} */
+            kind: "brush";
+            strokes: components["schemas"]["BrushStroke"][];
+        } | {
+            end: number[];
+            /** @enum {string} */
+            kind: "linear_gradient";
+            start: number[];
+        } | {
+            center: number[];
+            /** Format: float */
+            hardness: number;
+            /** @enum {string} */
+            kind: "radial_gradient";
+            radii: number[];
+        } | {
+            /** Format: float */
+            feather: number;
+            /** Format: float */
+            high: number;
+            /** @enum {string} */
+            kind: "luminance_range";
+            /** Format: float */
+            low: number;
+        } | {
+            color: number[];
+            /** Format: float */
+            feather: number;
+            /** @enum {string} */
+            kind: "color_range";
+            /** Format: float */
+            radius: number;
+        } | {
+            /** @enum {string} */
+            kind: "invert";
+            mask: components["schemas"]["MaskDefinition"];
+        } | {
+            /** @enum {string} */
+            kind: "combine";
+            left: components["schemas"]["MaskDefinition"];
+            operation: components["schemas"]["MaskOperation"];
+            right: components["schemas"]["MaskDefinition"];
+        } | {
+            /** @enum {string} */
+            kind: "opacity";
+            mask: components["schemas"]["MaskDefinition"];
+            /** Format: float */
+            opacity: number;
+        };
+        /** @enum {string} */
+        MaskOperation: "add" | "subtract" | "intersect";
         /** @enum {string} */
         ModelAvailability: "disabled" | "available" | "missing" | "invalid";
         ModelStatusResponse: {
@@ -1374,6 +2477,15 @@ export interface components {
             occlusion_selected: components["schemas"]["OcclusionProvider"];
             selected: components["schemas"]["FaceDetectorProvider"];
         };
+        Node: {
+            enabled: boolean;
+            id: string;
+            inputs: string[];
+            name: string;
+            operation: components["schemas"]["Operation"];
+            /** Format: int32 */
+            version: number;
+        };
         OcclusionModelStatus: {
             provider: components["schemas"]["OcclusionProvider"];
             reason?: string | null;
@@ -1383,6 +2495,43 @@ export interface components {
         };
         /** @enum {string} */
         OcclusionProvider: "none" | "faceocc";
+        Operation: {
+            /** @enum {string} */
+            type: "source";
+        } | {
+            parameters: components["schemas"]["Adjustments"];
+            /** @enum {string} */
+            type: "adjustments";
+        } | {
+            parameters: components["schemas"]["DetailAdjustments"];
+            /** @enum {string} */
+            type: "detail";
+        } | {
+            parameters: components["schemas"]["Geometry"];
+            /** @enum {string} */
+            type: "geometry";
+        } | {
+            parameters: components["schemas"]["MaskDefinition"];
+            /** @enum {string} */
+            type: "mask";
+        } | {
+            /** @description Inputs: base Image, adjusted Image, Mask. Linear-light interpolation. */
+            parameters: {
+                /** Format: float */
+                opacity: number;
+            };
+            /** @enum {string} */
+            type: "blend";
+        } | {
+            parameters: {
+                domain: components["schemas"]["LutDomain"];
+                resource: string;
+                /** Format: float */
+                strength: number;
+            };
+            /** @enum {string} */
+            type: "lut";
+        };
         OptionalModel: {
             bytes: number;
             id: string;
@@ -1391,6 +2540,48 @@ export interface components {
             sha256: string;
             state: string;
             title: string;
+        };
+        OutputConfig: {
+            /**
+             * @description Opaque JPEG background, specified as encoded sRGB values.
+             * @default [
+             *       1,
+             *       1,
+             *       1
+             *     ]
+             */
+            background: number[];
+            /**
+             * @description Neutral-axis gamut compression in the target's linear RGB primaries.
+             * @default true
+             */
+            gamut_compression: boolean;
+            /** @default srgb */
+            space: components["schemas"]["OutputSpace"];
+            /**
+             * @default {
+             *       "kind": "none"
+             *     }
+             */
+            tone_map: components["schemas"]["ToneMap"];
+        };
+        OutputFormat: {
+            /** @enum {string} */
+            format: "jpeg8";
+            /** Format: int32 */
+            quality: number;
+        } | {
+            /** @enum {string} */
+            format: "png16";
+        } | {
+            /** @enum {string} */
+            format: "tiff16";
+        };
+        /** @enum {string} */
+        OutputSpace: "srgb" | "display_p3" | "adobe_rgb" | "linear_rec2020";
+        PanelBinding: {
+            node_id: string;
+            role: string;
         };
         Photo: {
             analysis?: components["schemas"]["VisionAnalysis"] | null;
@@ -1440,6 +2631,34 @@ export interface components {
             sort?: string | null;
             verdict?: string | null;
         };
+        PixelRect: {
+            /** Format: int32 */
+            height: number;
+            /** Format: int32 */
+            width: number;
+            /** Format: int32 */
+            x: number;
+            /** Format: int32 */
+            y: number;
+        };
+        PrepareWhiteBalanceRequest: {
+            /** Format: int64 */
+            expected_revision: number;
+            request: components["schemas"]["RawWhiteBalanceRequest"];
+        };
+        PreparedRawWhiteBalance: {
+            calibration: components["schemas"]["RawCalibration"];
+            gains_rgb: number[];
+            /** Format: int64 */
+            revision: number;
+            /** Format: int32 */
+            sampled_pixels?: number | null;
+            source_fingerprint: string;
+        };
+        PresetSettings: {
+            name: string;
+            recipe: components["schemas"]["EditRecipe"];
+        };
         Profile: {
             name: string;
             settings: components["schemas"]["AnalysisSettings"];
@@ -1465,6 +2684,10 @@ export interface components {
             /** Format: int64 */
             project_id: number;
         };
+        ProofRequest: {
+            render: components["schemas"]["RenderRequest"];
+            resource: string;
+        };
         QuarantineItem: {
             destination: string;
             /** Format: int64 */
@@ -1482,6 +2705,82 @@ export interface components {
             project_id: number;
             state: string;
         };
+        QueueExports: {
+            exports: components["schemas"]["RenderedExportRequest"][];
+        };
+        RawCalibration: {
+            applied_gains: number[];
+            as_shot_gains?: number[] | null;
+            /** @description Maps WB-multiplied camera RGB to linear Rec.2020; D65 neutral row normalized. */
+            camera_to_working: number[][];
+            /** Format: int32 */
+            version: number;
+            xyz_to_camera_d65: number[][];
+        };
+        RawWhiteBalanceRequest: {
+            /** @enum {string} */
+            kind: "as_shot";
+        } | {
+            /** Format: double */
+            kelvin: number;
+            /** @enum {string} */
+            kind: "temperature";
+            locus: components["schemas"]["WhiteBalanceLocus"];
+            /** Format: double */
+            tint_delta_v: number;
+        } | {
+            /** @enum {string} */
+            kind: "neutral";
+            rect: components["schemas"]["PixelRect"];
+        };
+        /** @enum {string} */
+        ReferenceKind: "scene" | "display";
+        /**
+         * @description Native 1:1 pixels in final edited-image coordinates. The entire graph is
+         *     currently evaluated before cropping; max_edge does not resize this region.
+         */
+        RegionRequest: {
+            rect: components["schemas"]["PixelRect"];
+            render: components["schemas"]["RenderRequest"];
+        };
+        /** @enum {string} */
+        RenderQuality: "interactive" | "full";
+        RenderRequest: {
+            /** Format: int32 */
+            max_edge: number;
+            quality: components["schemas"]["RenderQuality"];
+            /** Format: int64 */
+            revision: number;
+            /** Format: int64 */
+            sequence: number;
+            session: string;
+        };
+        RenderedExportRequest: {
+            destination_directory: string;
+            document_id: string;
+            /** Format: int64 */
+            expected_revision: number;
+            filename: string;
+            format: components["schemas"]["OutputFormat"];
+        };
+        /** @enum {string} */
+        RenderedExportState: "queued" | "running" | "publishing" | "completed" | "failed" | "cancelled" | "interrupted";
+        RenderedExportStatus: {
+            batch_id: string;
+            created_at: string;
+            destination: string;
+            document_id: string;
+            error?: string | null;
+            format: components["schemas"]["OutputFormat"];
+            id: string;
+            /** Format: int64 */
+            result_bytes?: number | null;
+            result_hash?: string | null;
+            /** Format: int64 */
+            revision: number;
+            state: components["schemas"]["RenderedExportState"];
+            updated_at: string;
+        };
         RetrievalCoverage: {
             indexed: number;
             pending: number;
@@ -1493,6 +2792,30 @@ export interface components {
             reason?: string | null;
             space_key?: string | null;
             state: string;
+        };
+        SampleRequest: {
+            rect: number[];
+            render: components["schemas"]["RenderRequest"];
+        };
+        SampleResponse: {
+            approximate: boolean;
+            domain: string;
+            fingerprint: string;
+            /** Format: int32 */
+            preview_height: number;
+            /** Format: int32 */
+            preview_width: number;
+            /** Format: int64 */
+            revision: number;
+            rgb: number[];
+            /** Format: int64 */
+            sequence: number;
+        };
+        SaveEdit: {
+            document: components["schemas"]["EditDocument"];
+            /** Format: int64 */
+            expected_revision: number;
+            request_id: string;
         };
         ScanRequest: {
             /** @default false */
@@ -1510,6 +2833,8 @@ export interface components {
             member_photo_ids: number[];
             reason: string;
         };
+        /** @enum {string} */
+        ScopeDomain: "linear_rec2020" | "encoded_srgb";
         ScoreBreakdown: {
             components: components["schemas"]["ScoreComponent"][];
             /** Format: double */
@@ -1592,11 +2917,74 @@ export interface components {
             preprocessing: string;
             vector: number[];
         };
+        SourceBinding: {
+            fingerprint: string;
+            /** Format: int32 */
+            height: number;
+            photo_id: string;
+            /** @description None means camera as-shot WB. Explicit gains are sensor RGB, not Kelvin. */
+            raw_white_balance?: number[] | null;
+            reference_kind: components["schemas"]["ReferenceKind"];
+            /** Format: int32 */
+            width: number;
+        };
         SourceRequest: {
             source: string;
         };
+        ToneCurve: {
+            /**
+             * Format: float
+             * @default 0
+             */
+            darks: number;
+            /**
+             * Format: float
+             * @default 0
+             */
+            highlights: number;
+            /**
+             * Format: float
+             * @default 0
+             */
+            lights: number;
+            /**
+             * Format: float
+             * @description Log2 gains in four overlapping bands centred at Y=0, 1/3, 2/3, 1.
+             * @default 0
+             */
+            shadows: number;
+        };
+        ToneMap: {
+            /** @enum {string} */
+            kind: "none";
+        } | {
+            /** @enum {string} */
+            kind: "shoulder";
+            /** Format: float */
+            knee: number;
+        };
         /** @enum {string} */
         Verdict: "recommend" | "review" | "reject_suggest";
+        Vignette: {
+            /**
+             * Format: float
+             * @description Edge exposure in stops [-4,4].
+             * @default 0
+             */
+            amount: number;
+            /**
+             * Format: float
+             * @description Falloff exponent [0.1,4].
+             * @default 1
+             */
+            feather: number;
+            /**
+             * Format: float
+             * @description Fraction of centre-to-corner radius at which falloff begins [0,0.99].
+             * @default 0.3499999940395355
+             */
+            midpoint: number;
+        };
         VisionAnalysis: {
             /** Format: double */
             composite_score: number;
@@ -1629,6 +3017,8 @@ export interface components {
             /** Format: int32 */
             width: number;
         };
+        /** @enum {string} */
+        WhiteBalanceLocus: "daylight" | "planckian";
     };
     responses: never;
     parameters: never;
@@ -1682,6 +3072,753 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    editing_list_presets: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EditPreset"][];
+                };
+            };
+        };
+    };
+    editing_create_preset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PresetSettings"];
+            };
+        };
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EditPreset"];
+                };
+            };
+        };
+    };
+    editing_get_preset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EditPreset"];
+                };
+            };
+        };
+    };
+    editing_update_preset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PresetSettings"];
+            };
+        };
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EditPreset"];
+                };
+            };
+        };
+    };
+    editing_delete_preset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EditSuccess"];
+                };
+            };
+        };
+    };
+    editing_preview_close: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EditSuccess"];
+                };
+            };
+        };
+    };
+    editing_preview_cancel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CancelRequest"];
+            };
+        };
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EditSuccess"];
+                };
+            };
+        };
+    };
+    editing_import_resource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: components["schemas"]["EditResourceKind"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/octet-stream": number[];
+            };
+        };
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EditResource"];
+                };
+            };
+            /** @description Resource exceeds byte limit */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    editing_resource_bytes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hash: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": number[];
+                };
+            };
+        };
+    };
+    editing_capabilities: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EditingCapabilities"];
+                };
+            };
+        };
+    };
+    editing_get_edit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EditRecord"];
+                };
+            };
+        };
+    };
+    editing_save_edit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveEdit"];
+            };
+        };
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EditRecord"];
+                };
+            };
+        };
+    };
+    editing_delete_edit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EditRevision"];
+            };
+        };
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EditSuccess"];
+                };
+            };
+        };
+    };
+    editing_batch_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BatchSettings"];
+            };
+        };
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EditRecord"][];
+                };
+            };
+        };
+    };
+    editing_duplicate_edit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EditName"];
+            };
+        };
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EditRecord"];
+                };
+            };
+        };
+    };
+    editing_preview_histogram: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HistogramRequest"];
+            };
+        };
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HistogramResponse"];
+                };
+            };
+        };
+    };
+    editing_edit_history: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EditHistoryEntry"][];
+                };
+            };
+        };
+    };
+    editing_calibration_lens_profile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LensSuggestionRequest"];
+            };
+        };
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LensProfileSuggestion"];
+                };
+            };
+        };
+    };
+    editing_preview_preview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RenderRequest"];
+            };
+        };
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    /** @description True when proxy evaluation was used */
+                    "x-iris-approximate"?: boolean;
+                    /** @description Nodes executed on CPU */
+                    "x-iris-cpu-nodes"?: number;
+                    /** @description Canonical rendering fingerprint */
+                    "x-iris-fingerprint"?: string;
+                    /** @description GPU attempt fell back to CPU */
+                    "x-iris-gpu-fallback"?: boolean;
+                    /** @description Nodes executed on GPU */
+                    "x-iris-gpu-nodes"?: number;
+                    /** @description cpu, gpu or mixed for this render */
+                    "x-iris-render-backend"?: string;
+                    /** @description Edit revision */
+                    "x-iris-revision"?: number;
+                    /** @description Render sequence */
+                    "x-iris-sequence"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": number[];
+                };
+            };
+        };
+    };
+    editing_preview_draft_preview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DraftPreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    /** @description Always true; no revision saved */
+                    "x-iris-draft"?: boolean;
+                    /** @description Draft graph fingerprint */
+                    "x-iris-fingerprint"?: string;
+                    /** @description Saved base revision */
+                    "x-iris-revision"?: number;
+                    /** @description Latest-wins sequence */
+                    "x-iris-sequence"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": number[];
+                };
+            };
+        };
+    };
+    editing_preview_proof: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProofRequest"];
+            };
+        };
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": number[];
+                };
+            };
+        };
+    };
+    editing_calibration_raw_white_balance: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PrepareWhiteBalanceRequest"];
+            };
+        };
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreparedRawWhiteBalance"];
+                };
+            };
+        };
+    };
+    editing_export_recipe: {
+        parameters: {
+            query?: {
+                include_masks?: boolean;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EditRecipe"];
+                };
+            };
+        };
+    };
+    editing_import_recipe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportRecipe"];
+            };
+        };
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EditRecord"];
+                };
+            };
+        };
+    };
+    editing_redo_edit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EditCommand"];
+            };
+        };
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EditRecord"];
+                };
+            };
+        };
+    };
+    editing_preview_region: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegionRequest"];
+            };
+        };
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    /** @description Always false: native output pixels */
+                    "x-iris-approximate"?: boolean;
+                    /** @description Canonical rendering fingerprint */
+                    "x-iris-fingerprint"?: string;
+                    /** @description True: evaluates entire image before crop */
+                    "x-iris-full-frame-evaluation"?: boolean;
+                    /** @description Full edited output height */
+                    "x-iris-full-height"?: number;
+                    /** @description Full edited output width */
+                    "x-iris-full-width"?: number;
+                    /** @description Native region height */
+                    "x-iris-region-height"?: number;
+                    /** @description Native region width */
+                    "x-iris-region-width"?: number;
+                    /** @description Output pixel origin x */
+                    "x-iris-region-x"?: number;
+                    /** @description Output pixel origin y */
+                    "x-iris-region-y"?: number;
+                    /** @description Edit revision */
+                    "x-iris-revision"?: number;
+                    /** @description Render sequence */
+                    "x-iris-sequence"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": number[];
+                };
+            };
+        };
+    };
+    editing_preview_sample: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SampleRequest"];
+            };
+        };
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SampleResponse"];
+                };
+            };
+        };
+    };
+    editing_undo_edit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EditCommand"];
+            };
+        };
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EditRecord"];
+                };
             };
         };
     };
@@ -1839,6 +3976,57 @@ export interface operations {
             };
         };
     };
+    editing_list_edits: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EditRecord"][];
+                };
+            };
+        };
+    };
+    editing_create_edit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EditName"];
+            };
+        };
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EditRecord"];
+                };
+            };
+        };
+    };
     original: {
         parameters: {
             query?: never;
@@ -1859,6 +4047,7 @@ export interface operations {
                     "image/jpeg": number[];
                     "image/png": number[];
                     "image/webp": number[];
+                    "image/tiff": number[];
                     "image/heic": number[];
                     "application/octet-stream": number[];
                 };
@@ -2986,6 +5175,163 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DecisionBatch"];
+                };
+            };
+        };
+    };
+    editing_exports_list: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RenderedExportStatus"][];
+                };
+            };
+        };
+    };
+    editing_exports_queue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QueueExports"];
+            };
+        };
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RenderedExportStatus"][];
+                };
+            };
+        };
+    };
+    editing_exports_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RenderedExportStatus"];
+                };
+            };
+        };
+    };
+    editing_exports_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EditSuccess"];
+                };
+            };
+        };
+    };
+    editing_exports_cancel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RenderedExportStatus"];
+                };
+            };
+        };
+    };
+    editing_exports_recover: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RenderedExportStatus"];
+                };
+            };
+        };
+    };
+    editing_exports_retry: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RenderedExportStatus"];
                 };
             };
         };

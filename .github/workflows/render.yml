@@ -23,6 +23,8 @@ jobs:
         with:
           toolchain: stable
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          cache-on-failure: true
       - name: CPU contracts without a GPU dependency
         run: cargo test --locked -p iris-render --no-default-features --no-fail-fast
       - name: Default backend and shader validation
@@ -35,3 +37,25 @@ jobs:
         env:
           XDG_RUNTIME_DIR: /tmp
         run: cargo test --locked -p iris-render --test gpu -- --ignored --nocapture
+  backend-smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      XDG_RUNTIME_DIR: /tmp
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          cache-on-failure: true
+      - name: Install software Vulkan
+        run: sudo apt-get update && sudo apt-get install --yes mesa-vulkan-drivers libvulkan1
+      - name: Exercise actual backend GPU previews and concurrent exports
+        run: cargo test --locked -p iris-daemon --test render_performance -- --ignored --nocapture --test-threads=1
+      - name: Check large synthetic frames and cancellation within managed budget
+        if: ${{ !cancelled() }}
+        env:
+          IRIS_LARGE_MEMORY_SMOKE: '1'
+        run: cargo test --locked -p iris-render --test performance -- --ignored --nocapture --test-threads=1

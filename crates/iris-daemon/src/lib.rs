@@ -125,6 +125,14 @@ impl Default for JobProgress {
     }
 }
 impl AppState {
+    /// Select a CPU baseline before serving requests; preserve configured budgets.
+    pub fn with_cpu_rendering(mut self) -> anyhow::Result<Self> {
+        self.render_engine = Arc::new(iris_core::render::engine::RenderEngine::new_cpu(
+            self.render_memory_bytes,
+            self.source_cache_bytes,
+        )?);
+        Ok(self)
+    }
     pub fn new(database: &std::path::Path, model_dir: PathBuf) -> anyhow::Result<Self> {
         let (events, _) = broadcast::channel(512);
         let store = Store::open(database)?;
@@ -175,6 +183,11 @@ impl AppState {
     /// Request context sharing the daemon render memory budget.
     pub fn render_context(&self) -> iris_core::render::RenderContext {
         self.render_engine.request_context()
+    }
+
+    /// Read-only request diagnostic for hosts and bounded integration tests.
+    pub fn render_request_is_current(&self, session: &str, sequence: u64) -> bool {
+        self.render_engine.check_request(session, sequence).is_ok()
     }
 
     /// Stop queued rendering and cancel work that has not reached publication.

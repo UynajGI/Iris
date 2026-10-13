@@ -15,19 +15,28 @@ use iris_render::{
 use rusqlite::params;
 
 fn fixture() -> (tempfile::TempDir, Services, EditRecord) {
+    fixture_size(4)
+}
+
+fn fixture_size(edge: u32) -> (tempfile::TempDir, Services, EditRecord) {
     let temp = tempfile::tempdir().unwrap();
     let photos = temp.path().join("photos");
     std::fs::create_dir(&photos).unwrap();
     std::fs::create_dir(temp.path().join("exports")).unwrap();
     let path = photos.join("source.png");
-    image::ImageBuffer::<image::Rgba<u16>, Vec<u16>>::from_fn(4, 4, |x, y| {
-        image::Rgba([10000 + (x + y * 4) as u16 * 17, 20000, 30000, 65535])
+    image::ImageBuffer::<image::Rgba<u16>, Vec<u16>>::from_fn(edge, edge, |x, y| {
+        image::Rgba([
+            10000 + ((x + y * edge) % 1024) as u16 * 17,
+            20000,
+            30000,
+            65535,
+        ])
     })
     .save(&path)
     .unwrap();
     let mut services = Services::new(Store::open(temp.path().join("library.sqlite")).unwrap());
     let project = services.create_project(&photos).unwrap();
-    services.store.conn.execute("INSERT INTO photos(project_id,path,filename,format,mtime,size_bytes,width,height) VALUES(?1,'source.png','source.png','png',1,1,4,4)",params![project.id]).unwrap();
+    services.store.conn.execute("INSERT INTO photos(project_id,path,filename,format,mtime,size_bytes,width,height) VALUES(?1,'source.png','source.png','png',1,1,?2,?2)",params![project.id,edge]).unwrap();
     let photo = services.store.conn.last_insert_rowid();
     let record = services
         .create_edit_document(
@@ -36,8 +45,8 @@ fn fixture() -> (tempfile::TempDir, Services, EditRecord) {
             SourceBinding {
                 photo_id: photo.to_string(),
                 fingerprint: hash_bytes(&std::fs::read(path).unwrap()),
-                width: 4,
-                height: 4,
+                width: edge,
+                height: edge,
                 reference_kind: ReferenceKind::Display,
                 raw_white_balance: None,
             },
@@ -410,4 +419,32 @@ fn export_snapshot_revision_must_fit_and_match_sqlite_revision() {
         .execute_batch("PRAGMA ignore_check_constraints=OFF")
         .unwrap();
     assert!(services.prepare_rendered_export(id).is_err());
+}
+
+#[test]
+fn export_counts_working_and_output_frames_once_but_keeps_codec_budget() {
+    let (temp, mut services, record) = fixture_size(512);
+    let queued = services
+        .queue_rendered_exports(&[
+            request(&temp, &record, "tight.png"),
+            request(&temp, &record, "adequate.png"),
+        ])
+        .unwrap();
+    // Each 512x512 FP32 frame is 4 MiB. Streaming output legitimately needs
+    // working + encoded frames (8 MiB), codec admission (8 MiB) and a small ICC.
+    // Color conversion peaks at three real frames plus 192 KiB, below this.
+    // An extra admission for the already tracked working Arc would need 20 MiB.
+    let tight = RenderContext::new(15 * 1024 * 1024);
+    let job = services.prepare_rendered_export(&queued[0].id).unwrap();
+    assert!(
+        job.render(&tight).is_err(),
+        "must retain real codec/output admission"
+    );
+    let adequate = RenderContext::new(17 * 1024 * 1024);
+    let job = services.prepare_rendered_export(&queued[1].id).unwrap();
+    let prepared = job
+        .render(&adequate)
+        .expect("two frames plus codec scratch fit without double charging");
+    drop(prepared);
+    assert!(!temp.path().join("exports/adequate.png").exists());
 }
