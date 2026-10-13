@@ -4,6 +4,12 @@ import { errorReport, versionText, recordDiagnostic, type SupportInfo } from '..
 import { helpTopics } from '../src/ui/help-content.js';
 import { APP_VERSION } from '../src/generated/version.js';
 import { readFile } from 'node:fs/promises';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { build } from 'esbuild';
+import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
+import { runInNewContext } from 'node:vm';
 
 test('support clipboard excludes filesystem paths, credentials and arbitrary error payloads', () => {
   const privateError =
@@ -70,4 +76,36 @@ test('diagnostic IPC sends a typed event only, never a session or application sn
 test('display version matches the package source', async () => {
   const manifest = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
   assert.equal(APP_VERSION, manifest.version);
+});
+
+test('first connection failure exposes recovery and diagnosis without a store or session', async () => {
+  // Match the app's SVG loader while keeping React shared with the server renderer.
+  const bundle = await build({
+    entryPoints: [fileURLToPath(new URL('../src/ui/StartupFailure.tsx', import.meta.url))],
+    bundle: true,
+    write: false,
+    platform: 'node',
+    format: 'cjs',
+    packages: 'external',
+    loader: { '.svg': 'text' },
+  });
+  const module = {
+    exports: {} as {
+      StartupFailure: React.ComponentType<{ error: string; onRetry(): Promise<void> }>;
+    },
+  };
+  runInNewContext(bundle.outputFiles[0]!.text, {
+    module,
+    exports: module.exports,
+    require: createRequire(import.meta.url),
+    window: { __TAURI__: {} },
+  });
+  const html = renderToStaticMarkup(
+    createElement(module.exports.StartupFailure, {
+      error: 'daemon failed before bootstrap',
+      onRetry: async () => {},
+    })
+  );
+  for (const label of ['照片服务未就绪', '帮助与关于', '重试连接', '导出诊断信息'])
+    assert.ok(html.includes(label), label);
 });

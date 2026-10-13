@@ -138,7 +138,8 @@ pub async fn export_diagnostics(
     main_window(&window)?;
     tauri::async_runtime::spawn_blocking(move || {
         let Some(file) = app.dialog().file().add_filter("诊断信息", &["json"])
-            .set_file_name("Iris-diagnostics.json").blocking_save_file() else { return Ok(false) };
+            .set_title("导出诊断信息 — 请使用新文件名，不覆盖已有文件")
+            .set_file_name(diagnostics::report_file_name()).blocking_save_file() else { return Ok(false) };
         let path = file.into_path().map_err(|_| "请选择本地文件".to_string())?;
         if !path.extension().and_then(|ext| ext.to_str()).is_some_and(|ext| ext.eq_ignore_ascii_case("json")) {
             return Err("诊断信息须保存为 .json 文件".into());

@@ -63,6 +63,7 @@ export function FileWorkflows({ store }: { store: IrisStore }) {
     if (selected) setDestination(selected);
   };
   const exportFiles = async () => {
+    setMessage(null);
     setMessage(await exportState.run(format, destination, scope));
     setFlow(null);
   };

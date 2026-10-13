@@ -2,6 +2,7 @@
 
 import json
 import re
+import subprocess
 import tomllib
 from pathlib import Path
 
@@ -15,6 +16,34 @@ JSON_FILES = (
 LOCKS = ("Cargo.lock", "apps/shell/src-tauri/Cargo.lock", "components/raw-decoder/Cargo.lock")
 OWNED = {"iris-core", "iris-daemon", "iris-cli", "iris-mcp", "iris-shell", "iris-raw-decoder"}
 GENERATED = "apps/shell/src/generated/version.ts"
+SCHEMA = "docs/openapi.json"
+API_TYPES = "apps/shell/src/generated/api.d.ts"
+
+
+def contract_hash(schema):
+    # Match generate-client.mjs exactly, including JavaScript number serialization.
+    script = (
+        "const fs=require('node:fs'),crypto=require('node:crypto');"
+        "const schema=JSON.parse(fs.readFileSync(0,'utf8'));"
+        "process.stdout.write(crypto.createHash('sha256').update(JSON.stringify(schema)).digest('hex'));"
+    )
+    return subprocess.run(
+        ["node", "-e", script],
+        input=schema,
+        text=True,
+        encoding="utf-8",
+        capture_output=True,
+        check=True,
+    ).stdout
+
+
+def check_contract(version, root):
+    schema = (root / SCHEMA).read_text("utf-8")
+    if json.loads(schema)["info"]["version"] != version:
+        raise ValueError(f"{SCHEMA}: application version differs from {version}")
+    marker = f"// Contract SHA-256: {contract_hash(schema)}"
+    if marker not in (root / API_TYPES).read_text("utf-8").splitlines():
+        raise ValueError(f"{API_TYPES}: contract hash differs; regenerate the API declarations")
 
 
 def validate(version):
@@ -61,6 +90,7 @@ def check(version, root=ROOT):
             raise ValueError(f"{name}: Iris lockfile version differs from {version}")
     if (root / GENERATED).read_text("utf-8").replace("'", '"') != generated(version):
         raise ValueError(f"{GENERATED}: run tools/sync-version.py")
+    check_contract(version, root)
     return version
 
 
@@ -86,6 +116,27 @@ def replacements(version, root):
             )
         result[name] = text
     result[GENERATED] = generated(version)
+    schema = (root / SCHEMA).read_text("utf-8")
+    types = (root / API_TYPES).read_text("utf-8")
+    if f"// Contract SHA-256: {contract_hash(schema)}" not in types.splitlines():
+        raise ValueError(f"{API_TYPES}: regenerate stale API declarations before version sync")
+    old = json.loads(schema)["info"]["version"]
+    # A version-only edit preserves the daemon-generated contract byte for byte elsewhere.
+    schema, count = re.subn(
+        rf'("version":\s*)"{re.escape(old)}"', rf'\g<1>"{version}"', schema, count=1
+    )
+    if count != 1:
+        raise ValueError(f"{SCHEMA}: missing application version")
+    result[SCHEMA] = schema
+    result[API_TYPES], count = re.subn(
+        r"^// Contract SHA-256: [0-9a-f]{64}$",
+        f"// Contract SHA-256: {contract_hash(schema)}",
+        types,
+        count=1,
+        flags=re.M,
+    )
+    if count != 1:
+        raise ValueError(f"{API_TYPES}: missing contract marker")
     text = (root / "README.md").read_text("utf-8")
     result["README.md"] = re.sub(
         r"Current source version: \*\*[^*]+\*\*", f"Current source version: **{version}**", text

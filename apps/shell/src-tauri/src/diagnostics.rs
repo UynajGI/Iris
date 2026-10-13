@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
@@ -11,6 +11,16 @@ const MAX_BYTES: u64 = 256 * 1024;
 const ARCHIVES: usize = 3;
 static LOG: OnceLock<Journal> = OnceLock::new();
 static WRITE_FAILED: AtomicBool = AtomicBool::new(false);
+static REPORT_SEQUENCE: AtomicU64 = AtomicU64::new(0);
+
+pub fn report_file_name() -> String {
+    let stamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis();
+    let sequence = REPORT_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+    format!("Iris-diagnostics-{stamp}-{sequence}.json")
+}
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -124,14 +134,15 @@ impl Journal {
             if !path.exists() {
                 continue;
             }
-            let mut text = String::new();
+            let mut bytes = Vec::new();
             File::open(path)?
                 .take(MAX_BYTES + 1024)
-                .read_to_string(&mut text)?;
+                .read_to_end(&mut bytes)?;
             // Decode only our typed schema: no raw log bytes enter a support report.
             entries.extend(
-                text.lines()
-                    .filter_map(|line| serde_json::from_str::<Entry>(line).ok()),
+                bytes
+                    .split(|byte| *byte == b'\n')
+                    .filter_map(|line| serde_json::from_slice::<Entry>(line).ok()),
             );
         }
         Ok(entries)
@@ -161,6 +172,47 @@ pub fn snapshot() -> std::io::Result<Vec<Entry>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn report_names_do_not_reuse_the_previous_default() {
+        let first = report_file_name();
+        let second = report_file_name();
+        assert_ne!(first, second);
+        assert!(first.starts_with("Iris-diagnostics-") && first.ends_with(".json"));
+    }
+
+    #[test]
+    fn snapshot_keeps_valid_events_around_corrupt_and_truncated_bytes() {
+        let directory = std::env::temp_dir().join(format!(
+            "iris-corrupt-{}-{}",
+            std::process::id(),
+            report_file_name()
+        ));
+        let journal = Journal::new(&directory).unwrap();
+        fs::write(
+            directory.join("iris.1.log"),
+            b"{\"time_unix_ms\":1,\"event\":\"app_started\"}\n\xff\xfe\n",
+        )
+        .unwrap();
+        fs::write(
+            directory.join("iris.log"),
+            b"{\"time_unix_ms\":2,\"event\":\"daemon_ready\"}\n{\"partial\":\"\xe4\xb8",
+        )
+        .unwrap();
+        let entries = journal.snapshot().unwrap();
+        assert_eq!(
+            entries.iter().map(|entry| entry.event).collect::<Vec<_>>(),
+            vec![Event::AppStarted, Event::DaemonReady]
+        );
+        let mut file = OpenOptions::new()
+            .append(true)
+            .open(directory.join("iris.log"))
+            .unwrap();
+        file.write_all(b"\n").unwrap();
+        drop(file);
+        journal.record(Event::AppExited).unwrap();
+        assert_eq!(journal.snapshot().unwrap().len(), 3);
+        fs::remove_dir_all(directory).unwrap();
+    }
     #[test]
     fn rotates_bounds_and_exports_only_typed_events() {
         let directory = std::env::temp_dir().join(format!(

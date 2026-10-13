@@ -40,7 +40,9 @@ Linux 当前安装器范围是 Ubuntu/Debian DEB，不声称覆盖 RPM、Flatpak
 ## 版本同步
 
 使用 `make version-sync VERSION=0.1.0-beta5`（或 `node tools/backend.mjs tools/sync-version.py 0.1.0-beta5`）
-统一修改应用的 Cargo 清单、三个 Cargo 锁文件中的自有包、前端 package/lock、Tauri 配置与界面版本。
+统一修改应用的 Cargo 清单、三个 Cargo 锁文件中的自有包、前端 package/lock、Tauri 配置与界面版本，
+以及 OpenAPI 的版本元数据和前端契约指纹。版本检查也覆盖这两处，纯升版无需编译 Rust。
+若已有契约与声明指纹不一致，同步工具拒绝写入；API 结构变化仍需先重新生成 OpenAPI 和前端类型。
 不带 VERSION 时从根 Cargo.toml 同步；`make version-check` 只检查。工具不升级依赖、不编译、
 不提交、不打 tag 或发布。CI 和发布检查同时覆盖 npm 锁文件根包及 Cargo 锁文件，避免只改顶层数字。
 版本说明仍需维护 `docs/releases/v<版本>.md`；历史发行说明和下载链接不会被批量替换。
