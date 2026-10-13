@@ -20,7 +20,7 @@ pub struct PrepareWhiteBalanceRequest {
 
 /// Preparation never writes an edit. The caller saves chosen parameters using
 /// the existing expected-revision edit command after reviewing this response.
-#[utoipa::path(post,path="/api/v1/edits/{id}/lens-profile",params(("id"=String,Path)),request_body=LensSuggestionRequest,responses((status=200,body=LensProfileSuggestion)))]
+#[utoipa::path(operation_id="editing_calibration_lens_profile",post,path="/api/v1/edits/{id}/lens-profile",params(("id"=String,Path)),request_body=LensSuggestionRequest,responses((status=200,body=LensProfileSuggestion)))]
 pub async fn lens_profile(
     State(s): State<AppState>,
     Path(id): Path<String>,
@@ -44,7 +44,7 @@ pub async fn lens_profile(
 
 /// RAW sensor gains, not a rendered RGB filter. Neutral sampling uses the
 /// oriented/cropped decoded source coordinates before any edit geometry.
-#[utoipa::path(post,path="/api/v1/edits/{id}/raw-white-balance",params(("id"=String,Path)),request_body=PrepareWhiteBalanceRequest,responses((status=200,body=PreparedRawWhiteBalance)))]
+#[utoipa::path(operation_id="editing_calibration_raw_white_balance",post,path="/api/v1/edits/{id}/raw-white-balance",params(("id"=String,Path)),request_body=PrepareWhiteBalanceRequest,responses((status=200,body=PreparedRawWhiteBalance)))]
 pub async fn raw_white_balance(
     State(s): State<AppState>,
     Path(id): Path<String>,

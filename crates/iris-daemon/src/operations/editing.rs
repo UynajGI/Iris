@@ -172,7 +172,7 @@ pub(super) fn routes() -> Router<AppState> {
         )
 }
 
-#[utoipa::path(get,path="/api/v1/editing/capabilities",responses((status=200,body=EditingCapabilities)))]
+#[utoipa::path(operation_id="editing_capabilities",get,path="/api/v1/editing/capabilities",responses((status=200,body=EditingCapabilities)))]
 pub async fn capabilities(State(state): State<AppState>) -> ApiResult<EditingCapabilities> {
     Ok(Json(EditingCapabilities {
         engine_version: iris_core::render::ENGINE_VERSION.into(),
@@ -201,7 +201,7 @@ pub async fn capabilities(State(state): State<AppState>) -> ApiResult<EditingCap
         ],
     }))
 }
-#[utoipa::path(post,path="/api/v1/photos/{id}/edits",params(("id"=i64,Path)),request_body=EditName,responses((status=200,body=EditRecord)))]
+#[utoipa::path(operation_id="editing_create_edit",post,path="/api/v1/photos/{id}/edits",params(("id"=i64,Path)),request_body=EditName,responses((status=200,body=EditRecord)))]
 pub async fn create_edit(
     State(state): State<AppState>,
     Path(id): Path<i64>,
@@ -231,7 +231,7 @@ pub async fn create_edit(
     drop(guard);
     Ok(Json(result))
 }
-#[utoipa::path(get,path="/api/v1/photos/{id}/edits",params(("id"=i64,Path),("limit"=Option<u32>,Query),("offset"=Option<u32>,Query)),responses((status=200,body=Vec<EditRecord>)))]
+#[utoipa::path(operation_id="editing_list_edits",get,path="/api/v1/photos/{id}/edits",params(("id"=i64,Path),("limit"=Option<u32>,Query),("offset"=Option<u32>,Query)),responses((status=200,body=Vec<EditRecord>)))]
 pub async fn list_edits(
     State(s): State<AppState>,
     Path(id): Path<i64>,
@@ -241,11 +241,11 @@ pub async fn list_edits(
         run(s, move |s| s.edit_documents(id, page.limit, page.offset)).await?,
     ))
 }
-#[utoipa::path(get,path="/api/v1/edits/{id}",params(("id"=String,Path)),responses((status=200,body=EditRecord)))]
+#[utoipa::path(operation_id="editing_get_edit",get,path="/api/v1/edits/{id}",params(("id"=String,Path)),responses((status=200,body=EditRecord)))]
 pub async fn get_edit(State(s): State<AppState>, Path(id): Path<String>) -> ApiResult<EditRecord> {
     Ok(Json(run(s, move |s| s.edit_document(&id)).await?))
 }
-#[utoipa::path(put,path="/api/v1/edits/{id}",params(("id"=String,Path)),request_body=SaveEdit,responses((status=200,body=EditRecord)))]
+#[utoipa::path(operation_id="editing_save_edit",put,path="/api/v1/edits/{id}",params(("id"=String,Path)),request_body=SaveEdit,responses((status=200,body=EditRecord)))]
 pub async fn save_edit(
     State(s): State<AppState>,
     Path(id): Path<String>,
@@ -255,7 +255,7 @@ pub async fn save_edit(
         run(s, move |s| s.save_edit_document(&id, body)).await?,
     ))
 }
-#[utoipa::path(delete,path="/api/v1/edits/{id}",params(("id"=String,Path)),request_body=EditRevision,responses((status=200,body=EditSuccess)))]
+#[utoipa::path(operation_id="editing_delete_edit",delete,path="/api/v1/edits/{id}",params(("id"=String,Path)),request_body=EditRevision,responses((status=200,body=EditSuccess)))]
 pub async fn delete_edit(
     State(s): State<AppState>,
     Path(id): Path<String>,
@@ -267,7 +267,7 @@ pub async fn delete_edit(
     .await?;
     Ok(Json(EditSuccess { ok: true }))
 }
-#[utoipa::path(post,path="/api/v1/edits/{id}/duplicate",params(("id"=String,Path)),request_body=EditName,responses((status=200,body=EditRecord)))]
+#[utoipa::path(operation_id="editing_duplicate_edit",post,path="/api/v1/edits/{id}/duplicate",params(("id"=String,Path)),request_body=EditName,responses((status=200,body=EditRecord)))]
 pub async fn duplicate_edit(
     State(s): State<AppState>,
     Path(id): Path<String>,
@@ -277,7 +277,7 @@ pub async fn duplicate_edit(
         run(s, move |s| s.duplicate_edit_document(&id, &body.name)).await?,
     ))
 }
-#[utoipa::path(post,path="/api/v1/edits/{id}/undo",params(("id"=String,Path)),request_body=EditCommand,responses((status=200,body=EditRecord)))]
+#[utoipa::path(operation_id="editing_undo_edit",post,path="/api/v1/edits/{id}/undo",params(("id"=String,Path)),request_body=EditCommand,responses((status=200,body=EditRecord)))]
 pub async fn undo_edit(
     State(s): State<AppState>,
     Path(id): Path<String>,
@@ -287,7 +287,7 @@ pub async fn undo_edit(
         run(s, move |s| s.undo_edit_document(&id, body)).await?,
     ))
 }
-#[utoipa::path(post,path="/api/v1/edits/{id}/redo",params(("id"=String,Path)),request_body=EditCommand,responses((status=200,body=EditRecord)))]
+#[utoipa::path(operation_id="editing_redo_edit",post,path="/api/v1/edits/{id}/redo",params(("id"=String,Path)),request_body=EditCommand,responses((status=200,body=EditRecord)))]
 pub async fn redo_edit(
     State(s): State<AppState>,
     Path(id): Path<String>,
@@ -297,7 +297,7 @@ pub async fn redo_edit(
         run(s, move |s| s.redo_edit_document(&id, body)).await?,
     ))
 }
-#[utoipa::path(get,path="/api/v1/edits/{id}/history",params(("id"=String,Path),("limit"=Option<u32>,Query),("offset"=Option<u32>,Query)),responses((status=200,body=Vec<EditHistoryEntry>)))]
+#[utoipa::path(operation_id="editing_edit_history",get,path="/api/v1/edits/{id}/history",params(("id"=String,Path),("limit"=Option<u32>,Query),("offset"=Option<u32>,Query)),responses((status=200,body=Vec<EditHistoryEntry>)))]
 pub async fn edit_history(
     State(s): State<AppState>,
     Path(id): Path<String>,
@@ -307,7 +307,7 @@ pub async fn edit_history(
         run(s, move |s| s.edit_history(&id, page.limit, page.offset)).await?,
     ))
 }
-#[utoipa::path(get,path="/api/v1/edits/{id}/recipe",params(("id"=String,Path),("include_masks"=Option<bool>,Query)),responses((status=200,body=EditRecipe)))]
+#[utoipa::path(operation_id="editing_export_recipe",get,path="/api/v1/edits/{id}/recipe",params(("id"=String,Path),("include_masks"=Option<bool>,Query)),responses((status=200,body=EditRecipe)))]
 pub async fn export_recipe(
     State(s): State<AppState>,
     Path(id): Path<String>,
@@ -317,7 +317,7 @@ pub async fn export_recipe(
         run(s, move |s| s.export_edit_recipe(&id, query.include_masks)).await?,
     ))
 }
-#[utoipa::path(put,path="/api/v1/edits/{id}/recipe",params(("id"=String,Path)),request_body=ImportRecipe,responses((status=200,body=EditRecord)))]
+#[utoipa::path(operation_id="editing_import_recipe",put,path="/api/v1/edits/{id}/recipe",params(("id"=String,Path)),request_body=ImportRecipe,responses((status=200,body=EditRecord)))]
 pub async fn import_recipe(
     State(s): State<AppState>,
     Path(id): Path<String>,
@@ -330,7 +330,7 @@ pub async fn import_recipe(
         .await?,
     ))
 }
-#[utoipa::path(post,path="/api/v1/edits/{id}/batch",params(("id"=String,Path)),request_body=BatchSettings,responses((status=200,body=Vec<EditRecord>)))]
+#[utoipa::path(operation_id="editing_batch_settings",post,path="/api/v1/edits/{id}/batch",params(("id"=String,Path)),request_body=BatchSettings,responses((status=200,body=Vec<EditRecord>)))]
 pub async fn batch_settings(
     State(s): State<AppState>,
     Path(id): Path<String>,
@@ -343,7 +343,7 @@ pub async fn batch_settings(
         .await?,
     ))
 }
-#[utoipa::path(get,path="/api/v1/edit-presets",params(("limit"=Option<u32>,Query),("offset"=Option<u32>,Query)),responses((status=200,body=Vec<EditPreset>)))]
+#[utoipa::path(operation_id="editing_list_presets",get,path="/api/v1/edit-presets",params(("limit"=Option<u32>,Query),("offset"=Option<u32>,Query)),responses((status=200,body=Vec<EditPreset>)))]
 pub async fn list_presets(
     State(s): State<AppState>,
     Query(page): Query<EditPage>,
@@ -352,14 +352,14 @@ pub async fn list_presets(
         run(s, move |s| s.edit_presets(page.limit, page.offset)).await?,
     ))
 }
-#[utoipa::path(get,path="/api/v1/edit-presets/{id}",params(("id"=String,Path)),responses((status=200,body=EditPreset)))]
+#[utoipa::path(operation_id="editing_get_preset",get,path="/api/v1/edit-presets/{id}",params(("id"=String,Path)),responses((status=200,body=EditPreset)))]
 pub async fn get_preset(
     State(s): State<AppState>,
     Path(id): Path<String>,
 ) -> ApiResult<EditPreset> {
     Ok(Json(run(s, move |s| s.edit_preset(&id)).await?))
 }
-#[utoipa::path(post,path="/api/v1/edit-presets",request_body=PresetSettings,responses((status=200,body=EditPreset)))]
+#[utoipa::path(operation_id="editing_create_preset",post,path="/api/v1/edit-presets",request_body=PresetSettings,responses((status=200,body=EditPreset)))]
 pub async fn create_preset(
     State(s): State<AppState>,
     Json(body): Json<PresetSettings>,
@@ -371,7 +371,7 @@ pub async fn create_preset(
         .await?,
     ))
 }
-#[utoipa::path(put,path="/api/v1/edit-presets/{id}",params(("id"=String,Path)),request_body=PresetSettings,responses((status=200,body=EditPreset)))]
+#[utoipa::path(operation_id="editing_update_preset",put,path="/api/v1/edit-presets/{id}",params(("id"=String,Path)),request_body=PresetSettings,responses((status=200,body=EditPreset)))]
 pub async fn update_preset(
     State(s): State<AppState>,
     Path(id): Path<String>,
@@ -384,7 +384,7 @@ pub async fn update_preset(
         .await?,
     ))
 }
-#[utoipa::path(delete,path="/api/v1/edit-presets/{id}",params(("id"=String,Path)),responses((status=200,body=EditSuccess)))]
+#[utoipa::path(operation_id="editing_delete_preset",delete,path="/api/v1/edit-presets/{id}",params(("id"=String,Path)),responses((status=200,body=EditSuccess)))]
 pub async fn delete_preset(
     State(s): State<AppState>,
     Path(id): Path<String>,
@@ -392,7 +392,7 @@ pub async fn delete_preset(
     run(s, move |s| s.delete_edit_preset(&id)).await?;
     Ok(Json(EditSuccess { ok: true }))
 }
-#[utoipa::path(post,path="/api/v1/edit-resources/import/{kind}",params(("kind"=EditResourceKind,Path)),request_body(content=Vec<u8>,content_type="application/octet-stream"),responses((status=200,body=EditResource),(status=413,description="Resource exceeds byte limit")))]
+#[utoipa::path(operation_id="editing_import_resource",post,path="/api/v1/edit-resources/import/{kind}",params(("kind"=EditResourceKind,Path)),request_body(content=Vec<u8>,content_type="application/octet-stream"),responses((status=200,body=EditResource),(status=413,description="Resource exceeds byte limit")))]
 pub async fn import_resource(
     State(s): State<AppState>,
     Path(kind): Path<EditResourceKind>,
@@ -402,7 +402,7 @@ pub async fn import_resource(
         run(s, move |s| s.import_edit_resource(kind, &bytes)).await?,
     ))
 }
-#[utoipa::path(get,path="/api/v1/edit-resources/{hash}",params(("hash"=String,Path)),responses((status=200,body=Vec<u8>,content_type="application/octet-stream")))]
+#[utoipa::path(operation_id="editing_resource_bytes",get,path="/api/v1/edit-resources/{hash}",params(("hash"=String,Path)),responses((status=200,body=Vec<u8>,content_type="application/octet-stream")))]
 pub async fn resource_bytes(
     State(s): State<AppState>,
     Path(hash): Path<String>,

@@ -132,7 +132,7 @@ jobs:
             apps/shell/src/generated/api.d.ts
           if-no-files-found: error
       - name: Test workspace
-        run: cargo +stable-x86_64-pc-windows-msvc test --locked --workspace
+        run: cargo +stable-x86_64-pc-windows-msvc test --locked --workspace --no-fail-fast
       - name: Verify bundled model hashes
         run: python tools/setup-models.py
       - name: Exercise all bundled ONNX models

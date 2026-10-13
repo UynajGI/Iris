@@ -122,7 +122,7 @@ pub struct QueueExports {
     pub exports: Vec<RenderedExportRequest>,
 }
 
-#[utoipa::path(post,path="/api/v1/rendered-exports",request_body=QueueExports,responses((status=200,body=Vec<RenderedExportStatus>)))]
+#[utoipa::path(operation_id="editing_exports_queue",post,path="/api/v1/rendered-exports",request_body=QueueExports,responses((status=200,body=Vec<RenderedExportStatus>)))]
 pub async fn queue(
     State(s): State<AppState>,
     Json(request): Json<QueueExports>,
@@ -134,7 +134,7 @@ pub async fn queue(
     start(s);
     Ok(Json(statuses))
 }
-#[utoipa::path(get,path="/api/v1/rendered-exports",params(("limit"=Option<u32>,Query),("offset"=Option<u32>,Query)),responses((status=200,body=Vec<RenderedExportStatus>)))]
+#[utoipa::path(operation_id="editing_exports_list",get,path="/api/v1/rendered-exports",params(("limit"=Option<u32>,Query),("offset"=Option<u32>,Query)),responses((status=200,body=Vec<RenderedExportStatus>)))]
 pub async fn list(
     State(s): State<AppState>,
     Query(page): Query<EditPage>,
@@ -143,14 +143,14 @@ pub async fn list(
         run(s, move |s| s.rendered_exports(page.limit, page.offset)).await?,
     ))
 }
-#[utoipa::path(get,path="/api/v1/rendered-exports/{id}",params(("id"=String,Path)),responses((status=200,body=RenderedExportStatus)))]
+#[utoipa::path(operation_id="editing_exports_status",get,path="/api/v1/rendered-exports/{id}",params(("id"=String,Path)),responses((status=200,body=RenderedExportStatus)))]
 pub async fn status(
     State(s): State<AppState>,
     Path(id): Path<String>,
 ) -> ApiResult<RenderedExportStatus> {
     Ok(Json(run(s, move |s| s.rendered_export(&id)).await?))
 }
-#[utoipa::path(post,path="/api/v1/rendered-exports/{id}/cancel",params(("id"=String,Path)),responses((status=200,body=RenderedExportStatus)))]
+#[utoipa::path(operation_id="editing_exports_cancel",post,path="/api/v1/rendered-exports/{id}/cancel",params(("id"=String,Path)),responses((status=200,body=RenderedExportStatus)))]
 pub async fn cancel(
     State(s): State<AppState>,
     Path(id): Path<String>,
@@ -160,7 +160,7 @@ pub async fn cancel(
     s.export_queue.cancel(&id);
     Ok(Json(status))
 }
-#[utoipa::path(post,path="/api/v1/rendered-exports/{id}/retry",params(("id"=String,Path)),responses((status=200,body=RenderedExportStatus)))]
+#[utoipa::path(operation_id="editing_exports_retry",post,path="/api/v1/rendered-exports/{id}/retry",params(("id"=String,Path)),responses((status=200,body=RenderedExportStatus)))]
 pub async fn retry(
     State(s): State<AppState>,
     Path(id): Path<String>,
@@ -169,7 +169,7 @@ pub async fn retry(
     start(s);
     Ok(Json(status))
 }
-#[utoipa::path(post,path="/api/v1/rendered-exports/{id}/recover",params(("id"=String,Path)),responses((status=200,body=RenderedExportStatus)))]
+#[utoipa::path(operation_id="editing_exports_recover",post,path="/api/v1/rendered-exports/{id}/recover",params(("id"=String,Path)),responses((status=200,body=RenderedExportStatus)))]
 pub async fn recover(
     State(s): State<AppState>,
     Path(id): Path<String>,
@@ -200,7 +200,7 @@ pub async fn recover(
     drop(guard);
     Ok(Json(status))
 }
-#[utoipa::path(delete,path="/api/v1/rendered-exports/{id}",params(("id"=String,Path)),responses((status=200,body=EditSuccess)))]
+#[utoipa::path(operation_id="editing_exports_delete",delete,path="/api/v1/rendered-exports/{id}",params(("id"=String,Path)),responses((status=200,body=EditSuccess)))]
 pub async fn delete(State(s): State<AppState>, Path(id): Path<String>) -> ApiResult<EditSuccess> {
     run(s, move |s| s.delete_rendered_export(&id)).await?;
     Ok(Json(EditSuccess { ok: true }))

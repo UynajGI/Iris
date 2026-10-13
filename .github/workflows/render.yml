@@ -24,9 +24,9 @@ jobs:
           toolchain: stable
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
       - name: CPU contracts without a GPU dependency
-        run: cargo test --locked -p iris-render --no-default-features
+        run: cargo test --locked -p iris-render --no-default-features --no-fail-fast
       - name: Default backend and shader validation
-        run: cargo test --locked -p iris-render
+        run: cargo test --locked -p iris-render --no-fail-fast
       - name: Install software Vulkan for actual GPU dispatch tests
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install --yes mesa-vulkan-drivers libvulkan1

@@ -558,3 +558,41 @@ async fn draft_preview_changes_pixels_without_history_and_rejects_wrong_source()
     state.shutdown_rendering();
     state.wait_for_rendered_exports().await;
 }
+
+#[test]
+fn merged_openapi_operation_ids_are_globally_unique() {
+    use utoipa::OpenApi;
+    let doc = serde_json::to_value(iris_daemon::ApiDoc::openapi()).unwrap();
+    let mut seen = std::collections::BTreeMap::new();
+    for (path, item) in doc["paths"].as_object().unwrap() {
+        for method in [
+            "get", "put", "post", "delete", "options", "head", "patch", "trace",
+        ] {
+            let Some(operation) = item.get(method) else {
+                continue;
+            };
+            let id = operation["operationId"]
+                .as_str()
+                .expect("each operation needs an operationId");
+            assert!(!id.is_empty(), "empty operationId at {method} {path}");
+            let location = format!("{method} {path}");
+            let previous = seen.insert(id, location.clone());
+            assert!(
+                previous.is_none(),
+                "duplicate operationId {id}: {previous:?} and {location}"
+            );
+        }
+    }
+    assert_eq!(
+        doc["paths"]["/api/v1/rendered-exports/{id}/cancel"]["post"]["operationId"],
+        "editing_exports_cancel"
+    );
+    assert_eq!(
+        doc["paths"]["/api/v1/edit-render/{session}/cancel"]["post"]["operationId"],
+        "editing_preview_cancel"
+    );
+    assert_eq!(
+        doc["paths"]["/api/v1/edits/{id}/preview"]["post"]["operationId"],
+        "editing_preview_preview"
+    );
+}

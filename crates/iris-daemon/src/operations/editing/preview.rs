@@ -172,7 +172,7 @@ async fn render_with_document<T: Send + 'static>(
     Ok(result)
 }
 
-#[utoipa::path(post,path="/api/v1/edits/{id}/preview",params(("id"=String,Path)),request_body=RenderRequest,responses((status=200,body=Vec<u8>,content_type="image/jpeg",headers(("x-iris-revision"=u64,description="Edit revision"),("x-iris-sequence"=u64,description="Render sequence"),("x-iris-fingerprint"=String,description="Canonical rendering fingerprint"),("x-iris-approximate"=bool,description="True when proxy evaluation was used"),("x-iris-render-backend"=String,description="cpu, gpu or mixed for this render"),("x-iris-cpu-nodes"=u32,description="Nodes executed on CPU"),("x-iris-gpu-nodes"=u32,description="Nodes executed on GPU"),("x-iris-gpu-fallback"=bool,description="GPU attempt fell back to CPU")))))]
+#[utoipa::path(operation_id="editing_preview_preview",post,path="/api/v1/edits/{id}/preview",params(("id"=String,Path)),request_body=RenderRequest,responses((status=200,body=Vec<u8>,content_type="image/jpeg",headers(("x-iris-revision"=u64,description="Edit revision"),("x-iris-sequence"=u64,description="Render sequence"),("x-iris-fingerprint"=String,description="Canonical rendering fingerprint"),("x-iris-approximate"=bool,description="True when proxy evaluation was used"),("x-iris-render-backend"=String,description="cpu, gpu or mixed for this render"),("x-iris-cpu-nodes"=u32,description="Nodes executed on CPU"),("x-iris-gpu-nodes"=u32,description="Nodes executed on GPU"),("x-iris-gpu-fallback"=bool,description="GPU attempt fell back to CPU")))))]
 pub async fn preview(
     State(s): State<AppState>,
     Path(id): Path<String>,
@@ -190,7 +190,7 @@ pub struct DraftPreviewRequest {
 }
 /// Transient slider feedback: validates source binding and resources but writes
 /// no history. Persist the chosen document separately through SaveEdit.
-#[utoipa::path(post,path="/api/v1/edits/{id}/preview-draft",params(("id"=String,Path)),request_body=DraftPreviewRequest,responses((status=200,body=Vec<u8>,content_type="image/jpeg",headers(("x-iris-revision"=u64,description="Saved base revision"),("x-iris-sequence"=u64,description="Latest-wins sequence"),("x-iris-fingerprint"=String,description="Draft graph fingerprint"),("x-iris-draft"=bool,description="Always true; no revision saved")))))]
+#[utoipa::path(operation_id="editing_preview_draft_preview",post,path="/api/v1/edits/{id}/preview-draft",params(("id"=String,Path)),request_body=DraftPreviewRequest,responses((status=200,body=Vec<u8>,content_type="image/jpeg",headers(("x-iris-revision"=u64,description="Saved base revision"),("x-iris-sequence"=u64,description="Latest-wins sequence"),("x-iris-fingerprint"=String,description="Draft graph fingerprint"),("x-iris-draft"=bool,description="Always true; no revision saved")))))]
 pub async fn draft_preview(
     State(s): State<AppState>,
     Path(id): Path<String>,
@@ -208,7 +208,7 @@ pub struct RegionRequest {
     pub rect: iris_core::render::region::PixelRect,
 }
 
-#[utoipa::path(post,path="/api/v1/edits/{id}/region",params(("id"=String,Path)),request_body=RegionRequest,responses((status=200,body=Vec<u8>,content_type="image/jpeg",headers(("x-iris-revision"=u64,description="Edit revision"),("x-iris-sequence"=u64,description="Render sequence"),("x-iris-fingerprint"=String,description="Canonical rendering fingerprint"),("x-iris-approximate"=bool,description="Always false: native output pixels"),("x-iris-region-x"=u32,description="Output pixel origin x"),("x-iris-region-y"=u32,description="Output pixel origin y"),("x-iris-region-width"=u32,description="Native region width"),("x-iris-region-height"=u32,description="Native region height"),("x-iris-full-width"=u32,description="Full edited output width"),("x-iris-full-height"=u32,description="Full edited output height"),("x-iris-full-frame-evaluation"=bool,description="True: evaluates entire image before crop")))))]
+#[utoipa::path(operation_id="editing_preview_region",post,path="/api/v1/edits/{id}/region",params(("id"=String,Path)),request_body=RegionRequest,responses((status=200,body=Vec<u8>,content_type="image/jpeg",headers(("x-iris-revision"=u64,description="Edit revision"),("x-iris-sequence"=u64,description="Render sequence"),("x-iris-fingerprint"=String,description="Canonical rendering fingerprint"),("x-iris-approximate"=bool,description="Always false: native output pixels"),("x-iris-region-x"=u32,description="Output pixel origin x"),("x-iris-region-y"=u32,description="Output pixel origin y"),("x-iris-region-width"=u32,description="Native region width"),("x-iris-region-height"=u32,description="Native region height"),("x-iris-full-width"=u32,description="Full edited output width"),("x-iris-full-height"=u32,description="Full edited output height"),("x-iris-full-frame-evaluation"=bool,description="True: evaluates entire image before crop")))))]
 pub async fn region(
     State(s): State<AppState>,
     Path(id): Path<String>,
@@ -252,7 +252,7 @@ pub struct ProofRequest {
     pub resource: String,
 }
 
-#[utoipa::path(post,path="/api/v1/edits/{id}/proof",params(("id"=String,Path)),request_body=ProofRequest,responses((status=200,body=Vec<u8>,content_type="image/jpeg")))]
+#[utoipa::path(operation_id="editing_preview_proof",post,path="/api/v1/edits/{id}/proof",params(("id"=String,Path)),request_body=ProofRequest,responses((status=200,body=Vec<u8>,content_type="image/jpeg")))]
 pub async fn proof(
     State(s): State<AppState>,
     Path(id): Path<String>,
@@ -331,7 +331,7 @@ async fn encoded_response(
         .into_response())
 }
 
-#[utoipa::path(post,path="/api/v1/edits/{id}/histogram",params(("id"=String,Path)),request_body=HistogramRequest,responses((status=200,body=HistogramResponse)))]
+#[utoipa::path(operation_id="editing_preview_histogram",post,path="/api/v1/edits/{id}/histogram",params(("id"=String,Path)),request_body=HistogramRequest,responses((status=200,body=HistogramResponse)))]
 pub async fn histogram(
     State(s): State<AppState>,
     Path(id): Path<String>,
@@ -379,7 +379,7 @@ pub async fn histogram(
     Ok(Json(result))
 }
 
-#[utoipa::path(post,path="/api/v1/edits/{id}/sample",params(("id"=String,Path)),request_body=SampleRequest,responses((status=200,body=SampleResponse)))]
+#[utoipa::path(operation_id="editing_preview_sample",post,path="/api/v1/edits/{id}/sample",params(("id"=String,Path)),request_body=SampleRequest,responses((status=200,body=SampleResponse)))]
 pub async fn sample(
     State(s): State<AppState>,
     Path(id): Path<String>,
@@ -408,7 +408,7 @@ pub async fn sample(
     Ok(Json(result))
 }
 
-#[utoipa::path(post,path="/api/v1/edit-render/{session}/cancel",params(("session"=String,Path)),request_body=CancelRequest,responses((status=200,body=EditSuccess)))]
+#[utoipa::path(operation_id="editing_preview_cancel",post,path="/api/v1/edit-render/{session}/cancel",params(("session"=String,Path)),request_body=CancelRequest,responses((status=200,body=EditSuccess)))]
 pub async fn cancel(
     State(s): State<AppState>,
     Path(session): Path<String>,
@@ -420,7 +420,7 @@ pub async fn cancel(
 
 /// End a session and release its sequence watermark. Reopening clients should
 /// use a new identifier so abandoned requests cannot collide with new work.
-#[utoipa::path(delete,path="/api/v1/edit-render/{session}",params(("session"=String,Path)),responses((status=200,body=EditSuccess)))]
+#[utoipa::path(operation_id="editing_preview_close",delete,path="/api/v1/edit-render/{session}",params(("session"=String,Path)),responses((status=200,body=EditSuccess)))]
 pub async fn close(
     State(s): State<AppState>,
     Path(session): Path<String>,

@@ -114,21 +114,40 @@ fn raw_protocol_rejects_nonfinite_truncation_tail_and_budget_excess() {
 }
 
 #[test]
-fn png_and_tiff_preserve_16bit_precision_alpha_and_icc() {
+fn png_preserves_16bit_precision_alpha_and_icc() {
+    assert_16bit_precision_alpha_and_icc(OutputFormat::Png16);
+}
+
+#[test]
+fn tiff_preserves_16bit_precision_alpha_and_icc() {
+    assert_16bit_precision_alpha_and_icc(OutputFormat::Tiff16);
+}
+
+fn assert_16bit_precision_alpha_and_icc(format: OutputFormat) {
     let pixels = [
         [10001.0 / 65535.0, 20002.0 / 65535.0, 30003.0 / 65535.0, 0.0],
         [10002.0 / 65535.0, 20003.0 / 65535.0, 30004.0 / 65535.0, 0.5],
     ];
     let target = Frame::new(2, 1, pixels.to_vec()).unwrap();
-    for format in [OutputFormat::Png16, OutputFormat::Tiff16] {
+    {
         let bytes =
             output::encode_output(&target, &config(OutputSpace::Srgb), format, &context()).unwrap();
+        if format == OutputFormat::Tiff16 {
+            let mut raw = tiff::decoder::Decoder::new(Cursor::new(bytes.as_slice())).unwrap();
+            let profile = raw
+                .get_tag_u8_vec(tiff::tags::Tag::IccProfile)
+                .expect("TIFF raw IccProfile tag must decode as byte array");
+            color::validate_icc(&profile).unwrap();
+        }
         let mut decoder = ImageReader::new(Cursor::new(&bytes))
             .with_guessed_format()
             .unwrap()
             .into_decoder()
             .unwrap();
-        let icc = decoder.icc_profile().unwrap().expect("embedded output ICC");
+        let icc = decoder
+            .icc_profile()
+            .unwrap()
+            .unwrap_or_else(|| panic!("{format:?}: missing embedded output ICC"));
         color::validate_icc(&icc).unwrap();
         assert_eq!(decoder.color_type(), image::ColorType::Rgba16);
         assert_eq!(
