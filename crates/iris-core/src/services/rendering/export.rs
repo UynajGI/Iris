@@ -170,23 +170,27 @@ fn recheck_directory(snapshot: &Snapshot) -> Result<()> {
     Ok(())
 }
 fn snapshot(conn: &rusqlite::Connection, id: &str) -> Result<Snapshot> {
-    let json: String = conn.query_row(
-        "SELECT snapshot_json FROM rendered_export_jobs WHERE id=?1",
+    let (json, revision): (String, i64) = conn.query_row(
+        "SELECT snapshot_json,revision FROM rendered_export_jobs WHERE id=?1",
         [id],
-        |row| row.get(0),
+        |row| Ok((row.get(0)?, row.get(1)?)),
     )?;
     ensure!(
         json.len() <= MAX_SNAPSHOT,
         "stored export snapshot exceeds limit"
     );
     let value: Snapshot = serde_json::from_str(&json)?;
+    ensure!(
+        sqlite_integer(value.record.revision)? == revision,
+        "export snapshot revision mismatch"
+    );
     value.record.document.validate()?;
     validate_filename(&value.filename, value.format)?;
     Ok(value)
 }
 fn status(conn: &rusqlite::Connection, id: &str) -> Result<RenderedExportStatus> {
     let snapshot = snapshot(conn, id)?;
-    let (batch_id,state,created_at,updated_at,result_hash,result_bytes,error):(String,String,String,String,Option<String>,Option<u64>,Option<String>) = conn.query_row("SELECT batch_id,state,created_at,updated_at,result_hash,result_bytes,error FROM rendered_export_jobs WHERE id=?1",[id],|r| Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?,r.get(5)?,r.get(6)?)))?;
+    let (batch_id,state,created_at,updated_at,result_hash,result_bytes,error):(String,String,String,String,Option<String>,Option<i64>,Option<String>) = conn.query_row("SELECT batch_id,state,created_at,updated_at,result_hash,result_bytes,error FROM rendered_export_jobs WHERE id=?1",[id],|r| Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?,r.get(5)?,r.get(6)?)))?;
     Ok(RenderedExportStatus {
         id: id.into(),
         batch_id,
@@ -198,7 +202,7 @@ fn status(conn: &rusqlite::Connection, id: &str) -> Result<RenderedExportStatus>
         created_at,
         updated_at,
         result_hash,
-        result_bytes,
+        result_bytes: result_bytes.map(nonnegative_integer).transpose()?,
         error,
     })
 }
@@ -254,7 +258,7 @@ impl Services {
         let batch = uuid::Uuid::new_v4().to_string();
         let at = crate::services::now();
         for (id, snapshot, json, resources) in &prepared {
-            tx.execute("INSERT INTO rendered_export_jobs(id,batch_id,document_id,revision,snapshot_json,state,created_at,updated_at) VALUES(?1,?2,?3,?4,?5,'queued',?6,?6)",params![id,batch,snapshot.record.id,snapshot.record.revision,json,at])?;
+            insert_job(&tx, id, &batch, snapshot, json, &at)?;
             for (hash, bytes) in resources {
                 ensure!(
                     hash_bytes(bytes) == *hash,
@@ -331,7 +335,8 @@ impl Services {
     /// Call only after previous process workers are known to have stopped.
     /// Queued immutable jobs survive; in-flight jobs become explicitly resumable.
     pub fn recover_rendered_exports(&mut self) -> Result<u64> {
-        Ok(self.store.conn.execute("UPDATE rendered_export_jobs SET state='interrupted',error='Export interrupted; inspect publication before retry',updated_at=?1 WHERE state IN ('running','publishing')",[crate::services::now()])? as u64)
+        let changed = self.store.conn.execute("UPDATE rendered_export_jobs SET state='interrupted',error='Export interrupted; inspect publication before retry',updated_at=?1 WHERE state IN ('running','publishing')",[crate::services::now()])?;
+        Ok(u64::try_from(changed)?)
     }
     pub fn retry_rendered_export(&mut self, id: &str) -> Result<RenderedExportStatus> {
         let value = snapshot(&self.store.conn, id)?;
@@ -395,7 +400,8 @@ impl Services {
         &mut self,
         prepared: &mut PreparedRenderedExport,
     ) -> Result<()> {
-        let changed = self.store.conn.execute("UPDATE rendered_export_jobs SET state='publishing',result_hash=?2,result_bytes=?3,temporary_path=?4,updated_at=?5 WHERE id=?1 AND state='running'",params![prepared.id,prepared.hash,prepared.bytes,prepared.temporary.path().to_string_lossy(),crate::services::now()])?;
+        let bytes = sqlite_integer(prepared.bytes)?;
+        let changed = self.store.conn.execute("UPDATE rendered_export_jobs SET state='publishing',result_hash=?2,result_bytes=?3,temporary_path=?4,updated_at=?5 WHERE id=?1 AND state='running'",params![prepared.id,prepared.hash,bytes,prepared.temporary.path().to_string_lossy(),crate::services::now()])?;
         ensure!(changed == 1, "export cancelled or no longer running");
         prepared.authorized = true;
         Ok(())
@@ -405,7 +411,8 @@ impl Services {
         result: &RenderedExportResult,
     ) -> Result<RenderedExportStatus> {
         validate_hash(&result.hash)?;
-        let changed = self.store.conn.execute("UPDATE rendered_export_jobs SET state='completed',error=NULL,temporary_path=NULL,updated_at=?4 WHERE id=?1 AND state IN ('publishing','interrupted') AND result_hash=?2 AND result_bytes=?3",params![result.id,result.hash,result.bytes,crate::services::now()])?;
+        let bytes = sqlite_integer(result.bytes)?;
+        let changed = self.store.conn.execute("UPDATE rendered_export_jobs SET state='completed',error=NULL,temporary_path=NULL,updated_at=?4 WHERE id=?1 AND state IN ('publishing','interrupted') AND result_hash=?2 AND result_bytes=?3",params![result.id,result.hash,bytes,crate::services::now()])?;
         ensure!(
             changed == 1,
             "export result does not match publication journal"
@@ -540,24 +547,47 @@ impl RenderedExportRecovery {
     }
 }
 
+fn insert_job(
+    conn: &rusqlite::Connection,
+    id: &str,
+    batch: &str,
+    snapshot: &Snapshot,
+    json: &str,
+    at: &str,
+) -> Result<()> {
+    let revision = sqlite_integer(snapshot.record.revision)?;
+    conn.execute("INSERT INTO rendered_export_jobs(id,batch_id,document_id,revision,snapshot_json,state,created_at,updated_at) VALUES(?1,?2,?3,?4,?5,'queued',?6,?6)",params![id,batch,snapshot.record.id,revision,json,at])?;
+    Ok(())
+}
+
+fn sqlite_integer(value: u64) -> Result<i64> {
+    i64::try_from(value).context("export integer exceeds SQLite range")
+}
+fn nonnegative_integer(value: i64) -> Result<u64> {
+    u64::try_from(value).context("negative integer in export storage")
+}
+fn check_quota(stored: i64, additional: usize, limit: i64) -> Result<()> {
+    ensure!(
+        stored >= 0 && stored <= limit,
+        "invalid or exhausted export quota"
+    );
+    let additional =
+        i64::try_from(additional).context("export quota increment exceeds SQLite range")?;
+    ensure!(additional <= limit - stored, "export quota exceeded");
+    Ok(())
+}
 fn validate_queue_quota(
     tx: &rusqlite::Transaction<'_>,
     request_count: usize,
     total: usize,
 ) -> Result<()> {
-    let (active,jobs):(u64,u64) = tx.query_row("SELECT SUM(CASE WHEN state IN ('queued','running','publishing') THEN 1 ELSE 0 END),COUNT(*) FROM rendered_export_jobs",[],|row| Ok((row.get::<_,Option<u64>>(0)?.unwrap_or(0),row.get(1)?)))?;
-    ensure!(
-        active + request_count as u64 <= 100 && jobs + request_count as u64 <= 1000,
-        "export queue quota exceeded"
-    );
-    let stored: u64 = tx.query_row(
+    let (active,jobs):(i64,i64) = tx.query_row("SELECT COALESCE(SUM(CASE WHEN state IN ('queued','running','publishing') THEN 1 ELSE 0 END),0),COUNT(*) FROM rendered_export_jobs",[],|row| Ok((row.get(0)?,row.get(1)?)))?;
+    check_quota(active, request_count, 100)?;
+    check_quota(jobs, request_count, 1000)?;
+    let stored: i64 = tx.query_row(
         "SELECT COALESCE(SUM(length(bytes)),0) FROM rendered_export_resources",
         [],
         |row| row.get(0),
     )?;
-    ensure!(
-        stored + total as u64 <= RESOURCE_QUOTA as u64,
-        "durable export resource quota exceeded"
-    );
-    Ok(())
+    check_quota(stored, total, i64::try_from(RESOURCE_QUOTA)?)
 }

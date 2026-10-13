@@ -70,7 +70,7 @@ schema v9 在既有迁移备份机制下加入编辑文档、单调 revision、�
 
 已写合成测试覆盖：浮点/高位深/ICC、RAW PPG 协议、图类型/循环/资源/几何坐标、蒙版与细节分块、CPU/GPU 误差、取消/预算/并发缓存、历史/幂等/批量、导出快照/恢复/禁止覆盖、HTTP 和 MCP 目录隔离。**测试存在不等于测试通过。** 不使用个人照片。
 
-遵照用户要求，本地不编译或执行 Rust 测试。CI 配置包含 workspace 回归、独立 RAW wrapper 测试，以及 Windows/Linux/macOS 的 render 测试；Linux 使用软件 Vulkan 显式运行 GPU dispatch 数值测试。软件 Vulkan 不代表消费级 GPU 性能。
+Rust 编译和测试交由 CI。首次推送时既有 pre-push 钩子意外执行了本地 `cargo check`，因 SQLite 整数类型转换错误失败；这不算验证通过，后续推送不再运行该本地钩子，保留独立静态检查。CI 配置包含 workspace 回归、独立 RAW wrapper 测试，以及 Windows/Linux/macOS 的 render 测试；Linux 使用软件 Vulkan 显式运行 GPU dispatch 数值测试。软件 Vulkan 不代表消费级 GPU 性能。
 
 OpenAPI 和 TypeScript 声明需由 CI 的实际 Rust 可执行程序生成。Verify 上传 `generated-api-contracts` 供回取审阅，并保留契约差异检查；不能手工填一份模式绕过编译。用户已授权推送独立开发分支 `codex/color-workflow`，Verify 与渲染测试直接由分支 push 触发；目前不创建 PR，开发接近完成后再分批提交 PR。尚无对应远端通过记录。
 

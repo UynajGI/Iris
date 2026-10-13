@@ -224,21 +224,29 @@ impl Services {
         let mut query=self.store.conn.prepare("SELECT revision,action,created_at FROM edit_revisions WHERE document_id=?1 ORDER BY revision DESC LIMIT ?2 OFFSET ?3")?;
         let rows = query
             .query_map(params![id, limit, offset], |r| {
-                Ok(EditHistoryEntry {
-                    revision: r.get(0)?,
-                    action: r.get(1)?,
-                    created_at: r.get(2)?,
-                })
+                Ok((
+                    r.get::<_, i64>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, String>(2)?,
+                ))
             })?
             .collect::<rusqlite::Result<Vec<_>>>()?;
-        Ok(rows)
+        rows.into_iter()
+            .map(|(revision, action, created_at)| {
+                Ok(EditHistoryEntry {
+                    revision: u64::try_from(revision)?,
+                    action,
+                    created_at,
+                })
+            })
+            .collect()
     }
     pub fn delete_edit_document(&mut self, id: &str, expected_revision: u64) -> Result<()> {
-        ensure!(expected_revision <= i64::MAX as u64, "invalid revision");
+        let expected_revision = i64::try_from(expected_revision)?;
         self.edit_document(id)?;
         let changed = self.store.conn.execute(
             "DELETE FROM edit_documents WHERE id=?1 AND revision=?2",
-            params![id, expected_revision as i64],
+            params![id, expected_revision],
         )?;
         ensure!(changed == 1, "edit revision conflict");
         Ok(())

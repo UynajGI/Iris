@@ -39,15 +39,19 @@ impl Budget {
         });
     }
     fn admit(&self, bytes: u64) -> Result<()> {
-        let result = self
-            .used
-            .fetch_update(Ordering::AcqRel, Ordering::Acquire, |used| {
-                used.checked_add(bytes).filter(|next| *next <= self.limit)
-            });
-        if result.is_err() {
-            bail!("render memory budget exceeded: requested {bytes} bytes");
+        let mut used = self.used.load(Ordering::Acquire);
+        loop {
+            let Some(next) = used.checked_add(bytes).filter(|next| *next <= self.limit) else {
+                bail!("render memory budget exceeded: requested {bytes} bytes");
+            };
+            match self
+                .used
+                .compare_exchange_weak(used, next, Ordering::AcqRel, Ordering::Acquire)
+            {
+                Ok(_) => return Ok(()),
+                Err(current) => used = current,
+            }
         }
-        Ok(())
     }
 }
 

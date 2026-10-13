@@ -353,3 +353,23 @@ fn copied_recipe_cannot_attach_an_unknown_resource() {
     assert_eq!(services.edit_document(&edit.id).unwrap().revision, 0);
     assert!(services.edit_documents(ids[0], 101, 0).is_err());
 }
+
+#[test]
+fn edit_history_rejects_negative_sqlite_revision() {
+    let (_temp, mut services, ids) = fixture();
+    let edit = create(&mut services, ids[0]);
+    services
+        .store
+        .conn
+        .execute_batch("PRAGMA ignore_check_constraints=ON")
+        .unwrap();
+    services.store.conn.execute("INSERT INTO edit_revisions(document_id,revision,document_json,action,created_at) SELECT document_id,-1,document_json,'corrupt',created_at FROM edit_revisions WHERE document_id=?1 AND revision=0",[&edit.id]).unwrap();
+    services
+        .store
+        .conn
+        .execute_batch("PRAGMA ignore_check_constraints=OFF")
+        .unwrap();
+    assert!(services.edit_history(&edit.id, 100, 0).is_err());
+    assert!(services.delete_edit_document(&edit.id, u64::MAX).is_err());
+    assert_eq!(services.edit_document(&edit.id).unwrap().revision, 0);
+}

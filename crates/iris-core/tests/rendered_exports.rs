@@ -305,3 +305,109 @@ fn destination_symlinks_and_replaced_parent_are_rejected() {
     assert!(prepared.publish(&context).is_err());
     assert!(!elsewhere.join("parent.png").exists());
 }
+
+#[test]
+fn export_storage_rejects_negative_bytes_and_out_of_range_result() {
+    let (temp, mut services, record) = fixture();
+    let queued = services
+        .queue_rendered_exports(&[request(&temp, &record, "integer.png")])
+        .unwrap();
+    let id = &queued[0].id;
+    services
+        .store
+        .conn
+        .execute(
+            "UPDATE rendered_export_jobs SET result_bytes=-1 WHERE id=?1",
+            [id],
+        )
+        .unwrap();
+    assert!(services.rendered_export(id).is_err());
+    services
+        .store
+        .conn
+        .execute(
+            "UPDATE rendered_export_jobs SET result_bytes=NULL WHERE id=?1",
+            [id],
+        )
+        .unwrap();
+    let result = iris_core::services::RenderedExportResult {
+        id: id.clone(),
+        destination: "unused".into(),
+        hash: "0".repeat(64),
+        bytes: u64::MAX,
+    };
+    assert!(services.finish_rendered_export(&result).is_err());
+    assert!(matches!(
+        services.rendered_export(id).unwrap().state,
+        RenderedExportState::Queued
+    ));
+    services
+        .store
+        .conn
+        .execute(
+            "UPDATE rendered_export_jobs SET result_bytes=?2 WHERE id=?1",
+            params![id, i64::MAX],
+        )
+        .unwrap();
+    assert_eq!(
+        services.rendered_export(id).unwrap().result_bytes,
+        Some(i64::MAX as u64)
+    );
+}
+
+#[test]
+fn export_snapshot_revision_must_fit_and_match_sqlite_revision() {
+    let (temp, mut services, record) = fixture();
+    let queued = services
+        .queue_rendered_exports(&[request(&temp, &record, "revision.png")])
+        .unwrap();
+    let id = &queued[0].id;
+    let original: String = services
+        .store
+        .conn
+        .query_row(
+            "SELECT snapshot_json FROM rendered_export_jobs WHERE id=?1",
+            [id],
+            |r| r.get(0),
+        )
+        .unwrap();
+    let mut snapshot: serde_json::Value = serde_json::from_str(&original).unwrap();
+    snapshot["record"]["revision"] = serde_json::json!(u64::MAX);
+    services
+        .store
+        .conn
+        .execute(
+            "UPDATE rendered_export_jobs SET snapshot_json=?2 WHERE id=?1",
+            params![id, snapshot.to_string()],
+        )
+        .unwrap();
+    assert!(services.rendered_export(id).is_err());
+    services
+        .store
+        .conn
+        .execute(
+            "UPDATE rendered_export_jobs SET snapshot_json=?2,revision=1 WHERE id=?1",
+            params![id, original],
+        )
+        .unwrap();
+    assert!(services.rendered_export(id).is_err());
+    services
+        .store
+        .conn
+        .execute_batch("PRAGMA ignore_check_constraints=ON")
+        .unwrap();
+    services
+        .store
+        .conn
+        .execute(
+            "UPDATE rendered_export_jobs SET revision=-1 WHERE id=?1",
+            [id],
+        )
+        .unwrap();
+    services
+        .store
+        .conn
+        .execute_batch("PRAGMA ignore_check_constraints=OFF")
+        .unwrap();
+    assert!(services.prepare_rendered_export(id).is_err());
+}

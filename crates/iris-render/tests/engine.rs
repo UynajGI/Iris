@@ -62,7 +62,7 @@ fn linear_source_cache_reused_and_preview_precision_preserved() {
 #[test]
 fn stale_requests_and_old_disconnect_cannot_cancel_new_request() {
     let engine = RenderEngine::new(64 * 1024 * 1024, 0).unwrap();
-    let load = |_| Frame::new(32, 16, vec![[0.0, 0.0, 0.0, 1.0]; 512]);
+    let load = |_: &iris_render::RenderContext| Frame::new(32, 16, vec![[0.0, 0.0, 0.0, 1.0]; 512]);
     engine
         .render(&document(), &request(2), load, &BTreeMap::new())
         .unwrap();

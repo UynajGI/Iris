@@ -49,13 +49,15 @@ class DependencyPolicyTests(unittest.TestCase):
                         {"ort", "nalgebra", "base64", "tower-http"},
                     )
 
-    def test_verify_runs_once_per_pr_and_still_checks_main(self):
+    def test_verify_checks_prs_main_and_explicit_development_branch(self):
         # BaseLoader preserves the YAML 1.2 workflow key "on" as text.
         workflow = yaml.load(
             (ROOT / ".github/workflows/verify.yml").read_text(), Loader=yaml.BaseLoader
         )
         triggers = workflow["on"]
-        self.assertEqual(triggers["push"]["branches"], ["main"])
+        # The standalone grading branch runs CI before its work is split into PRs.
+        # Keep ordinary topic/dependency branches on the pull_request trigger only.
+        self.assertEqual(triggers["push"]["branches"], ["main", "codex/color-workflow"])
         for trigger in ["pull_request", "workflow_call", "workflow_dispatch"]:
             self.assertIn(trigger, triggers)
 

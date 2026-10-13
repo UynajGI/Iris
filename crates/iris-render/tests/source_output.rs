@@ -146,7 +146,7 @@ fn png_and_tiff_preserve_16bit_precision_alpha_and_icc() {
         }
         assert_eq!(raster.get_pixel(0, 0).0, [10001, 20002, 30003, 0]);
         assert_eq!(raster.get_pixel(1, 0).0, [10002, 20003, 30004, 32768]);
-        let decoded = source::decode(Cursor::new(bytes), &context()).unwrap();
+        let decoded = source::decode(Cursor::new(bytes.as_slice()), &context()).unwrap();
         assert_eq!(decoded.metadata.source_bit_depth, Some(16));
         assert!(decoded.metadata.embedded_icc && !decoded.metadata.assumed_srgb);
         assert!(decoded.frame.pixels[1][0] > decoded.frame.pixels[0][0]);
