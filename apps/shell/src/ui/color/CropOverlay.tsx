@@ -5,11 +5,13 @@ export function CropOverlay({
   crop,
   width,
   height,
+  locked = false,
   onChange,
 }: {
   crop: number[];
   width: number;
   height: number;
+  locked?: boolean;
   onChange(crop: Crop): void;
 }) {
   const gesture = useRef<{
@@ -26,7 +28,9 @@ export function CropOverlay({
     const active = gesture.current;
     if (!active || active.id !== event.pointerId) return;
     const p = point(event);
-    onChange(dragCrop(active.base, active.handle, p[0] - active.point[0], p[1] - active.point[1]));
+    onChange(
+      dragCrop(active.base, active.handle, p[0] - active.point[0], p[1] - active.point[1], locked)
+    );
   };
   const [x, y, w, h] = crop as Crop;
   const handles = [
@@ -51,7 +55,7 @@ export function CropOverlay({
         event.preventDefault();
         const dx = event.key === 'ArrowLeft' ? -0.005 : event.key === 'ArrowRight' ? 0.005 : 0;
         const dy = event.key === 'ArrowUp' ? -0.005 : event.key === 'ArrowDown' ? 0.005 : 0;
-        onChange(dragCrop([x, y, w, h], event.shiftKey ? 'se' : 'move', dx, dy));
+        onChange(dragCrop([x, y, w, h], event.shiftKey ? 'se' : 'move', dx, dy, locked));
       }}
       onPointerDown={(event) => {
         const handle = (event.target as Element).getAttribute('data-handle');

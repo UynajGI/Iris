@@ -59,6 +59,7 @@ export function ColorCanvas({
   onMask,
   showMask = true,
   crop,
+  cropLocked,
   onCrop,
 }: {
   client: IrisClient;
@@ -72,6 +73,7 @@ export function ColorCanvas({
   onMask(definition: MaskDefinition): void;
   showMask?: boolean;
   crop?: number[] | undefined;
+  cropLocked?: boolean;
   onCrop?: ((crop: number[]) => void) | undefined;
 }) {
   const original = usePhotoUrl(client, photo.id, 'preview', mediaRevision(photo));
@@ -195,7 +197,13 @@ export function ColorCanvas({
             }
           />
           {crop && onCrop && (
-            <CropOverlay crop={crop} width={width} height={height} onChange={onCrop} />
+            <CropOverlay
+              crop={crop}
+              width={width}
+              height={height}
+              locked={!!cropLocked}
+              onChange={onCrop}
+            />
           )}
           {layer && showMask && !before && !crop && (
             <MaskOverlay

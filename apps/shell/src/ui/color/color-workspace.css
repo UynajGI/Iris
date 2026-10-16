@@ -234,6 +234,20 @@
 }
 .grade-viewbar {
   min-height: 42px;
+  flex-wrap: wrap;
+  padding-block: 6px;
+}
+.grade-crop-tools {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.grade-crop-tools select {
+  min-height: 30px;
+  width: 104px;
+  padding-block: 3px;
+  font-size: var(--small);
 }
 .grade-viewbar .button,
 .grade-toolbar .button {

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { gainsToWheel, wheelToGains } from '../src/editing-color-wheel.js';
 import { spatialMaskCoverage } from '../src/editing-mask-overlay.js';
-import { dragCrop } from '../src/editing-crop.js';
+import { dragCrop, fitCropRatio, type Crop } from '../src/editing-crop.js';
 import { fitPreview } from '../src/editing-canvas.js';
 
 test('interactive proxy and refined image occupy the same canvas rectangle', () => {
@@ -89,4 +89,35 @@ test('canvas crop edges cannot cross or move outside the source', () => {
   assert.deepEqual(resized, [0.1, 0.2, 0.9, 0.8]);
   const crossed = dragCrop([0, 0, 1, 1], 'se', -2, -2);
   assert.deepEqual(crossed, [0, 0, 0.01, 0.01]);
+});
+
+test('crop aspect presets account for non-square source pixels and preserve center', () => {
+  const sourceAspect = 2 / 3;
+  const square = fitCropRatio([0, 0, 1, 1], 1 / sourceAspect);
+  assert.ok(Math.abs((square[2] * sourceAspect) / square[3] - 1) < 1e-12);
+  assert.equal(square[0] + square[2] / 2, 0.5);
+  assert.equal(square[1] + square[3] / 2, 0.5);
+  const base: Crop = [0.3, 0.3, 0.4, 0.4];
+  const wide = fitCropRatio(base, 2);
+  const restored = fitCropRatio(wide, 1);
+  restored.forEach((value, i) => assert.ok(Math.abs(value - base[i]!) < 1e-12));
+});
+
+test('all locked crop handles preserve ratio and stay bounded even past image edges', () => {
+  const base: Crop = [0.15, 0.1, 0.6, 0.8];
+  for (const handle of ['nw', 'n', 'ne', 'w', 'e', 'sw', 's', 'se', 'move']) {
+    for (const dx of [-5, -0.1, 0, 0.1, 5])
+      for (const dy of [-5, -0.1, 0, 0.1, 5]) {
+        const [x, y, w, h] = dragCrop(base, handle, dx, dy, true);
+        assert.ok(Math.abs(w / h - 0.75) < 1e-12, handle);
+        assert.ok(x >= -1e-12 && y >= -1e-12 && x + w <= 1 + 1e-12 && y + h <= 1 + 1e-12, handle);
+        assert.ok(w >= 0.01 - 1e-12 && h >= 0.01 - 1e-12, handle);
+      }
+  }
+  const corner = dragCrop(base, 'nw', 0.1, 0.2, true);
+  assert.ok(Math.abs(corner[0] + corner[2] - 0.75) < 1e-12);
+  assert.ok(Math.abs(corner[1] + corner[3] - 0.9) < 1e-12);
+  const edge = dragCrop(base, 'e', -0.1, 0, true);
+  assert.equal(edge[0], base[0]);
+  assert.ok(Math.abs(edge[1] + edge[3] / 2 - 0.5) < 1e-12);
 });

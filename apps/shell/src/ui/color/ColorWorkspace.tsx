@@ -20,6 +20,7 @@ import {
 import { maskLayers, primaryMask, setMask, validateMaskBudget } from '../../editing-masks.js';
 import { MaskPanel, type BrushSettings } from './MaskPanel.js';
 import { ColorCanvas } from './ColorCanvas.js';
+import { CropTools } from './CropTools.js';
 import './color-workspace.css';
 import type { EditHistoryEntry } from '../../editing-client.js';
 import { focusEditingPhoto } from '../../editing-navigation.js';
@@ -36,6 +37,7 @@ export function ColorWorkspace({
   const photo = model.current;
   const [before, setBefore] = useState(false);
   const [cropMode, setCropMode] = useState(false);
+  const [cropLocked, setCropLocked] = useState(false);
   const [showMask, setShowMask] = useState(true);
   const editor = useColorEditor(model.store.client, photo?.id, before, cropMode);
   const [zoom, setZoom] = useState(1);
@@ -266,6 +268,7 @@ export function ColorWorkspace({
               painting={painting && !before && !cropMode && available}
               showMask={showMask}
               crop={cropMode ? parameters(editor.draft, 'geometry').crop : undefined}
+              cropLocked={cropLocked}
               onCrop={(crop) => {
                 if (available && editor.draft)
                   editor.setDraft(
@@ -325,6 +328,24 @@ export function ColorWorkspace({
             <Icon name="fit" />
             {cropMode ? '完成裁切' : '裁切'}
           </Button>
+          {cropMode && photo && editor.draft && (
+            <CropTools
+              key={editor.record?.id}
+              crop={parameters(editor.draft, 'geometry').crop}
+              sourceAspect={photo.width / photo.height}
+              locked={cropLocked}
+              onLock={setCropLocked}
+              onChange={(crop) => {
+                if (available && editor.draft)
+                  editor.setDraft(
+                    updatePanel(editor.draft, {
+                      type: 'geometry',
+                      parameters: { ...parameters(editor.draft, 'geometry'), crop },
+                    })
+                  );
+              }}
+            />
+          )}
           {layer && !cropMode && (
             <Button
               className="quiet"
