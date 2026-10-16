@@ -200,7 +200,15 @@ function useScopeResult(mediaUrl: string | null) {
   return result;
 }
 
-export function Histogram({ client, photo }: { client: IrisClient; photo: Photo | undefined }) {
+export function Histogram({
+  client,
+  photo,
+  previewUrl,
+}: {
+  client: IrisClient;
+  photo: Photo | undefined;
+  previewUrl?: string | null | undefined;
+}) {
   const media = usePhotoUrl(
     client,
     photo?.id ?? null,
@@ -209,7 +217,8 @@ export function Histogram({ client, photo }: { client: IrisClient; photo: Photo 
   );
   const [settings, setSettings] = useState(preferences);
   const { mode, selected } = settings;
-  const result = useScopeResult(media.url);
+  const displayedUrl = previewUrl ?? media.url;
+  const result = useScopeResult(displayedUrl);
   useEffect(() => {
     try {
       localStorage.setItem(preferenceKey, JSON.stringify({ mode }));
@@ -217,8 +226,10 @@ export function Histogram({ client, photo }: { client: IrisClient; photo: Photo 
       /* Preferences are optional. */
     }
   }, [mode]);
-  const data = result?.url === media.url ? result?.data : null;
-  const failed = !!media.error || (!!media.url && result?.url === media.url && !result.data);
+  const data = result?.url === displayedUrl ? result?.data : null;
+  const failed =
+    (!previewUrl && !!media.error) ||
+    (!!displayedUrl && result?.url === displayedUrl && !result.data);
   const peak = useMemo(
     () => (data ? histogramPeak(data.histogram, selected) : 1),
     [data, selected]

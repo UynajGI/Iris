@@ -25,7 +25,7 @@ Reviewing portrait sessions involves repeated checks for focus, eye state and si
 
 Current source version: **0.1.0-beta5**, adding saved filter combinations, export-folder access, offline help and diagnostics, and a unified dark Windows installer. It includes the beta4 selection improvements. See the [beta5 source notes](docs/releases/v0.1.0-beta5.md), [local search guide](docs/local-search.md) and [measured performance](docs/performance-plan.md). The download link remains the published beta3 release; beta5 installers have not been published.
 
-The independent `codex/color-workflow` development branch adds a shared FP32 traditional grading backend, non-destructive edit history, local masks and rendered exports. Grading and retouching pages remain placeholders. See the [implementation and limits](docs/color-engine-implementation.md) and [CI evidence](docs/ci-verification.md); these features are not part of the published beta3 installers.
+The independent `codex/color-workflow` development branch adds a shared FP32 traditional grading backend, non-destructive edit history, local masks and rendered exports. The [traditional grading workbench](docs/color-frontend-implementation.md) is being integrated; retouching remains a placeholder. See the [backend limits](docs/color-engine-implementation.md) and [CI evidence](docs/ci-verification.md); these features are not part of the published beta3 installers.
 
 ## ✨ Features
 

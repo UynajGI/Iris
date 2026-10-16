@@ -25,7 +25,7 @@
 
 当前源码版本为 **0.1.0-beta5**，包含常用筛选组合、导出目录入口、离线帮助与诊断、统一深色 Windows 安装器，以及 beta4 的选片改进。见[beta5 源码说明](../docs/releases/v0.1.0-beta5.md)与[性能验收](../docs/performance-plan.md)。下载链接仍指向已发布的 beta3，beta5 安装包尚未发布。
 
-独立开发分支 `codex/color-workflow` 新增共享 FP32 传统调色后端、非破坏编辑历史、局部蒙版和成片导出。调色与修图页面仍为占位入口；实现范围见[后端说明](../docs/color-engine-implementation.md)，验证结果见[CI 记录](../docs/ci-verification.md)。这些功能尚未进入已发布的 beta3 安装包。
+独立开发分支 `codex/color-workflow` 新增共享 FP32 传统调色后端、非破坏编辑历史、局部蒙版和成片导出。[传统调色工作台](../docs/color-frontend-implementation.md)正在接入，修图页面仍为占位；后端范围见[后端说明](../docs/color-engine-implementation.md)，验证结果见[CI 记录](../docs/ci-verification.md)。这些功能尚未进入已发布的 beta3 安装包。
 
 ## ✨ 功能特性
 

@@ -65,4 +65,20 @@ export class Transport {
     if (!response.ok) throw new ApiError(response.status, await response.text());
     return response.blob();
   }
+  async postBlob(path: string, body: unknown, signal?: AbortSignal): Promise<Blob> {
+    if (!path.startsWith('/api/v1/')) throw new Error('Invalid API path');
+    const response = await this.fetcher(this.baseUrl + path, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${this.session.token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+      ...(signal === undefined ? {} : { signal }),
+      redirect: 'error',
+      cache: 'no-store',
+    });
+    if (!response.ok) throw new ApiError(response.status, await response.text());
+    return response.blob();
+  }
 }

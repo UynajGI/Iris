@@ -22,11 +22,62 @@ import { loadAppearance, saveAppearance, type Appearance } from './preferences.j
 import { usePhotoWorkspace } from './usePhotoWorkspace.js';
 import { WorkflowNav, type AppPage } from './WorkflowNav.js';
 import { EditingWorkspace } from './EditingWorkspace.js';
+import { RenderedExportPanel } from './color/RenderedExportPanel.js';
 import { FileWorkflows } from './FileWorkflows.js';
 
 export function App({ store, commands }: { store: IrisStore; commands: CommandSystem }) {
   const state = useIris(store);
-  const [page, setPage] = useState<AppPage>(() => (state.project ? 'photos' : 'projects'));
+  const [page, setPage] = useState<AppPage>(() => {
+    if (!state.project) return 'projects';
+    try {
+      const saved = sessionStorage.getItem('iris:review-page');
+      if (
+        document.querySelector('script[src="/__review/bridge.js"]') &&
+        ['photos', 'color', 'retouch', 'export'].includes(saved ?? '')
+      )
+        return saved as AppPage;
+    } catch {
+      /* Optional review preferences. */
+    }
+    return 'photos';
+  });
+  useEffect(() => {
+    if (!document.querySelector('script[src="/__review/bridge.js"]') || !state.project) return;
+    try {
+      sessionStorage.setItem('iris:review-page', page);
+      sessionStorage.setItem('iris:review-project', String(state.project.id));
+      if (state.focusedId !== null)
+        sessionStorage.setItem('iris:review-photo', String(state.focusedId));
+    } catch {
+      /* Optional. */
+    }
+  }, [page, state.project?.id, state.focusedId]);
+  useEffect(() => {
+    if (!document.querySelector('script[src="/__review/bridge.js"]') || store.getSnapshot().project)
+      return;
+    let active = true;
+    try {
+      const id = Number(sessionStorage.getItem('iris:review-project'));
+      const photo = Number(sessionStorage.getItem('iris:review-photo'));
+      const saved = sessionStorage.getItem('iris:review-page');
+      if (id > 0)
+        void store
+          .openRecentProject(id)
+          .then(() => {
+            if (!active) return;
+            if (photo > 0) store.focus(photo);
+            setPage(
+              ['color', 'retouch', 'export'].includes(saved ?? '') ? (saved as AppPage) : 'photos'
+            );
+          })
+          .catch(() => {});
+    } catch {
+      /* A review restart can use the normal project picker. */
+    }
+    return () => {
+      active = false;
+    };
+  }, [store]);
   const [appearance, setAppearance] = useState<Appearance>(loadAppearance);
   const [error, setError] = useState<string | null>(null);
   const [scanRoot, setScanRoot] = useState<string | null>(null);
@@ -88,8 +139,17 @@ export function App({ store, commands }: { store: IrisStore; commands: CommandSy
     };
   }, [tasksOpen]);
   const [settingsDirty, setSettingsDirty] = useState(false);
+  const [colorDirty, setColorDirty] = useState(false);
+  const saveColor = useRef<(() => Promise<boolean>) | null>(null);
+  const registerColorSave = useCallback((save: (() => Promise<boolean>) | null) => {
+    saveColor.current = save;
+  }, []);
+  const dirty = settingsDirty || colorDirty;
+  useEffect(() => {
+    document.documentElement.dataset.irisEditingDirty = String(dirty);
+  }, [dirty]);
   const desktopWindow = useDesktopWindow();
-  const [leaveTarget, setLeaveTarget] = useState<Exclude<AppPage, 'settings'> | null>(null);
+  const [leaveTarget, setLeaveTarget] = useState<AppPage | null>(null);
   const [savingLeave, setSavingLeave] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const saveSettings = useRef<(() => Promise<boolean>) | null>(null);
@@ -97,7 +157,8 @@ export function App({ store, commands }: { store: IrisStore; commands: CommandSy
     saveSettings.current = save;
   }, []);
   const navigate = (target: AppPage) => {
-    if (settingsDirty && target !== 'settings') setLeaveTarget(target);
+    if ((settingsDirty && target !== 'settings') || (colorDirty && target !== 'color'))
+      setLeaveTarget(target);
     else setPage(target);
   };
   const attempt = (operation: () => Promise<unknown>) => {
@@ -114,20 +175,20 @@ export function App({ store, commands }: { store: IrisStore; commands: CommandSy
     const help = (event: KeyboardEvent) => {
       if (event.key !== 'F1' || document.querySelector('dialog[open]')) return;
       event.preventDefault();
-      if (settingsDirty) setLeaveTarget('help');
+      if (dirty) setLeaveTarget('help');
       else setPage('help');
     };
     window.addEventListener('keydown', help);
     return () => window.removeEventListener('keydown', help);
-  }, [settingsDirty]);
+  }, [dirty]);
   useEffect(() => {
     if (error || state.error) recordDiagnostic('frontend_failed');
   }, [error, state.error]);
   useEffect(() => {
     void window.__TAURI__?.core
-      .invoke('set_unsaved_changes', { dirty: settingsDirty })
+      .invoke('set_unsaved_changes', { dirty })
       .catch((reason) => setError(`关闭保护暂不可用：${String(reason)}`));
-  }, [settingsDirty]);
+  }, [dirty]);
   const openRecent = async (project: Project) => {
     try {
       await store.openRecentProject(project.id);
@@ -454,12 +515,18 @@ export function App({ store, commands }: { store: IrisStore; commands: CommandSy
       {page === 'photos' && state.project && <PhotoWorkspace model={photoWorkspace} />}
 
       {(page === 'color' || page === 'retouch') && state.project && (
-        <EditingWorkspace model={photoWorkspace} stage={page} />
+        <EditingWorkspace
+          model={photoWorkspace}
+          stage={page}
+          onDirty={setColorDirty}
+          registerSave={registerColorSave}
+        />
       )}
       {page === 'export' && state.project && (
         <main className="page">
           <div className="page-content export-workspace">
             <h1>导出</h1>
+            <RenderedExportPanel client={store.client} photo={photoWorkspace.current} />
             <FileWorkflows store={store} />
           </div>
         </main>
@@ -556,12 +623,12 @@ export function App({ store, commands }: { store: IrisStore; commands: CommandSy
       )}
       {leaveTarget && (
         <Dialog
-          title="离开设置？"
+          title="保存更改？"
           onClose={() => {
             if (!savingLeave) setLeaveTarget(null);
           }}
         >
-          <p>分析参数尚未保存。</p>
+          <p>{colorDirty ? '当前照片的调色尚未保存。' : '分析参数尚未保存。'}</p>
           <div className="dialog-actions">
             <Button disabled={savingLeave} onClick={() => setLeaveTarget(null)}>
               继续编辑
@@ -571,6 +638,7 @@ export function App({ store, commands }: { store: IrisStore; commands: CommandSy
               onClick={() => {
                 setPage(leaveTarget);
                 setSettingsDirty(false);
+                setColorDirty(false);
                 setLeaveTarget(null);
               }}
             >
@@ -584,9 +652,10 @@ export function App({ store, commands }: { store: IrisStore; commands: CommandSy
                 setError(null);
                 void (async () => {
                   try {
-                    if (await saveSettings.current?.()) {
+                    if (await (colorDirty ? saveColor.current?.() : saveSettings.current?.())) {
                       setPage(leaveTarget);
                       setSettingsDirty(false);
+                      setColorDirty(false);
                       setLeaveTarget(null);
                     } else setError('保存未完成，请继续编辑并检查参数');
                   } catch (reason) {
@@ -609,8 +678,10 @@ export function App({ store, commands }: { store: IrisStore; commands: CommandSy
       )}
       <WindowCloseDialog
         controller={desktopWindow}
-        dirty={settingsDirty}
-        save={async () => (await saveSettings.current?.()) ?? false}
+        dirty={dirty}
+        save={async () =>
+          (await (colorDirty ? saveColor.current?.() : saveSettings.current?.())) ?? false
+        }
       />
     </div>
   );

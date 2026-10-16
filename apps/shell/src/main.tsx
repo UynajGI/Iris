@@ -1,4 +1,5 @@
 import { createRoot } from 'react-dom/client';
+import './review-refresh.js';
 import { useEffect, type ReactNode } from 'react';
 import { App } from './ui/App.js';
 import { AppBoundary } from './ui/AppBoundary.js';

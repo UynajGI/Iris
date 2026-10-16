@@ -2,7 +2,7 @@
 
 更新：2026-10-14。工作分支 `codex/color-workflow`，版本仍为 `0.1.0-beta5`。
 本文记录后端实际行为和逐项验证边界；运行证据见[CI 记录](ci-verification.md)。
-完整目标保留在[设计文档](color-engine-design.md)；调色前端仍为占位入口。
+完整目标保留在[设计文档](color-engine-design.md)；传统前端的首批接入及待办见[前端实现](color-frontend-implementation.md)。
 
 ## 功能与代码
 

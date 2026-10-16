@@ -1,15 +1,20 @@
 import type { PhotoWorkspaceModel } from './usePhotoWorkspace.js';
 import { ZoomViewer } from './ZoomViewer.js';
+import { ColorWorkspace, type EditorBridge } from './color/ColorWorkspace.js';
 
 /** Workspace layout for the next phase; no image adjustments are applied yet. */
 export function EditingWorkspace({
   model,
   stage,
+  onDirty,
+  registerSave,
 }: {
   model: PhotoWorkspaceModel;
   stage: 'color' | 'retouch';
-}) {
-  const title = stage === 'color' ? '调色' : '修图';
+} & EditorBridge) {
+  if (stage === 'color')
+    return <ColorWorkspace model={model} onDirty={onDirty} registerSave={registerSave} />;
+  const title = '修图';
   return (
     <main className="editing-workspace" aria-label={`${title}工作区`}>
       <section className="editing-photo" aria-label="照片预览">

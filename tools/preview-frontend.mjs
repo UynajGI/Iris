@@ -3,9 +3,9 @@
 import { createServer } from 'node:http';
 import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
-import { mkdtemp, mkdir, readdir, copyFile, readFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readdir, copyFile, readFile, realpath } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve, extname, sep } from 'node:path';
+import { dirname, join, resolve, extname, sep, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -34,18 +34,39 @@ if (samples.length < sampleCount)
   throw new Error(
     `Provide at least ${sampleCount} dataset JPEG/PNG/WebP images; this harness does not convert RAW/TIFF or duplicate samples.`
   );
-const temporary = await mkdtemp(join(tmpdir(), 'iris-ui-review-'));
+const reuse = process.env.IRIS_REVIEW_WORKSPACE;
+const temporary = reuse
+  ? await realpath(resolve(reuse))
+  : await mkdtemp(join(tmpdir(), 'iris-ui-review-'));
+if (reuse) {
+  const parent = await realpath(tmpdir());
+  const comparable = (value) => (process.platform === 'win32' ? value.toLowerCase() : value);
+  if (
+    !comparable(temporary).startsWith(comparable(parent) + sep) ||
+    !basename(temporary).startsWith('iris-ui-review-')
+  )
+    throw new Error('Only an existing disposable review workspace may be reused');
+}
 const photos = join(temporary, 'photos');
 const models = join(temporary, 'models');
-await mkdir(photos);
-await mkdir(models);
+await mkdir(photos, { recursive: true });
+await mkdir(models, { recursive: true });
 // Explicit duplicate copies exercise comparison UI deterministically; not a burst benchmark.
 const repeat = process.env.IRIS_REVIEW_DUPLICATES === '1' ? 3 : 1;
 for (const name of samples.slice(0, Math.floor(sampleCount / repeat))) {
   for (let index = 0; index < repeat; index++) {
     const flatName = name.replaceAll(/[/\\]/g, '_');
     const destination = repeat === 1 ? flatName : `${index}-${flatName}`;
-    await copyFile(join(source, name), join(photos, destination));
+    if (reuse) {
+      const [original, fixture] = await Promise.all([
+        readFile(join(source, name)),
+        readFile(join(photos, destination)),
+      ]);
+      if (!original.equals(fixture))
+        throw new Error(
+          'The reused photograph differs from the explicitly configured public dataset'
+        );
+    } else await copyFile(join(source, name), join(photos, destination));
   }
 }
 for (const name of [

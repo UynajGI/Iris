@@ -1,5 +1,7 @@
 # 开发工具入口
 
+传统调色前端的热预览见[接入记录](../docs/color-frontend-implementation.md)：先构建前端，`watch-frontend.mjs` 监听前端代码并更新评审构建标记，`preview-frontend.mjs` 提供 `localhost:1420` 与真实 daemon；不会编译 Rust。`IRIS_REVIEW_DAEMON` 可指定 CI 产物，`IRIS_REVIEW_WORKSPACE` 可在逐文件核对公共样本后复用临时评审项目。`review-bootstrap.mjs` 只扫描运行中评审服务明确提供的公共临时副本，不接受任意用户目录。
+
 `verify-unix.py` 在临时目录中验证 Unix 包的文件哈希、原生宿主/daemon 心跳和合成 PNG 的 CPU 分析，不使用或修改用户照片。
 
 `package-dependency-source.py` 收集锁定的 Rust 依赖与前端 npm 分发源码，连同许可文件提供到 Beta 包内的 `sources/dependency-sources.zip`；主应用源码和独立 RAW 重建包分别保留。

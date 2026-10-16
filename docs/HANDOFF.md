@@ -1,10 +1,10 @@
 # Iris 交接
 
-更新：2026-10-14。Iris / 伊人为 GPL-3.0-or-later 的本地选片软件，正在独立分支 `codex/color-workflow` 开发传统调色后端。当前源码版本为 `0.1.0-beta5`，此前选片、安装界面、帮助诊断与常用筛选/导出目录改动已随 [PR #19](https://github.com/UynajGI/Iris/pull/19) 合并。已发布安装包仍为 beta3，beta4/beta5 安装包尚未发布。当前授权仅提交、推送开发分支并运行 CI，暂不创建 PR、合并、打 Tag 或发布。见[后端实现](color-engine-implementation.md)、[CI 记录](ci-verification.md)与[发布流程](releasing.md)。
+更新：2026-10-16。Iris / 伊人为 GPL-3.0-or-later 的本地选片软件，正在独立分支 `codex/color-workflow` 接入传统调色前端。当前源码版本为 `0.1.0-beta5`，此前选片、安装界面、帮助诊断与常用筛选/导出目录改动已随 [PR #19](https://github.com/UynajGI/Iris/pull/19) 合并。已发布安装包仍为 beta3，beta4/beta5 安装包尚未发布。当前授权仅提交、推送开发分支并运行 CI，暂不创建 PR、合并、打 Tag 或发布。见[前端接入](color-frontend-implementation.md)、[后端实现](color-engine-implementation.md)、[CI 记录](ci-verification.md)与[发布流程](releasing.md)。
 
 ## 当前实现
 
-- 顶部已加入“导入、选片、调色、修图、导出”导航，调色和修图仍为占位入口。后端新增 `iris-render`、schema v9 编辑历史与渲染导出队列、HTTP/CLI/MCP 编辑入口；FP32 处理与旧 8-bit 选片预览分开。完整目标见[调色引擎设计](color-engine-design.md)，实际范围和验收见[传统调色后端实现](color-engine-implementation.md)。Rust 验证交由分支 CI；不得把后端通过计作完整前端产品完成。
+- 顶部已加入“导入、选片、调色、修图、导出”导航。2026-10-16 传统调色前端首批已接真实预览/保存、蒙版、历史和成片导出，本地构建与 150 项前端测试通过；剩余工具及验收见[前端接入](color-frontend-implementation.md)，修图仍为占位。后端为 `iris-render`、schema v9 编辑历史/导出队列及 HTTP/CLI/MCP，FP32 与旧 8-bit 选片预览分开。完整目标见[设计](color-engine-design.md)，后端范围见[实现](color-engine-implementation.md)。Rust 编译交由分支 CI；完整前端阶段尚未完成。
 
 - 后端代码提交 `a05a8a6` 的 Verify 与三平台渲染工作流全部通过；包含完整 Rust 回归、生成契约、媒体、CPU/软件 GPU 对照、并发导出及大图取消释放。测量为 CI 调试构建，尚无真实硬件实时调色性能结论，见[CI 记录](ci-verification.md)。
 

@@ -1,0 +1,458 @@
+import { useEffect, useRef, useState } from 'react';
+import type { PhotoWorkspaceModel } from '../usePhotoWorkspace.js';
+import { Icon } from '../Icon.js';
+import { Button, PhotoImage } from '../components.js';
+import { Metadata } from '../PhotoInspector.js';
+import { Histogram } from '../Histogram.js';
+import { Panel } from '../Panel.js';
+import { useColorEditor } from './useColorEditor.js';
+import { AdjustmentPanels } from './AdjustmentPanels.js';
+import {
+  defaultAdjustments,
+  defaultDetail,
+  defaultGeometry,
+  updatePanel,
+  resetDocument,
+} from '../../editing-document.js';
+import { maskLayers, primaryMask, setMask, validateMaskBudget } from '../../editing-masks.js';
+import { MaskPanel, type BrushSettings } from './MaskPanel.js';
+import { ColorCanvas } from './ColorCanvas.js';
+import './color-workspace.css';
+import type { EditHistoryEntry } from '../../editing-client.js';
+import { focusEditingPhoto } from '../../editing-navigation.js';
+
+export type EditorBridge = {
+  onDirty?: ((dirty: boolean) => void) | undefined;
+  registerSave?: ((save: (() => Promise<boolean>) | null) => void) | undefined;
+};
+export function ColorWorkspace({
+  model,
+  onDirty,
+  registerSave,
+}: { model: PhotoWorkspaceModel } & EditorBridge) {
+  const photo = model.current;
+  const [before, setBefore] = useState(false);
+  const editor = useColorEditor(model.store.client, photo?.id, before);
+  const [zoom, setZoom] = useState(1);
+  const [selectedMask, setSelectedMask] = useState<string | null>(null);
+  const [painting, setPainting] = useState(true);
+  const [brush, setBrush] = useState<BrushSettings>({
+    radius: 0.05,
+    hardness: 0.5,
+    flow: 1,
+    erase: false,
+  });
+  const [drawError, setDrawError] = useState<string | null>(null);
+  const layer = maskLayers(editor.draft).find((item) => item.id === selectedMask);
+  const strip = useRef<HTMLDivElement>(null);
+  const available = !!editor.draft && !editor.loading && !editor.busy;
+  useEffect(() => {
+    onDirty?.(editor.dirty);
+  }, [editor.dirty, onDirty]);
+  useEffect(() => {
+    registerSave?.(editor.save);
+    return () => {
+      registerSave?.(null);
+      onDirty?.(false);
+    };
+  }, [editor.save, onDirty, registerSave]);
+  useEffect(() => {
+    setBefore(false);
+    setZoom(1);
+    setSelectedMask(null);
+    setDrawError(null);
+    strip.current
+      ?.querySelector('[aria-current="true"]')
+      ?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [photo?.id]);
+  useEffect(() => {
+    const record = editor.record;
+    if (!record) {
+      setSelectedMask(null);
+      return;
+    }
+    const id = record.id;
+    try {
+      const selected = sessionStorage.getItem(`iris:editing-mask:${id}`);
+      setSelectedMask(
+        maskLayers(record.document).some((item) => item.id === selected) ? selected : null
+      );
+    } catch {
+      setSelectedMask(null);
+    }
+  }, [editor.record?.id]);
+  useEffect(() => {
+    if (!editor.record) return;
+    try {
+      sessionStorage.setItem(`iris:editing-mask:${editor.record.id}`, selectedMask ?? '');
+    } catch {
+      /* Optional view preference. */
+    }
+  }, [selectedMask, editor.record?.id]);
+  const focus = async (id: number) => {
+    if (editor.busy || (editor.dirty && !(await editor.save()))) return;
+    if (!focusEditingPhoto(model.store, id)) setDrawError('照片列表已更新，请重新选择');
+  };
+  const reset = () => {
+    if (!editor.draft) return;
+    if (layer) {
+      editor.setDraft({
+        ...editor.draft,
+        nodes: editor.draft.nodes.map((node) =>
+          node.id === layer.adjustmentId
+            ? { ...node, operation: { type: 'adjustments', parameters: defaultAdjustments() } }
+            : node.id === layer.detailId
+              ? { ...node, operation: { type: 'detail', parameters: defaultDetail() } }
+              : node
+        ),
+      });
+      return;
+    }
+    let next = updatePanel(editor.draft, { type: 'adjustments', parameters: defaultAdjustments() });
+    next = updatePanel(next, { type: 'detail', parameters: defaultDetail() });
+    editor.setDraft(updatePanel(next, { type: 'geometry', parameters: defaultGeometry() }));
+  };
+  const photos = model.group?.photos ?? model.state.photos;
+  const position = photos.findIndex((item) => item.id === photo?.id);
+  return (
+    <main className="color-workspace" aria-label="调色工作区">
+      <aside className="grade-library" aria-label="调色版本与历史">
+        <div className="grade-library-heading">
+          <Icon name="image" />
+          <span>当前照片</span>
+        </div>
+        {photo && (
+          <div className="grade-navigator">
+            <PhotoImage client={model.store.client} photo={photo} kind="preview" />
+            <span title={photo.filename}>{photo.filename}</span>
+          </div>
+        )}
+        <Panel id="grade-versions" title="版本">
+          {editor.record ? (
+            <>
+              {editor.versions.map((version) => (
+                <button
+                  key={version.id}
+                  className="grade-version"
+                  type="button"
+                  aria-current={version.id === editor.record?.id ? 'true' : undefined}
+                  disabled={!available}
+                  onClick={() => void editor.selectVersion(version.id)}
+                >
+                  <Icon name={version.id === editor.record?.id ? 'done' : 'image'} />
+                  <span>{version.name}</span>
+                </button>
+              ))}
+              <Button
+                className="ghost block"
+                disabled={!available}
+                onClick={() => void editor.command('duplicate')}
+              >
+                创建虚拟副本
+              </Button>
+            </>
+          ) : (
+            <span className="muted">{editor.loading ? '正在读取' : '暂无版本'}</span>
+          )}
+        </Panel>
+        <Panel id="grade-history" title="历史">
+          <EditHistoryList history={editor.history} />
+        </Panel>
+      </aside>
+      <section className="grade-center" aria-label="照片与胶片栏">
+        <header className="grade-toolbar">
+          <span className="filename-line" title={photo?.filename}>
+            {photo?.filename ?? '未选择照片'}
+          </span>
+          <span className="spacer" />
+          {editor.record && (
+            <div className="grade-compact-versions">
+              <select
+                aria-label="当前调色版本"
+                value={editor.record.id}
+                disabled={!available}
+                onChange={(event) => void editor.selectVersion(event.target.value)}
+              >
+                {editor.versions.map((version) => (
+                  <option key={version.id} value={version.id}>
+                    {version.name}
+                  </option>
+                ))}
+              </select>
+              <Button
+                className="quiet"
+                aria-label="创建虚拟副本"
+                disabled={!available}
+                onClick={() => void editor.command('duplicate')}
+              >
+                副本
+              </Button>
+            </div>
+          )}
+          <Button
+            className="quiet icon-only"
+            aria-label="上一张"
+            disabled={position <= 0 || editor.busy}
+            onClick={() => void focus(photos[position - 1]!.id)}
+          >
+            <Icon name="chevron-left" />
+          </Button>
+          <span className="grade-position tabular">
+            {position < 0 ? 0 : position + 1} / {photos.length}
+          </span>
+          <Button
+            className="quiet icon-only"
+            aria-label="下一张"
+            disabled={position < 0 || position >= photos.length - 1 || editor.busy}
+            onClick={() => void focus(photos[position + 1]!.id)}
+          >
+            <Icon name="chevron-right" />
+          </Button>
+        </header>
+        <section
+          className="grade-photo"
+          aria-label={before ? '原图预览' : '调整后预览'}
+          aria-busy={editor.rendering || (before && editor.beforeLoading)}
+        >
+          {photo ? (
+            <ColorCanvas
+              key={photo.id}
+              client={model.store.client}
+              photo={photo}
+              preview={before ? editor.beforePreview : editor.preview}
+              before={before}
+              zoom={zoom}
+              layer={layer}
+              painting={painting && !before && available}
+              brush={brush}
+              onMask={(definition) => {
+                if (!editor.draft || !layer) return;
+                try {
+                  validateMaskBudget(definition);
+                  editor.setDraft(setMask(editor.draft, layer, definition));
+                  setDrawError(null);
+                } catch (reason) {
+                  setDrawError(reason instanceof Error ? reason.message : String(reason));
+                }
+              }}
+            />
+          ) : (
+            <div className="grade-empty">
+              <Icon name="image" />
+              <span>选择一张照片</span>
+            </div>
+          )}
+          {before && <span className="grade-before-tag">原图</span>}
+          {(editor.rendering || (before && editor.beforeLoading)) && (
+            <span className="grade-render-state" role="status">
+              正在预览
+            </span>
+          )}
+        </section>
+        <div className="grade-viewbar">
+          <Button
+            className="quiet"
+            aria-pressed={before}
+            disabled={!photo}
+            onClick={() => setBefore((value) => !value)}
+          >
+            <Icon name="compare" />
+            原图
+          </Button>
+          {layer &&
+            ['brush', 'linear_gradient', 'radial_gradient'].includes(
+              primaryMask(layer.definition).kind
+            ) && (
+              <Button
+                className="quiet"
+                disabled={!available || before}
+                aria-pressed={painting}
+                onClick={() => setPainting((value) => !value)}
+              >
+                绘制蒙版
+              </Button>
+            )}
+          <span className="spacer" />
+          {editor.preview && !before && (
+            <div className="grade-zoom">
+              <Button
+                className="quiet icon-only"
+                aria-label="缩小"
+                disabled={zoom <= 1}
+                onClick={() => setZoom((value) => Math.max(1, value / 1.25))}
+              >
+                <Icon name="zoom-out" />
+              </Button>
+              <Button className="quiet" onClick={() => setZoom(1)}>
+                {zoom === 1 ? '适合窗口' : `${Math.round(zoom * 100)}%`}
+              </Button>
+              <Button
+                className="quiet icon-only"
+                aria-label="放大"
+                disabled={zoom >= 4}
+                onClick={() => setZoom((value) => Math.min(4, value * 1.25))}
+              >
+                <Icon name="zoom-in" />
+              </Button>
+            </div>
+          )}
+          <span className="grade-save-state" role="status">
+            {editor.loading
+              ? '正在读取'
+              : editor.busy
+                ? '正在保存'
+                : editor.dirty
+                  ? '未保存'
+                  : editor.record
+                    ? '已保存'
+                    : ''}
+          </span>
+        </div>
+        <div ref={strip} className="grade-filmstrip" aria-label="调色胶片栏">
+          {photos.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              aria-label={item.filename}
+              aria-current={item.id === photo?.id ? 'true' : undefined}
+              disabled={editor.busy}
+              onClick={() => void focus(item.id)}
+            >
+              <PhotoImage client={model.store.client} photo={item} kind="thumb" />
+              <span>{item.filename}</span>
+            </button>
+          ))}
+        </div>
+      </section>
+      <aside className="grade-inspector" aria-label="调色工具">
+        <header className="grade-inspector-heading">
+          <h1>调色</h1>
+          <span className="spacer" />
+          <Button
+            className="quiet icon-only"
+            aria-label="还原所有调整"
+            title="还原所有调整"
+            disabled={!available}
+            onClick={() => {
+              if (editor.draft) {
+                editor.setDraft(resetDocument(editor.draft));
+                setSelectedMask(null);
+              }
+            }}
+          >
+            <Icon name="refresh" />
+          </Button>
+          <Button
+            className="quiet icon-only"
+            aria-label="撤销调色"
+            disabled={!available}
+            onClick={() => void editor.command('undo')}
+          >
+            <Icon name="undo" />
+          </Button>
+          <Button
+            className="quiet icon-only grade-redo"
+            aria-label="重做调色"
+            disabled={!available}
+            onClick={() => void editor.command('redo')}
+          >
+            <Icon name="undo" />
+          </Button>
+        </header>
+        <div className="grade-inspector-scroll">
+          <Histogram
+            client={model.store.client}
+            photo={photo}
+            previewUrl={before ? editor.beforePreview : editor.preview}
+          />
+          {(editor.error || editor.previewError || editor.beforeError) && (
+            <div className="grade-error" role="alert">
+              <Icon name="warning" />
+              <span>{editor.error ?? editor.previewError ?? editor.beforeError}</span>
+              <Button
+                className="quiet"
+                disabled={editor.busy}
+                onClick={() => {
+                  if (editor.error && editor.dirty) void editor.save();
+                  else editor.retry();
+                }}
+              >
+                重试
+              </Button>
+            </div>
+          )}
+          {drawError && (
+            <p className="grade-error" role="alert">
+              {drawError}
+            </p>
+          )}
+          <MaskPanel
+            document={editor.draft}
+            disabled={!available}
+            selected={layer?.id ?? null}
+            onSelect={(id) => {
+              setSelectedMask(id);
+              setPainting(true);
+              setBefore(false);
+            }}
+            onChange={editor.setDraft}
+            brush={brush}
+            onBrush={setBrush}
+          />
+          <div className="grade-compact-history">
+            <Panel id="grade-compact-history" title="历史" defaultOpen={false}>
+              <EditHistoryList history={editor.history} />
+            </Panel>
+          </div>
+          {layer && <div className="grade-adjustment-target">正在调整：{layer.name}</div>}
+          <AdjustmentPanels
+            document={editor.draft}
+            disabled={!available}
+            onChange={editor.setDraft}
+            target={
+              layer ? { adjustmentId: layer.adjustmentId, detailId: layer.detailId } : undefined
+            }
+          />
+          {photo && (
+            <Panel id="grade-metadata" title="元数据" defaultOpen={false}>
+              <Metadata photo={photo} />
+            </Panel>
+          )}
+        </div>
+        <footer className="grade-inspector-footer">
+          <Button className="ghost" disabled={!available} onClick={reset}>
+            {layer ? '重置局部' : '重置全局'}
+          </Button>
+          <Button primary disabled={!available || !editor.dirty} onClick={() => void editor.save()}>
+            保存调整
+          </Button>
+        </footer>
+      </aside>
+    </main>
+  );
+}
+function EditHistoryList({ history }: { history: EditHistoryEntry[] }) {
+  if (!history.length) return <span className="muted">暂无历史</span>;
+  const labels: Record<string, string> = {
+    create: '原始调整',
+    save: '保存调整',
+    undo: '撤销',
+    redo: '重做',
+    duplicate: '创建副本',
+    import_recipe: '应用调整',
+    batch: '批量同步',
+  };
+  return (
+    <ol className="grade-history">
+      {history
+        .slice()
+        .reverse()
+        .map((entry) => (
+          <li key={entry.revision}>
+            <span>{labels[entry.action] ?? entry.action}</span>
+            <span className="tabular">{entry.revision}</span>
+          </li>
+        ))}
+    </ol>
+  );
+}
