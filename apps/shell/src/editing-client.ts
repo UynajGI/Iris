@@ -13,6 +13,9 @@ export type EditPreset = S['EditPreset'];
 export type RenderedExportStatus = S['RenderedExportStatus'];
 export type RenderedExportRequest = S['RenderedExportRequest'];
 export type LensProfileSuggestion = S['LensProfileSuggestion'];
+export type RawWhiteBalanceRequest = S['RawWhiteBalanceRequest'];
+export type PreparedRawWhiteBalance = S['PreparedRawWhiteBalance'];
+export type WhiteBalanceTemperature = S['WhiteBalanceTemperature'];
 
 const path = (id: string) => `/api/v1/edits/${encodeURIComponent(id)}`;
 export class EditingClient {
@@ -184,6 +187,14 @@ export class EditingClient {
         expected_revision: record.revision,
         resource,
       }
+    );
+  }
+  rawWhiteBalance(record: EditRecord, request: RawWhiteBalanceRequest, signal?: AbortSignal) {
+    return this.client.transport.request<PreparedRawWhiteBalance>(
+      'POST',
+      `${path(record.id)}/raw-white-balance`,
+      { expected_revision: record.revision, request },
+      signal
     );
   }
   savePreset(name: string, recipe: EditRecipe) {

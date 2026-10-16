@@ -7,6 +7,7 @@ import { type BrushStroke, type MaskDefinition, type MaskLayer } from '../../edi
 import type { BrushSettings } from './MaskPanel.js';
 import { MaskOverlay } from './MaskOverlay.js';
 import { CropOverlay } from './CropOverlay.js';
+import { WhiteBalancePicker } from './WhiteBalancePicker.js';
 import { fitPreview } from '../../editing-canvas.js';
 import {
   maskPartAt,
@@ -55,6 +56,7 @@ export function ColorCanvas({
   crop,
   cropLocked,
   onCrop,
+  neutralPicker,
 }: {
   client: IrisClient;
   photo: Photo;
@@ -70,12 +72,15 @@ export function ColorCanvas({
   crop?: number[] | undefined;
   cropLocked?: boolean;
   onCrop?: ((crop: number[]) => void) | undefined;
+  neutralPicker?:
+    { width: number; height: number; onPick(point: Point): void; onCancel(): void } | undefined;
 }) {
   const original = usePhotoUrl(client, photo.id, 'preview', mediaRevision(photo));
   const url = preview ?? original.url;
   const stage = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [natural, setNatural] = useState({ width: photo.width, height: photo.height });
+  const [loadedUrl, setLoadedUrl] = useState<string | null>(null);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const panGesture = useRef<{ id: number; x: number; y: number; base: typeof pan } | null>(null);
   const gesture = useRef<Gesture | null>(null);
@@ -156,7 +161,7 @@ export function ColorCanvas({
       ref={stage}
       className={`grade-canvas ${isDrawing ? 'drawing' : zoom > 1 ? 'panning' : ''}`}
       onPointerDown={(event) => {
-        if (isDrawing || crop || zoom === 1) return;
+        if (isDrawing || crop || neutralPicker || zoom === 1) return;
         panGesture.current = { id: event.pointerId, x: event.clientX, y: event.clientY, base: pan };
         event.currentTarget.setPointerCapture(event.pointerId);
       }}
@@ -186,13 +191,17 @@ export function ColorCanvas({
             src={url}
             alt={`${photo.filename}${before ? '，原图' : preview ? '，调整后' : ''}`}
             draggable={false}
-            onLoad={(event) =>
+            onLoad={(event) => {
+              setLoadedUrl(url);
               setNatural({
                 width: event.currentTarget.naturalWidth,
                 height: event.currentTarget.naturalHeight,
-              })
-            }
+              });
+            }}
           />
+          {neutralPicker && preview && loadedUrl === preview && (
+            <WhiteBalancePicker {...neutralPicker} />
+          )}
           {crop && onCrop && (
             <CropOverlay
               crop={crop}

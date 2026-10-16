@@ -35,6 +35,9 @@ export function sourceDocument(document: EditDocument): EditDocument {
   if (!source) throw new Error('编辑文档缺少原片节点');
   return {
     ...document,
+    source: document.source.raw_white_balance
+      ? { ...document.source, raw_white_balance: null }
+      : document.source,
     nodes: [source],
     output_node: source.id,
     panel_bindings: [],

@@ -22,6 +22,9 @@ import { MaskPanel, type BrushSettings } from './MaskPanel.js';
 import { ColorCanvas } from './ColorCanvas.js';
 import { CropTools } from './CropTools.js';
 import { PresetPanel } from './PresetPanel.js';
+import { RawWhiteBalancePanel } from './RawWhiteBalancePanel.js';
+import { useRawWhiteBalance } from './useRawWhiteBalance.js';
+import { neutralPatch } from '../../editing-white-balance.js';
 import './color-workspace.css';
 import type { EditHistoryEntry } from '../../editing-client.js';
 import { focusEditingPhoto } from '../../editing-navigation.js';
@@ -41,6 +44,14 @@ export function ColorWorkspace({
   const [cropLocked, setCropLocked] = useState(false);
   const [showMask, setShowMask] = useState(true);
   const editor = useColorEditor(model.store.client, photo?.id, before, cropMode);
+  const whiteBalance = useRawWhiteBalance({
+    client: model.store.client,
+    record: editor.record,
+    document: editor.draft,
+    enabled: photo?.format === 'raw',
+    onChange: editor.setDraft,
+  });
+  const [pickingWhite, setPickingWhite] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [selectedMask, setSelectedMask] = useState<string | null>(null);
   const [selectedMaskPart, setSelectedMaskPart] = useState(0);
@@ -68,7 +79,7 @@ export function ColorWorkspace({
       ? maskLayers(editor.draft).find((item) => item.id === selectedMask)
       : undefined;
   const strip = useRef<HTMLDivElement>(null);
-  const available = !!editor.draft && !editor.loading && !editor.busy;
+  const available = !!editor.draft && !editor.loading && !editor.busy && !whiteBalance.pending;
   useEffect(() => {
     setSelectedMaskPart(0);
   }, [selectedMask, editor.record?.id]);
@@ -96,15 +107,26 @@ export function ColorWorkspace({
     };
   }, [historyOpen]);
   useEffect(() => {
-    onDirty?.(editor.dirty);
-  }, [editor.dirty, onDirty]);
+    const dirty = editor.dirty || whiteBalance.pending;
+    onDirty?.(dirty);
+    document.documentElement.dataset.irisEditingDirty = String(dirty);
+    return () => {
+      document.documentElement.dataset.irisEditingDirty = 'false';
+    };
+  }, [editor.dirty, whiteBalance.pending, onDirty]);
   useEffect(() => {
-    registerSave?.(editor.save);
+    registerSave?.(async () => !whiteBalance.pending && (await editor.save()));
     return () => {
       registerSave?.(null);
       onDirty?.(false);
     };
-  }, [editor.save, onDirty, registerSave]);
+  }, [editor.save, whiteBalance.pending, onDirty, registerSave]);
+  useEffect(() => {
+    if (!before || cropMode || toolTab !== 'adjustments') setPickingWhite(false);
+  }, [before, cropMode, toolTab]);
+  useEffect(() => {
+    setPickingWhite(false);
+  }, [editor.record?.id]);
   useEffect(() => {
     setBefore(false);
     setCropMode(false);
@@ -140,7 +162,7 @@ export function ColorWorkspace({
     }
   }, [selectedMask, editor.record?.id]);
   const focus = async (id: number) => {
-    if (editor.busy || (editor.dirty && !(await editor.save()))) return;
+    if (editor.busy || whiteBalance.pending || (editor.dirty && !(await editor.save()))) return;
     if (!focusEditingPhoto(model.store, id)) setDrawError('照片列表已更新，请重新选择');
   };
   const reset = () => {
@@ -158,7 +180,10 @@ export function ColorWorkspace({
       });
       return;
     }
-    let next = updatePanel(editor.draft, { type: 'adjustments', parameters: defaultAdjustments() });
+    let next = updatePanel(
+      { ...editor.draft, source: { ...editor.draft.source, raw_white_balance: null } },
+      { type: 'adjustments', parameters: defaultAdjustments() }
+    );
     next = updatePanel(next, { type: 'detail', parameters: defaultDetail() });
     editor.setDraft(updatePanel(next, { type: 'geometry', parameters: defaultGeometry() }));
   };
@@ -239,7 +264,7 @@ export function ColorWorkspace({
           <Button
             className="quiet icon-only"
             aria-label="上一张"
-            disabled={position <= 0 || editor.busy}
+            disabled={position <= 0 || editor.busy || whiteBalance.pending}
             onClick={() => void focus(photos[position - 1]!.id)}
           >
             <Icon name="chevron-left" />
@@ -250,7 +275,9 @@ export function ColorWorkspace({
           <Button
             className="quiet icon-only"
             aria-label="下一张"
-            disabled={position < 0 || position >= photos.length - 1 || editor.busy}
+            disabled={
+              position < 0 || position >= photos.length - 1 || editor.busy || whiteBalance.pending
+            }
             onClick={() => void focus(photos[position + 1]!.id)}
           >
             <Icon name="chevron-right" />
@@ -268,6 +295,27 @@ export function ColorWorkspace({
               photo={photo}
               preview={before ? editor.beforePreview : editor.preview}
               before={before}
+              neutralPicker={
+                pickingWhite && before && !whiteBalance.pending && editor.draft
+                  ? {
+                      width: editor.draft.source.width,
+                      height: editor.draft.source.height,
+                      onCancel: () => {
+                        setPickingWhite(false);
+                        setBefore(false);
+                      },
+                      onPick: (point) => {
+                        if (!editor.draft) return;
+                        whiteBalance.request({
+                          kind: 'neutral',
+                          rect: neutralPatch(point, editor.draft.source),
+                        });
+                        setPickingWhite(false);
+                        setBefore(false);
+                      },
+                    }
+                  : undefined
+              }
               zoom={zoom}
               layer={layer}
               selectedPart={selectedMaskPart}
@@ -302,7 +350,11 @@ export function ColorWorkspace({
               <span>选择一张照片</span>
             </div>
           )}
-          {before && <span className="grade-before-tag">原图</span>}
+          {before && (
+            <span className="grade-before-tag">
+              {pickingWhite ? '点击中性灰或白色区域' : '原图'}
+            </span>
+          )}
           {(editor.rendering || (before && editor.beforeLoading)) && (
             <span className="grade-render-state" role="status">
               正在预览
@@ -401,13 +453,15 @@ export function ColorWorkspace({
           <span className="grade-save-state" role="status">
             {editor.loading
               ? '正在读取'
-              : editor.busy
-                ? '正在保存'
-                : editor.dirty
-                  ? '未保存'
-                  : editor.record
-                    ? '已保存'
-                    : ''}
+              : whiteBalance.pending
+                ? '正在调整白平衡'
+                : editor.busy
+                  ? '正在保存'
+                  : editor.dirty
+                    ? '未保存'
+                    : editor.record
+                      ? '已保存'
+                      : ''}
           </span>
         </div>
         <div ref={strip} className="grade-filmstrip" aria-label="调色胶片栏">
@@ -417,7 +471,7 @@ export function ColorWorkspace({
               type="button"
               aria-label={item.filename}
               aria-current={item.id === photo?.id ? 'true' : undefined}
-              disabled={editor.busy}
+              disabled={editor.busy || whiteBalance.pending}
               onClick={() => void focus(item.id)}
             >
               <PhotoImage client={model.store.client} photo={item} kind="thumb" />
@@ -560,6 +614,20 @@ export function ColorWorkspace({
                 document={editor.draft}
                 disabled={!available}
                 onChange={editor.setDraft}
+              />
+            )}
+            {toolTab === 'adjustments' && photo?.format === 'raw' && editor.draft && (
+              <RawWhiteBalancePanel
+                model={whiteBalance}
+                disabled={editor.loading || editor.busy}
+                asShot={!editor.draft.source.raw_white_balance}
+                picking={pickingWhite}
+                onPick={() => {
+                  setPickingWhite(!pickingWhite);
+                  setBefore(!pickingWhite);
+                  setCropMode(false);
+                  setZoom(1);
+                }}
               />
             )}
             {toolTab === 'masks' && (
