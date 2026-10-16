@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-export type CurvePoint = { x: number; y: number };
-export type CurveData = {
-  points: CurvePoint[];
-  interpolation?: 'linear' | 'monotone_cubic';
-};
+import type { components } from './generated/api.js';
+export type CurvePoint = components['schemas']['CurvePoint'];
+type CurveContract = components['schemas']['Curve'];
+// Linear mode may be omitted by the renderer or an older saved document.
+export type CurveData = Pick<CurveContract, 'points'> &
+  Partial<Pick<CurveContract, 'interpolation'>>;
 type Prepared = { points: CurvePoint[]; tangents: number[]; cubic: boolean };
 
 function endpoint(h0: number, h1: number, d0: number, d1: number) {

@@ -4640,6 +4640,11 @@
       "Curve": {
         "type": "object",
         "properties": {
+          "interpolation": {
+            "$ref": "#/components/schemas/CurveInterpolation",
+            "description": "Missing means legacy linear interpolation. Cubic preserves monotonicity.",
+            "default": "linear"
+          },
           "points": {
             "type": "array",
             "items": {
@@ -4650,6 +4655,13 @@
           }
         },
         "additionalProperties": false
+      },
+      "CurveInterpolation": {
+        "type": "string",
+        "enum": [
+          "linear",
+          "monotone_cubic"
+        ]
       },
       "CurvePoint": {
         "type": "object",

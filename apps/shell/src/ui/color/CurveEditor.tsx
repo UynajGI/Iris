@@ -1,5 +1,6 @@
 import { useRef, useState, type PointerEvent } from 'react';
 import type { Adjustments } from '../../editing-client.js';
+import { curvePath } from '../../editing-curves.js';
 
 type Channel = 'master_curve' | 'red_curve' | 'green_curve' | 'blue_curve';
 type Point = { x: number; y: number };
@@ -17,7 +18,13 @@ export function CurveEditor({
   onChange(value: Adjustments): void;
 }) {
   const [channel, setChannel] = useState<Channel>('master_curve');
-  const drag = useRef<number | null>(null);
+  const drag = useRef<{
+    index: number;
+    pointerId: number;
+    x: number;
+    y: number;
+    moved: boolean;
+  } | null>(null);
   const saved = adjustments[channel].points;
   const points = saved.length
     ? saved
@@ -28,8 +35,13 @@ export function CurveEditor({
   const current = useRef(points);
   current.current = points;
   const save = (next: Point[]) => {
+    if (
+      next.length === current.current.length &&
+      next.every((p, i) => p.x === current.current[i]!.x && p.y === current.current[i]!.y)
+    )
+      return;
     current.current = next;
-    onChange({ ...adjustments, [channel]: { points: next } });
+    onChange({ ...adjustments, [channel]: { points: next, interpolation: 'monotone_cubic' } });
   };
   const position = (event: PointerEvent<SVGSVGElement>) => {
     const bounds = event.currentTarget.getBoundingClientRect();
@@ -53,6 +65,14 @@ export function CurveEditor({
     };
     save(next);
   };
+  const moveDrag = (event: PointerEvent<SVGSVGElement>) => {
+    const active = drag.current;
+    if (!active || active.pointerId !== event.pointerId) return;
+    if (!active.moved && Math.hypot(event.clientX - active.x, event.clientY - active.y) < 0.5)
+      return;
+    active.moved = true;
+    move(active.index, position(event));
+  };
   return (
     <div className={`grade-curves curve-${channel}`}>
       <div className="grade-curve-channels segmented" role="group" aria-label="曲线通道">
@@ -61,7 +81,10 @@ export function CurveEditor({
             type="button"
             key={key}
             aria-pressed={channel === key}
-            onClick={() => setChannel(key)}
+            onClick={() => {
+              drag.current = null;
+              setChannel(key);
+            }}
           >
             {label}
           </button>
@@ -72,6 +95,7 @@ export function CurveEditor({
         viewBox="0 0 200 200"
         aria-label="曲线控制点"
         onPointerDown={(event) => {
+          if (event.button !== 0 || drag.current) return;
           const p = position(event);
           let index = points.findIndex((point) => Math.hypot(point.x - p.x, point.y - p.y) < 0.06);
           if (index < 0 && points.length < 64 && p.x > 0.002 && p.x < 0.998) {
@@ -82,18 +106,29 @@ export function CurveEditor({
             else index = -1;
           }
           if (index >= 0) {
-            drag.current = index;
+            drag.current = {
+              index,
+              pointerId: event.pointerId,
+              x: event.clientX,
+              y: event.clientY,
+              moved: false,
+            };
             event.currentTarget.setPointerCapture(event.pointerId);
           }
         }}
-        onPointerMove={(event) => {
-          if (drag.current !== null) move(drag.current, position(event));
-        }}
-        onPointerUp={() => {
+        onPointerMove={moveDrag}
+        onPointerUp={(event) => {
+          if (drag.current?.pointerId !== event.pointerId) return;
+          moveDrag(event);
           drag.current = null;
+          if (event.currentTarget.hasPointerCapture(event.pointerId))
+            event.currentTarget.releasePointerCapture(event.pointerId);
         }}
-        onPointerCancel={() => {
-          drag.current = null;
+        onPointerCancel={(event) => {
+          if (drag.current?.pointerId === event.pointerId) drag.current = null;
+        }}
+        onLostPointerCapture={(event) => {
+          if (drag.current?.pointerId === event.pointerId) drag.current = null;
         }}
       >
         {[0.25, 0.5, 0.75].map((value) => (
@@ -104,10 +139,7 @@ export function CurveEditor({
           />
         ))}
         <path className="grade-curve-identity" d="M0 200L200 0" />
-        <polyline
-          className="grade-curve-line"
-          points={points.map((point) => `${point.x * 200},${(1 - point.y) * 200}`).join(' ')}
-        />
+        <path className="grade-curve-line" d={curvePath(adjustments[channel])} />
         {points.map((point, index) => (
           <circle
             key={index}
