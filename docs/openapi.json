@@ -1231,6 +1231,47 @@
         }
       }
     },
+    "/api/v1/edits/{id}/sync": {
+      "post": {
+        "tags": [],
+        "operationId": "editing_sync_settings",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SelectiveEditSync"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EditRecord"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/edits/{id}/undo": {
       "post": {
         "tags": [],
@@ -5153,6 +5194,19 @@
           }
         }
       },
+      "EditSyncGroup": {
+        "type": "string",
+        "enum": [
+          "tone",
+          "color",
+          "curves",
+          "color_grading",
+          "detail",
+          "effects",
+          "crop",
+          "optics"
+        ]
+      },
       "EditingCapabilities": {
         "type": "object",
         "required": [
@@ -8851,6 +8905,38 @@
             "description": "observation, limitation, or context; missing evidence is not a defect."
           }
         }
+      },
+      "SelectiveEditSync": {
+        "type": "object",
+        "required": [
+          "expected_revision",
+          "request_id",
+          "targets",
+          "groups"
+        ],
+        "properties": {
+          "expected_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EditSyncGroup"
+            }
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "targets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BatchEditTarget"
+            }
+          }
+        },
+        "additionalProperties": false
       },
       "SemanticEmbedding": {
         "type": "object",

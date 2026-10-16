@@ -449,6 +449,16 @@ fn selective_sync_preserves_target_graph_and_replays_original_snapshot() {
     }
     assert_eq!(result.document, expected);
     assert_eq!(
+        services
+            .edit_history(&target.id, 100, 0)
+            .unwrap()
+            .iter()
+            .find(|entry| entry.revision == result.revision)
+            .unwrap()
+            .action,
+        "batch"
+    );
+    assert_eq!(
         services.edit_document(&source.id).unwrap().revision,
         source.revision
     );

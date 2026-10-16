@@ -113,7 +113,7 @@ pub(super) fn save_with_context(
         &current,
         &command,
         &request.document,
-        "save",
+        if context.is_some() { "batch" } else { "save" },
         cursor + 1,
         &payload,
     )?;

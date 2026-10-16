@@ -23,6 +23,7 @@ import { ColorCanvas } from './ColorCanvas.js';
 import { CropTools } from './CropTools.js';
 import { PresetPanel } from './PresetPanel.js';
 import { RawWhiteBalancePanel } from './RawWhiteBalancePanel.js';
+import { SyncAdjustmentsDialog } from './SyncAdjustmentsDialog.js';
 import { useRawWhiteBalance } from './useRawWhiteBalance.js';
 import { neutralPatch } from '../../editing-white-balance.js';
 import './color-workspace.css';
@@ -65,6 +66,7 @@ export function ColorWorkspace({
     return 'adjustments';
   });
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [syncOpen, setSyncOpen] = useState(false);
   const historyMenu = useRef<HTMLDivElement>(null);
   const [painting, setPainting] = useState(true);
   const [brush, setBrush] = useState<BrushSettings>({
@@ -694,8 +696,24 @@ export function ColorWorkspace({
           <Button primary disabled={!available || !editor.dirty} onClick={() => void editor.save()}>
             保存调整
           </Button>
+          <Button
+            className="quiet"
+            disabled={!available || photos.length < 2}
+            onClick={() => setSyncOpen(true)}
+          >
+            同步…
+          </Button>
         </footer>
       </aside>
+      {syncOpen && editor.record && (
+        <SyncAdjustmentsDialog
+          client={model.store.client}
+          sourceId={editor.record.id}
+          photos={photos}
+          prepareSource={editor.save}
+          onClose={() => setSyncOpen(false)}
+        />
+      )}
     </main>
   );
 }

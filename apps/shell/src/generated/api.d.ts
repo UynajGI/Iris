@@ -1,5 +1,5 @@
 // Generated from iris-daemon OpenAPI. Do not edit.
-// Contract SHA-256: fe9d5613515474edb9c39eccd89dc968f71fb411fc4c3db7edca3bf465323e0d
+// Contract SHA-256: ba1efe310fd8b76eaa59a91149bb65fd974950ff9e8dee69ef63a30d2c5ed188
 export interface paths {
     "/api/v1/bootstrap": {
         parameters: {
@@ -379,6 +379,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["editing_preview_sample"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/edits/{id}/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["editing_sync_settings"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1944,6 +1960,8 @@ export interface components {
         EditSuccess: {
             ok: boolean;
         };
+        /** @enum {string} */
+        EditSyncGroup: "tone" | "color" | "curves" | "color_grading" | "detail" | "effects" | "crop" | "optics";
         EditingCapabilities: {
             compute_backend: string;
             /** Format: int32 */
@@ -2971,6 +2989,13 @@ export interface components {
             /** @description observation, limitation, or context; missing evidence is not a defect. */
             kind: string;
         };
+        SelectiveEditSync: {
+            /** Format: int64 */
+            expected_revision: number;
+            groups: components["schemas"]["EditSyncGroup"][];
+            request_id: string;
+            targets: components["schemas"]["BatchEditTarget"][];
+        };
         SemanticEmbedding: {
             model_sha256: string;
             preprocessing: string;
@@ -3859,6 +3884,32 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SampleResponse"];
+                };
+            };
+        };
+    };
+    editing_sync_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SelectiveEditSync"];
+            };
+        };
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EditRecord"][];
                 };
             };
         };

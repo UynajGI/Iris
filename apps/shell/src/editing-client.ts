@@ -16,6 +16,8 @@ export type LensProfileSuggestion = S['LensProfileSuggestion'];
 export type RawWhiteBalanceRequest = S['RawWhiteBalanceRequest'];
 export type PreparedRawWhiteBalance = S['PreparedRawWhiteBalance'];
 export type WhiteBalanceTemperature = S['WhiteBalanceTemperature'];
+export type EditSyncGroup = S['EditSyncGroup'];
+export type SelectiveEditSync = S['SelectiveEditSync'];
 
 const path = (id: string) => `/api/v1/edits/${encodeURIComponent(id)}`;
 export class EditingClient {
@@ -53,6 +55,9 @@ export class EditingClient {
   }
   get(id: string) {
     return this.client.transport.request<EditRecord>('GET', path(id));
+  }
+  sync(id: string, request: SelectiveEditSync) {
+    return this.client.transport.request<EditRecord[]>('POST', `${path(id)}/sync`, request);
   }
   history(id: string, signal?: AbortSignal) {
     return this.client.transport.request<EditHistoryEntry[]>(

@@ -98,10 +98,12 @@ export function Dialog({
   title,
   children,
   onClose,
+  className,
 }: {
   title: string;
   children: ReactNode;
   onClose(): void;
+  className?: string;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const id = useId();
@@ -120,6 +122,7 @@ export function Dialog({
   return (
     <dialog
       ref={dialog}
+      className={className}
       aria-labelledby={id}
       onCancel={(event) => {
         event.preventDefault();

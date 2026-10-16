@@ -658,6 +658,107 @@
 }
 .grade-inspector-footer .button {
   font-size: var(--small);
+  padding-inline: 8px;
+}
+.grade-sync {
+  display: grid;
+  grid-auto-rows: max-content;
+  gap: 16px;
+  min-width: 0;
+  font-size: var(--small);
+}
+.grade-sync-dialog[open] {
+  display: flex;
+  flex-direction: column;
+  background: var(--tool);
+  overflow: hidden;
+}
+.grade-sync-dialog .grade-sync {
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+.grade-sync-dialog .dialog-heading,
+.grade-sync-dialog .dialog-actions {
+  flex-shrink: 0;
+}
+.grade-sync-source,
+.grade-sync-note {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.grade-sync-groups {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 24px;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.grade-sync-groups legend {
+  font-weight: 500;
+  margin-bottom: 14px;
+}
+.grade-sync label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.grade-sync input[type='checkbox'] {
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+.grade-sync-target-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.grade-sync-target-heading h3 {
+  font-size: var(--small);
+  margin-right: auto;
+}
+.grade-sync-target-heading .button {
+  font-size: var(--small);
+  padding-inline: 8px;
+}
+.grade-sync-targets {
+  min-height: 120px;
+  max-height: min(280px, 32vh);
+  overflow: auto;
+  border-block: 1px solid var(--line-subtle);
+}
+.grade-sync-target {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(110px, 38%);
+  align-items: center;
+  gap: 14px;
+  min-height: 60px;
+  border-bottom: 1px solid var(--line-faint);
+}
+.grade-sync-target img,
+.grade-sync-target .photo-placeholder {
+  width: 36px;
+  height: 44px;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+.grade-sync-target label > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.grade-sync-target select {
+  width: 100%;
+  min-width: 0;
+  font-size: var(--small);
+}
+.grade-sync-error {
+  color: var(--flag-text);
+  overflow-wrap: anywhere;
 }
 .grade-inspector-footer .button.ghost {
   border-color: transparent;
