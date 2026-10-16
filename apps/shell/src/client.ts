@@ -65,6 +65,13 @@ export class IrisClient {
     );
   };
   photo = (id: number) => this.transport.request<Photo>('GET', `/api/v1/photos/${id}`);
+  photoMetadata = (id: number, signal?: AbortSignal) =>
+    this.transport.request<import('./types.js').PhotoMetadata>(
+      'GET',
+      `/api/v1/photos/${id}/metadata`,
+      undefined,
+      signal
+    );
   browseContext = (id: number, context: import('./types.js').BrowseContext, signal?: AbortSignal) =>
     this.transport.request<unknown>('PUT', `${projectPath(id)}/browse-context`, context, signal);
   detail = (id: number, request: import('./types.js').DetailRequest, signal?: AbortSignal) =>

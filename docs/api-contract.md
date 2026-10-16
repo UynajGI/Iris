@@ -40,6 +40,18 @@ This contract does not imply that the grading frontend is implemented.
 
 ## beta4 selection endpoints
 
+### On-demand capture metadata
+
+`GET /photos/{id}/metadata` reads camera and lens identity, capture time and offset,
+exposure time, aperture, ISO, focal length, exposure compensation, metering,
+white-balance mode, flash and attribution fields. Values are optional; no camera
+settings are inferred. `status` distinguishes `available`, `not_found`,
+`unreadable` and `read_limit`. Inspection reads at most 16 MiB of the container,
+does not decode pixels or invoke external converters, and runs in the bounded
+media queue outside the service lock. Source size/time and availability are
+checked; changed files require a rescan. This is a read-only display endpoint,
+not an EXIF write/export or complete vendor MakerNote API.
+
 All new endpoints use the same authentication and project/source availability checks. Generated field definitions are in [openapi.json](openapi.json).
 
 | Endpoint                            | Behavior                                                                                                                               |

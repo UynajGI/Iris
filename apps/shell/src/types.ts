@@ -19,6 +19,7 @@ export type AcceptRequest = Partial<Schemas['AcceptRequest']>;
 export type AcceptCategory = Schemas['AcceptCategory'];
 export type Project = Schemas['Project'];
 export type Photo = Schemas['Photo'];
+export type PhotoMetadata = Schemas['PhotoMetadata'];
 export type AnalysisStatus = Schemas['AnalysisStatus'];
 export type VisionAnalysis = Schemas['VisionAnalysis'];
 export type FaceQuality = Schemas['FaceQuality'];

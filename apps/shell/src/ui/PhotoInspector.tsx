@@ -2,8 +2,10 @@ import type { CSSProperties, ReactNode } from 'react';
 import { readPhotoAnalysis } from '../analysis-readout.js';
 import type { Photo, VisionAnalysis } from '../types.js';
 import { Icon } from './Icon.js';
-import { componentNames, formatBytes, formatTaken, verdictNames } from './photo-readouts.js';
+import { componentNames, formatBytes, verdictNames } from './photo-readouts.js';
 import { previewSource, selectionReason } from '../selection-readout.js';
+import type { IrisClient } from '../client.js';
+import { CaptureMetadata } from './CaptureMetadata.js';
 
 export function AnalysisPanel({ photo }: { photo: Photo }) {
   const analysis = readPhotoAnalysis(photo);
@@ -104,13 +106,9 @@ function SelectionReasons({ evidence }: { evidence: VisionAnalysis['selection_ev
   );
 }
 
-export function Metadata({ photo }: { photo: Photo }) {
-  const taken = formatTaken(photo.taken_at);
+export function Metadata({ photo, client }: { photo: Photo; client: IrisClient }) {
   const rows: [string, ReactNode][] = [
     ['文件名', <span className="filename">{photo.filename}</span>],
-    ...(taken
-      ? [['拍摄时间', <span className="tabular">{taken}</span>] as [string, ReactNode]]
-      : []),
     [
       '尺寸',
       <span className="tabular">
@@ -135,6 +133,7 @@ export function Metadata({ photo }: { photo: Photo }) {
         <summary>文件位置</summary>
         <p className="filename path-text">{photo.path}</p>
       </details>
+      <CaptureMetadata photo={photo} client={client} />
     </div>
   );
 }

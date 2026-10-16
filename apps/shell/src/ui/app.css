@@ -2358,6 +2358,25 @@ img.loaded {
 .meta-row:last-child {
   border: 0;
 }
+.meta-row dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+.capture-metadata {
+  margin-top: 24px;
+}
+.capture-metadata h3 {
+  font-size: var(--small);
+  font-weight: 500;
+  margin: 0 0 12px;
+}
+.capture-metadata details {
+  margin-top: 12px;
+}
+.capture-metadata details .meta-table {
+  margin-top: 10px;
+}
 .path-text {
   font-size: max(12px, calc(var(--small) - 1px));
   color: var(--muted);

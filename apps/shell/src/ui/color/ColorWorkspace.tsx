@@ -527,11 +527,13 @@ export function ColorWorkspace({
           ))}
         </div>
         <div className="grade-inspector-scroll">
-          <Histogram
-            client={model.store.client}
-            photo={photo}
-            previewUrl={before ? editor.beforePreview : editor.preview}
-          />
+          {toolTab !== 'metadata' && (
+            <Histogram
+              client={model.store.client}
+              photo={photo}
+              previewUrl={before ? editor.beforePreview : editor.preview}
+            />
+          )}
           {(editor.error || editor.previewError || editor.beforeError) && (
             <div className="grade-error" role="alert">
               <Icon name="warning" />
@@ -619,7 +621,7 @@ export function ColorWorkspace({
             )}
             {toolTab === 'metadata' && photo && (
               <section className="grade-settings-page" aria-label="元数据">
-                <Metadata photo={photo} />
+                <Metadata photo={photo} client={model.store.client} />
               </section>
             )}
           </div>

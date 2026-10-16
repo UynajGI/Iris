@@ -929,11 +929,28 @@
   flex-direction: column;
   gap: 8px;
 }
-.grade-color-wheels {
+.grade-wheel-bands {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-  margin: 6px 0 22px;
+  gap: 2px;
+  padding: 3px;
+  background: var(--sunken);
+  border-radius: 5px;
+}
+.grade-wheel-bands button {
+  min-width: 0;
+  padding: 6px 4px;
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+}
+.grade-wheel-bands button[aria-pressed='true'] {
+  color: var(--text);
+  background: var(--raised);
+}
+.grade-color-wheels {
+  width: min(100%, 200px);
+  margin: 18px auto 22px;
 }
 .grade-wheel-group {
   min-width: 0;
@@ -963,10 +980,26 @@
 .grade-color-wheel:focus-visible {
   outline: 2px solid var(--accent);
 }
+.grade-color-wheel[aria-disabled='true'] {
+  cursor: default;
+  opacity: 0.5;
+}
+.grade-wheel-center {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  transform: translate(-50%, -50%);
+  background:
+    linear-gradient(#30303480, #30303480) center / 1px 100% no-repeat,
+    linear-gradient(#30303480, #30303480) center / 100% 1px no-repeat;
+  pointer-events: none;
+}
 .grade-wheel-puck {
   position: absolute;
-  width: 8px;
-  height: 8px;
+  width: 12px;
+  height: 12px;
   transform: translate(-50%, -50%);
   border: 1.5px solid white;
   border-radius: 50%;

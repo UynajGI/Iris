@@ -1550,6 +1550,37 @@
         }
       }
     },
+    "/api/v1/photos/{id}/metadata": {
+      "get": {
+        "tags": [
+          "operations"
+        ],
+        "operationId": "photo_metadata",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhotoMetadata"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/photos/{id}/original": {
       "get": {
         "tags": [
@@ -7560,6 +7591,158 @@
             ]
           }
         }
+      },
+      "PhotoMetadata": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "artist": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "camera_make": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "camera_model": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "captured_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "captured_offset": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "copyright": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "exposure_bias_ev": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "exposure_program": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "exposure_seconds": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "f_number": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "flash": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "focal_35mm": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "focal_mm": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "iso": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "lens_make": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "lens_model": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "metering_mode": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "orientation": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "status": {
+            "$ref": "#/components/schemas/PhotoMetadataStatus"
+          },
+          "white_balance": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          }
+        }
+      },
+      "PhotoMetadataStatus": {
+        "type": "string",
+        "enum": [
+          "available",
+          "not_found",
+          "unreadable",
+          "read_limit"
+        ]
       },
       "PixelRect": {
         "type": "object",

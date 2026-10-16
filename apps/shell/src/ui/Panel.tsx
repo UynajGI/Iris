@@ -10,12 +10,14 @@ export function Panel({
   aside,
   children,
   defaultOpen = true,
+  mountWhenOpen = false,
 }: {
   id: string;
   title: string;
   aside?: ReactNode;
   children: ReactNode;
   defaultOpen?: boolean;
+  mountWhenOpen?: boolean;
 }) {
   const [open, setOpen] = useState(() => {
     try {
@@ -51,7 +53,7 @@ export function Panel({
         {aside && <span className="panel-aside">{aside}</span>}
       </header>
       <div id={bodyId} className="panel-body" hidden={!open}>
-        {children}
+        {(!mountWhenOpen || open) && children}
       </div>
     </section>
   );

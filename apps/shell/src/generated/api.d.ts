@@ -1,5 +1,5 @@
 // Generated from iris-daemon OpenAPI. Do not edit.
-// Contract SHA-256: 30bb6cf620f62ff0c7ba1b2b2df14129690ba2a3c60c59966283c11d9f215057
+// Contract SHA-256: fd073f51041bf752f691af6bd002845939f2187d559da1bce009f40f9145feec
 export interface paths {
     "/api/v1/bootstrap": {
         parameters: {
@@ -507,6 +507,22 @@ export interface paths {
         get: operations["editing_list_edits"];
         put?: never;
         post: operations["editing_create_edit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/photos/{id}/metadata": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["photo_metadata"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2631,6 +2647,41 @@ export interface components {
             sort?: string | null;
             verdict?: string | null;
         };
+        PhotoMetadata: {
+            artist?: string | null;
+            camera_make?: string | null;
+            camera_model?: string | null;
+            captured_at?: string | null;
+            captured_offset?: string | null;
+            copyright?: string | null;
+            /** Format: double */
+            exposure_bias_ev?: number | null;
+            /** Format: int32 */
+            exposure_program?: number | null;
+            /** Format: double */
+            exposure_seconds?: number | null;
+            /** Format: double */
+            f_number?: number | null;
+            /** Format: int32 */
+            flash?: number | null;
+            /** Format: int32 */
+            focal_35mm?: number | null;
+            /** Format: double */
+            focal_mm?: number | null;
+            /** Format: int32 */
+            iso?: number | null;
+            lens_make?: string | null;
+            lens_model?: string | null;
+            /** Format: int32 */
+            metering_mode?: number | null;
+            /** Format: int32 */
+            orientation?: number | null;
+            status: components["schemas"]["PhotoMetadataStatus"];
+            /** Format: int32 */
+            white_balance?: number | null;
+        };
+        /** @enum {string} */
+        PhotoMetadataStatus: "available" | "not_found" | "unreadable" | "read_limit";
         PixelRect: {
             /** Format: int32 */
             height: number;
@@ -4023,6 +4074,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EditRecord"];
+                };
+            };
+        };
+    };
+    photo_metadata: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PhotoMetadata"];
                 };
             };
         };

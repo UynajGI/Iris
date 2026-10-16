@@ -59,7 +59,7 @@ mod tests {
         let project = services.create_project(&photos).unwrap();
         services.store.conn.execute(
             "INSERT INTO photos(project_id,path,filename,format,mtime,size_bytes,width,height) VALUES(?1,'synthetic.jpg','synthetic.jpg','jpeg',?2,?3,32,24)",
-            params![project.id, modified(&source).unwrap(), source.len()],
+            params![project.id, modified(&source).unwrap(), i64::try_from(source.len()).unwrap()],
         ).unwrap();
         let id = services.store.conn.last_insert_rowid();
         let job = services.prepare_photo_metadata(id).unwrap();

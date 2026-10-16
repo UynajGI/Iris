@@ -128,8 +128,8 @@ export function InspectorPanel({ model }: { model: PhotoWorkspaceModel }) {
               </Panel>
             )}
             {current && !bulk && (
-              <Panel id="metadata" title="元数据">
-                <Metadata photo={current} />
+              <Panel id="metadata" title="元数据" defaultOpen={false} mountWhenOpen>
+                <Metadata photo={current} client={store.client} />
               </Panel>
             )}
             <Panel id="files" title="文件操作" defaultOpen={false}>
