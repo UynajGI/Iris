@@ -13,6 +13,7 @@ import { Transport, ApiError } from '../src/transport.js';
 import { sourceDocument } from '../src/editing-document.js';
 import { blackWhiteMix } from '../src/editing-document.js';
 import { resetDocument } from '../src/editing-document.js';
+import { cropPreviewDocument } from '../src/editing-document.js';
 import { focusEditingPhoto } from '../src/editing-navigation.js';
 import { applyLensProfile, lensProfileNode } from '../src/editing-lens.js';
 import { applyColorPreset, colorPresetRecipe } from '../src/editing-presets.js';
@@ -75,6 +76,56 @@ function document(): EditDocument {
     node_positions: { 'custom-local': [42, 64] },
   };
 }
+
+test('crop preview preserves the full geometry transform and expands only its crop', () => {
+  const geometry = {
+    ...defaultGeometry(),
+    crop: [0.1, 0.2, 0.7, 0.6],
+    rotation_degrees: 12,
+    perspective: [1, 0, 0, 0, 1, 0, 0.1, -0.05, 1],
+    radial: [0.05, -0.01],
+    chromatic_aberration: [0.003, -0.002],
+    vignette_stops: 0.3,
+  };
+  const source = updatePanel(document(), { type: 'geometry', parameters: geometry });
+  const original = structuredClone(source);
+  const preview = cropPreviewDocument(source);
+  assert.deepEqual(parameters(preview, 'geometry'), { ...geometry, crop: [0, 0, 1, 1] });
+  assert.equal(preview.output_node, source.output_node);
+  assert.deepEqual(preview.source, source.source);
+  assert.deepEqual(preview.output, source.output);
+  assert.deepEqual(
+    preview.nodes.filter((n) => n.operation.type !== 'geometry'),
+    source.nodes.filter((n) => n.operation.type !== 'geometry')
+  );
+  assert.deepEqual(source, original);
+});
+
+test('crop preview retains only geometry ancestors with valid bindings and no downstream coordinate change', () => {
+  const source = updatePanel(document(), {
+    type: 'geometry',
+    parameters: { ...defaultGeometry(), rotation_degrees: -8 },
+  });
+  const geometryOutput = source.output_node;
+  source.nodes.push({
+    id: 'later',
+    name: '后续裁切',
+    version: 1,
+    enabled: true,
+    inputs: [geometryOutput],
+    operation: { type: 'geometry', parameters: { ...defaultGeometry(), crop: [0, 0, 0.5, 1] } },
+  });
+  source.output_node = 'later';
+  const preview = cropPreviewDocument(source);
+  assert.equal(preview.output_node, geometryOutput);
+  assert.equal(
+    preview.nodes.some((n) => n.id === 'later'),
+    false
+  );
+  for (const node of preview.nodes)
+    for (const input of node.inputs) assert.ok(preview.nodes.some((n) => n.id === input));
+  assert.equal(cropPreviewDocument(document()).output_node, 'custom-local');
+});
 
 test('color presets contain portable global controls without source identity or local branches', () => {
   const original = document();

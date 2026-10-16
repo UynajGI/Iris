@@ -44,11 +44,11 @@ export function sourceDocument(document: EditDocument): EditDocument {
     node_positions: {},
   };
 }
-/** Crop handles operate on the image before user geometry, in its normalized coordinates. */
+/** Show the uncropped geometry output so handles use the same coordinates as the final crop. */
 export function cropPreviewDocument(document: EditDocument): EditDocument {
   const geometry = panelNode(document, 'geometry');
-  if (!geometry?.inputs[0]) return document;
-  const output = geometry.inputs[0],
+  if (!geometry?.inputs[0] || geometry.operation.type !== 'geometry') return document;
+  const output = geometry.id,
     retained = new Set<string>();
   const visit = (id: string) => {
     if (retained.has(id)) return;
@@ -59,7 +59,19 @@ export function cropPreviewDocument(document: EditDocument): EditDocument {
   return {
     ...document,
     output_node: output,
-    nodes: document.nodes.filter((node) => retained.has(node.id)),
+    nodes: document.nodes
+      .filter((node) => retained.has(node.id))
+      .map((node) =>
+        node.id === geometry.id && node.operation.type === 'geometry'
+          ? {
+              ...node,
+              operation: {
+                ...node.operation,
+                parameters: { ...node.operation.parameters, crop: [0, 0, 1, 1] },
+              },
+            }
+          : node
+      ),
     panel_bindings: document.panel_bindings.filter((item) => retained.has(item.node_id)),
     node_positions: {},
   };

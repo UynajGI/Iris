@@ -49,6 +49,7 @@ export function ColorCanvas({
   client,
   photo,
   preview,
+  previewReady = true,
   before = false,
   zoom,
   layer,
@@ -67,6 +68,7 @@ export function ColorCanvas({
   client: IrisClient;
   photo: Photo;
   preview: string | null;
+  previewReady?: boolean;
   before?: boolean;
   zoom: number;
   layer: MaskLayer | undefined;
@@ -89,6 +91,8 @@ export function ColorCanvas({
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [natural, setNatural] = useState({ width: photo.width, height: photo.height });
   const [loadedUrl, setLoadedUrl] = useState<string | null>(null);
+  const [loadedMode, setLoadedMode] = useState<string | null>(null);
+  const frameMode = before ? 'before' : crop ? 'crop' : 'edit';
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const panGesture = useRef<{ id: number; x: number; y: number; base: typeof pan } | null>(null);
   const gesture = useRef<Gesture | null>(null);
@@ -97,8 +101,13 @@ export function ColorCanvas({
   useEffect(() => {
     gesture.current = null;
   }, [layer?.id, selectedPart]);
+  const interactiveFrame = previewReady && !!preview && loadedMode === frameMode;
   const isDrawing =
-    painting && primary && ['brush', 'linear_gradient', 'radial_gradient'].includes(primary.kind);
+    interactiveFrame &&
+    !crop &&
+    painting &&
+    primary &&
+    ['brush', 'linear_gradient', 'radial_gradient'].includes(primary.kind);
   useLayoutEffect(() => {
     if (!stage.current) return;
     const observer = new ResizeObserver(([entry]) =>
@@ -201,6 +210,7 @@ export function ColorCanvas({
             draggable={false}
             onLoad={(event) => {
               setLoadedUrl(url);
+              setLoadedMode(frameMode);
               setNatural({
                 width: event.currentTarget.naturalWidth,
                 height: event.currentTarget.naturalHeight,
@@ -214,10 +224,10 @@ export function ColorCanvas({
               clipping={clipping}
             />
           )}
-          {neutralPicker && preview && loadedUrl === preview && (
+          {neutralPicker && interactiveFrame && loadedUrl === preview && (
             <WhiteBalancePicker {...neutralPicker} />
           )}
-          {crop && onCrop && (
+          {crop && onCrop && interactiveFrame && (
             <CropOverlay
               crop={crop}
               width={width}
@@ -227,6 +237,7 @@ export function ColorCanvas({
             />
           )}
           {layer &&
+            interactiveFrame &&
             showMask &&
             !before &&
             !crop &&

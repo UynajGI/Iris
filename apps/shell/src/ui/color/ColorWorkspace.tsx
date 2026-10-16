@@ -318,6 +318,7 @@ export function ColorWorkspace({
               client={model.store.client}
               photo={photo}
               preview={before ? editor.beforePreview : editor.preview}
+              previewReady={before ? !!editor.beforePreview : editor.previewReady}
               before={before}
               neutralPicker={
                 pickingWhite && before && !whiteBalance.pending && editor.draft
