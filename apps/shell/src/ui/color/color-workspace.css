@@ -1441,26 +1441,29 @@
   color: var(--muted);
   font-size: var(--small);
 }
-.grade-wheel-mini .grade-slider {
-  grid-template-columns: minmax(0, 1fr) 40px;
+.grade-wheel-mini > button[aria-pressed='true'] {
+  color: var(--text);
+  text-decoration: underline;
+  text-decoration-color: var(--accent-line);
+  text-underline-offset: 4px;
 }
-.grade-wheel-mini .grade-slider > label {
-  display: none;
+.grade-wheel-controls .grade-slider {
+  grid-template-columns: 3em minmax(0, 1fr) 52px;
 }
-.grade-wheel-values {
-  display: flex;
-  justify-content: center;
-  gap: 20px;
-  font-size: var(--small);
+.grade-wheel-controls .grade-value {
+  width: 52px;
+  grid-template-columns: minmax(0, 1fr);
+}
+.grade-wheel-controls .grade-slider > input[type='range'] {
+  min-width: 0;
+}
+.grade-wheel-control-label {
+  margin: 12px 0 6px;
   color: var(--muted);
-  font-variant-numeric: tabular-nums;
-}
-.grade-wheel-controls > summary {
-  text-align: center;
-  color: var(--muted);
   font-size: var(--small);
-  cursor: pointer;
-  padding: 8px;
+}
+.grade-wheel-controls {
+  min-width: 0;
 }
 .grade-mask-overlay {
   position: absolute;

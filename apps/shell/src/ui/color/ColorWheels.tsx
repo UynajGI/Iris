@@ -10,6 +10,35 @@ const bands = [
   ['highlights', '高光'],
 ] as const;
 type Band = (typeof bands)[number][0];
+function WheelControls({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: WheelColor;
+  onChange(patch: Partial<WheelColor>): void;
+}) {
+  return (
+    <div className="grade-wheel-controls" role="group" aria-label={`${label}数值调整`}>
+      <AdjustmentSlider
+        spec={{ key: 'wheel-hue', label: '色相', min: 0, max: 359, step: 1 }}
+        value={value.hue}
+        onChange={(hue) => onChange({ hue })}
+      />
+      <AdjustmentSlider
+        spec={{ key: 'wheel-saturation', label: '饱和度', min: 0, max: 2, scale: 50 }}
+        value={value.saturation}
+        onChange={(saturation) => onChange({ saturation })}
+      />
+      <AdjustmentSlider
+        spec={{ key: 'wheel-luminance', label: '亮度', min: -2, max: 2, scale: 50 }}
+        value={value.luminance}
+        onChange={(luminance) => onChange({ luminance })}
+      />
+    </div>
+  );
+}
 export function ColorWheels({
   adjustments,
   onChange,
@@ -20,6 +49,7 @@ export function ColorWheels({
   disabled: boolean;
 }) {
   const [band, setBand] = useState<Band | 'all'>('all');
+  const [activeBand, setActiveBand] = useState<Band>('midtones');
   // Neutral RGB has no hue. Retain the chosen angle until saturation is raised.
   const [hues, setHues] = useState({ shadows: 0, midtones: 0, highlights: 0 });
   const valueFor = (key: Band) => {
@@ -37,7 +67,9 @@ export function ColorWheels({
       return;
     onChange({ ...adjustments, color_balance: { ...adjustments.color_balance, [key]: gains } });
   };
-  const value = valueFor(band === 'all' ? 'midtones' : band);
+  const selectedBand = band === 'all' ? activeBand : band;
+  const selectedName = bands.find(([key]) => key === selectedBand)![1];
+  const value = valueFor(selectedBand);
   return (
     <>
       <div className="grade-wheel-bands" role="group" aria-label="颜色分级明暗范围">
@@ -61,8 +93,19 @@ export function ColorWheels({
           {(['midtones', 'shadows', 'highlights'] as const).map((key) => {
             const name = bands.find(([item]) => item === key)![1];
             return (
-              <div className="grade-wheel-mini" key={key}>
-                <button type="button" onClick={() => setBand(key)} title={`放大${name}色轮`}>
+              <div
+                className="grade-wheel-mini"
+                key={key}
+                onPointerDownCapture={() => setActiveBand(key)}
+                onFocusCapture={() => setActiveBand(key)}
+              >
+                <button
+                  type="button"
+                  aria-pressed={activeBand === key}
+                  onClick={() => setActiveBand(key)}
+                  title={`调整${name}`}
+                  disabled={disabled}
+                >
                   {name}
                 </button>
                 <WheelDial
@@ -70,17 +113,6 @@ export function ColorWheels({
                   value={valueFor(key)}
                   disabled={disabled}
                   onChange={(patch) => change(key, patch)}
-                />
-                <AdjustmentSlider
-                  spec={{
-                    key: `${key}-luminance`,
-                    label: `${name}亮度`,
-                    min: -2,
-                    max: 2,
-                    scale: 50,
-                  }}
-                  value={valueFor(key).luminance}
-                  onChange={(luminance) => change(key, { luminance })}
                 />
               </div>
             );
@@ -95,30 +127,14 @@ export function ColorWheels({
             disabled={disabled}
             onChange={(patch) => change(band, patch)}
           />
-          <div className="grade-wheel-values">
-            <span>H {Math.round(value.hue)}°</span>
-            <span>S {Math.round(value.saturation * 50)}</span>
-          </div>
-          <details className="grade-wheel-controls">
-            <summary>色相与饱和度</summary>
-            <AdjustmentSlider
-              spec={{ key: 'wheel-hue', label: '色相', min: 0, max: 359, step: 1, unit: '°' }}
-              value={value.hue}
-              onChange={(hue) => change(band, { hue })}
-            />
-            <AdjustmentSlider
-              spec={{ key: 'wheel-saturation', label: '饱和度', min: 0, max: 2, scale: 50 }}
-              value={value.saturation}
-              onChange={(saturation) => change(band, { saturation })}
-            />
-          </details>
-          <AdjustmentSlider
-            spec={{ key: 'wheel-luminance', label: '亮度', min: -2, max: 2, scale: 50 }}
-            value={value.luminance}
-            onChange={(luminance) => change(band, { luminance })}
-          />
         </>
       )}
+      {band === 'all' && <div className="grade-wheel-control-label">{selectedName}</div>}
+      <WheelControls
+        label={selectedName}
+        value={value}
+        onChange={(patch) => change(selectedBand, patch)}
+      />
     </>
   );
 }
