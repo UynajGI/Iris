@@ -87,6 +87,7 @@ fn curves_are_monotone_and_extrapolate_hdr() {
             CurvePoint { x: 0.5, y: 0.25 },
             CurvePoint { x: 1.0, y: 1.0 },
         ],
+        ..Default::default()
     };
     let out = run(
         vec![[-0.2, 0.25, 1.5, 1.0]],
@@ -102,6 +103,7 @@ fn curves_are_monotone_and_extrapolate_hdr() {
     near(out.pixels[0][2], 1.75);
     let invalid = Curve {
         points: vec![CurvePoint { x: 0.0, y: 1.0 }, CurvePoint { x: 1.0, y: 0.0 }],
+        ..Default::default()
     };
     assert!(invalid.validate().is_err());
 }

@@ -2,7 +2,8 @@
 //! These deliberately simple, documented creative operators are not camera white balance
 //! or a reproduction of another editor. Rec.2020 Y uses ITU-R BT.2020 coefficients.
 //! Tone selection uses clamped Y only for masks; RGB is never clipped to [0,1].
-//! Curves interpolate linearly (monotone, no overshoot) and extrapolate endpoint slopes.
+//! Curves preserve legacy linear interpolation or use monotone cubic interpolation.
+//! Both extrapolate endpoint slopes without clipping negative or HDR input.
 //! HSL is an artistic cylindrical transform of linear RGB, not perceptual HSL:
 //! it operates on chromatic differences around Y and preserves negative/HDR offsets.
 //! Grain is a seeded spatial hash, not a physical film emulsion simulation.
@@ -10,6 +11,21 @@ use crate::{Frame, RenderContext};
 use anyhow::{ensure, Result};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
+mod curve;
+use curve::PreparedCurve;
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum CurveInterpolation {
+    #[default]
+    Linear,
+    MonotoneCubic,
+}
+impl CurveInterpolation {
+    fn is_linear(&self) -> bool {
+        *self == Self::Linear
+    }
+}
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, ToSchema)]
 #[serde(default, deny_unknown_fields)]
@@ -24,6 +40,9 @@ pub struct Curve {
     /// Empty means identity. Otherwise 2..=64 points, strictly increasing x,
     /// nondecreasing y, all coordinates in [0,1]. Endpoints must have x=0 and x=1.
     pub points: Vec<CurvePoint>,
+    /// Missing means legacy linear interpolation. Cubic preserves monotonicity.
+    #[serde(skip_serializing_if = "CurveInterpolation::is_linear")]
+    pub interpolation: CurveInterpolation,
 }
 impl Curve {
     pub fn validate(&self) -> Result<()> {
@@ -50,16 +69,19 @@ impl Curve {
         }
         Ok(())
     }
+    #[cfg(test)]
     fn map(&self, x: f64) -> f64 {
+        // Frozen legacy oracle for adjustments/reference.rs. Keep it independent
+        // of the prepared evaluator so legacy pixel comparisons detect drift.
+        assert_eq!(self.interpolation, CurveInterpolation::Linear);
         if self.points.is_empty() {
             return x;
         }
-        let n = self.points.len();
         let i = self
             .points
             .windows(2)
             .position(|p| x <= p[1].x as f64)
-            .unwrap_or(n - 2);
+            .unwrap_or(self.points.len() - 2);
         let a = self.points[i];
         let b = self.points[i + 1];
         a.y as f64 + (x - a.x as f64) * (b.y - a.y) as f64 / (b.x - a.x) as f64
@@ -424,6 +446,7 @@ struct Prepared<'a> {
     contrast_power: f64,
     tone: bool,
     curves: bool,
+    prepared_curves: [PreparedCurve<'a>; 4],
     chroma: bool,
     balance: bool,
     tone_stops: [f64; 4],
@@ -446,6 +469,8 @@ impl<'a> Prepared<'a> {
             curves: [&p.master_curve, &p.red_curve, &p.green_curve, &p.blue_curve]
                 .iter()
                 .any(|c| !c.points.is_empty()),
+            prepared_curves: [&p.master_curve, &p.red_curve, &p.green_curve, &p.blue_curve]
+                .map(PreparedCurve::new),
             chroma: p.saturation != 0.0 || p.vibrance != 0.0,
             balance: p.color_balance != ColorBalance::default(),
             tone_stops: [
@@ -475,9 +500,8 @@ impl<'a> Prepared<'a> {
             }
         }
         if self.curves {
-            let curves = [&params.red_curve, &params.green_curve, &params.blue_curve];
             for c in 0..3 {
-                p[c] = curves[c].map(params.master_curve.map(p[c]));
+                p[c] = self.prepared_curves[c + 1].map(self.prepared_curves[0].map(p[c]));
             }
         }
         p
@@ -652,6 +676,7 @@ mod optimized_tests {
                 CurvePoint { x: 0.5, y: 0.45 },
                 CurvePoint { x: 1.0, y: 1.0 },
             ],
+            ..Default::default()
         };
         for p in [
             Adjustments {
