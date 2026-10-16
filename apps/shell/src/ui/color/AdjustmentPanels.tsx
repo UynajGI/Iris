@@ -74,6 +74,17 @@ export function AdjustmentSlider({
       <label htmlFor={id} onDoubleClick={() => change(spec.reset ?? 0)} title="双击重置">
         {spec.label}
       </label>
+      <input
+        id={id}
+        className={spec.tone ? `grade-track-${spec.tone}` : ''}
+        type="range"
+        min={spec.min}
+        max={spec.max}
+        step={spec.step ?? 0.01}
+        value={value}
+        aria-valuetext={`${Number((value * scale).toFixed(2))}${spec.unit ? ` ${spec.unit}` : ''}`}
+        onChange={(event) => change(Number(event.target.value))}
+      />
       <div className="grade-value">
         <input
           aria-label={`${spec.label}数值`}
@@ -86,17 +97,6 @@ export function AdjustmentSlider({
         />
         {spec.unit && <span>{spec.unit}</span>}
       </div>
-      <input
-        id={id}
-        className={spec.tone ? `grade-track-${spec.tone}` : ''}
-        type="range"
-        min={spec.min}
-        max={spec.max}
-        step={spec.step ?? 0.01}
-        value={value}
-        aria-valuetext={`${Number((value * scale).toFixed(2))}${spec.unit ? ` ${spec.unit}` : ''}`}
-        onChange={(event) => change(Number(event.target.value))}
-      />
     </div>
   );
 }
