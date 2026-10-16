@@ -343,13 +343,61 @@ async fn proof_uses_an_icc_resource_and_marks_the_binary_response() {
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(response.headers()["content-type"], "image/jpeg");
     assert_eq!(response.headers()["x-iris-soft-proof"], "true");
-    assert!(response
-        .into_body()
-        .collect()
+    assert_eq!(response.headers()["x-iris-draft"], "false");
+    let original = response.into_body().collect().await.unwrap().to_bytes();
+    let route = format!("/api/v1/edits/{}", edit["id"].as_str().unwrap());
+    let history_route = format!("{route}/history");
+    let history = value(request(&app, &state, "GET", &history_route, Value::Null).await).await;
+    let mut document = edit["document"].clone();
+    document["nodes"][1]["operation"]["parameters"]["exposure"] = json!(1.0);
+    let mut payload = json!({"resource":resource["hash"],"document":document,
+        "render":{"revision":0,"session":"proof","sequence":2,"quality":"full","max_edge":32}});
+    let draft = request(
+        &app,
+        &state,
+        "POST",
+        &format!("{route}/proof"),
+        payload.clone(),
+    )
+    .await;
+    assert_eq!(draft.status(), StatusCode::OK);
+    assert_eq!(draft.headers()["x-iris-soft-proof"], "true");
+    assert_eq!(draft.headers()["x-iris-draft"], "true");
+    assert_eq!(draft.headers()["x-iris-revision"], "0");
+    let pixels = draft.into_body().collect().await.unwrap().to_bytes();
+    let original = image::load_from_memory(&original).unwrap().to_rgb8();
+    let adjusted = image::load_from_memory(&pixels).unwrap().to_rgb8();
+    assert!(adjusted.get_pixel(0, 0)[0] > original.get_pixel(0, 0)[0]);
+    payload["render"]["sequence"] = json!(3);
+    payload["document"]["source"]["photo_id"] = json!("other");
+    assert_eq!(
+        request(
+            &app,
+            &state,
+            "POST",
+            &format!("{route}/proof"),
+            payload.clone()
+        )
         .await
-        .unwrap()
-        .to_bytes()
-        .starts_with(&[0xff, 0xd8]));
+        .status(),
+        StatusCode::BAD_REQUEST
+    );
+    payload["render"]["sequence"] = json!(4);
+    payload["render"]["revision"] = json!(1);
+    payload["document"]["source"] = edit["document"]["source"].clone();
+    assert_eq!(
+        request(&app, &state, "POST", &format!("{route}/proof"), payload)
+            .await
+            .status(),
+        StatusCode::BAD_REQUEST
+    );
+    let current = value(request(&app, &state, "GET", &route, Value::Null).await).await;
+    assert_eq!(current["revision"], 0);
+    assert_eq!(current["document"], edit["document"]);
+    assert_eq!(
+        value(request(&app, &state, "GET", &history_route, Value::Null).await).await,
+        history
+    );
     state.shutdown_rendering();
     state.wait_for_rendered_exports().await;
 }

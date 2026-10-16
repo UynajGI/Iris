@@ -250,6 +250,8 @@ pub async fn region(
 pub struct ProofRequest {
     pub render: RenderRequest,
     pub resource: String,
+    /// Optional unsaved adjustments, validated against the saved source and base revision.
+    pub document: Option<iris_core::render::document::EditDocument>,
 }
 
 #[utoipa::path(operation_id="editing_preview_proof",post,path="/api/v1/edits/{id}/proof",params(("id"=String,Path)),request_body=ProofRequest,responses((status=200,body=Vec<u8>,content_type="image/jpeg")))]
@@ -267,7 +269,7 @@ pub async fn proof(
         services.read_edit_resource(&request.resource)
     })
     .await?;
-    encoded_response(s, id, request.render, Some(bytes), None).await
+    encoded_response(s, id, request.render, Some(bytes), request.document).await
 }
 
 async fn encoded_response(
