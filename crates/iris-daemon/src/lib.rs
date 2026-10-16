@@ -599,6 +599,7 @@ pub fn router(state: AppState) -> Router {
             axum::http::HeaderName::from_static("x-iris-sequence"),
             axum::http::HeaderName::from_static("x-iris-fingerprint"),
             axum::http::HeaderName::from_static("x-iris-approximate"),
+            axum::http::HeaderName::from_static("x-iris-mask-domain"),
             axum::http::HeaderName::from_static("x-iris-render-backend"),
             axum::http::HeaderName::from_static("x-iris-cpu-nodes"),
             axum::http::HeaderName::from_static("x-iris-gpu-nodes"),

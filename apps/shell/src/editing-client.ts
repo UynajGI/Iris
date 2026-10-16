@@ -1,6 +1,7 @@
 import type { components } from './generated/api.js';
 import type { IrisClient } from './client.js';
 import { decodeNativeRegion, type RegionView } from './editing-region.js';
+import { decodeMaskPreview } from './editing-mask-preview.js';
 
 type S = components['schemas'];
 export type EditDocument = S['EditDocument'];
@@ -113,6 +114,31 @@ export class EditingClient {
       signal
     );
     return decodeNativeRegion(response, record.revision, sequence);
+  }
+  async maskPreview(
+    record: EditRecord,
+    document: EditDocument,
+    maskId: string,
+    session: string,
+    sequence: number,
+    signal: AbortSignal
+  ) {
+    const response = await this.client.transport.postBinary(
+      `${path(record.id)}/mask-preview`,
+      {
+        render: {
+          revision: record.revision,
+          session,
+          sequence,
+          quality: 'interactive',
+          max_edge: 512,
+        },
+        document,
+        mask_id: maskId,
+      } satisfies S['MaskPreviewRequest'],
+      signal
+    );
+    return decodeMaskPreview(response, record.revision, sequence);
   }
   cancel(session: string, sequence: number) {
     return this.client.transport.request<unknown>(

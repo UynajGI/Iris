@@ -6,6 +6,8 @@ import { mediaRevision } from '../../media-cache.js';
 import { type BrushStroke, type MaskDefinition, type MaskLayer } from '../../editing-masks.js';
 import type { BrushSettings } from './MaskPanel.js';
 import { MaskOverlay } from './MaskOverlay.js';
+import { WorkingMaskOverlay, type MaskPreviewSource } from './WorkingMaskOverlay.js';
+import { needsWorkingMask } from '../../editing-mask-preview.js';
 import { CropOverlay } from './CropOverlay.js';
 import { WhiteBalancePicker } from './WhiteBalancePicker.js';
 import { fitPreview } from '../../editing-canvas.js';
@@ -53,6 +55,7 @@ export function ColorCanvas({
   brush,
   onMask,
   showMask = true,
+  maskPreview,
   crop,
   cropLocked,
   onCrop,
@@ -69,6 +72,7 @@ export function ColorCanvas({
   brush: BrushSettings;
   onMask(definition: MaskDefinition): void;
   showMask?: boolean;
+  maskPreview?: MaskPreviewSource | undefined;
   crop?: number[] | undefined;
   cropLocked?: boolean;
   onCrop?: ((crop: number[]) => void) | undefined;
@@ -211,13 +215,26 @@ export function ColorCanvas({
               onChange={onCrop}
             />
           )}
-          {layer && showMask && !before && !crop && (
-            <MaskOverlay
-              definition={layer.definition}
-              width={natural.width}
-              height={natural.height}
-            />
-          )}
+          {layer &&
+            showMask &&
+            !before &&
+            !crop &&
+            (needsWorkingMask(layer.definition) && maskPreview ? (
+              <WorkingMaskOverlay
+                client={client}
+                maskId={layer.id}
+                source={{
+                  ...maskPreview,
+                  displayed: loadedUrl === preview ? maskPreview.displayed : null,
+                }}
+              />
+            ) : (
+              <MaskOverlay
+                definition={layer.definition}
+                width={natural.width}
+                height={natural.height}
+              />
+            ))}
           {isDrawing && layer && (
             <svg
               className="grade-mask-guides"

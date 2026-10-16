@@ -53,6 +53,7 @@ export function useColorEditor(
   const [busy, setBusy] = useState(false);
   const [rendering, setRendering] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
+  const [previewDocument, setPreviewDocument] = useState<EditDocument | null>(null);
   const mode = JSON.stringify([cropMode, proofResource]);
   const [previewMode, setPreviewMode] = useState('');
   const requestedMode = useRef(mode);
@@ -173,6 +174,7 @@ export function useColorEditor(
           return;
         setPreviewError(null);
         setPreviewMode(JSON.stringify([input.crop, input.proof]));
+        setPreviewDocument(input.document);
         const url = URL.createObjectURL(blob);
         setPreview((previous) => {
           if (previous) URL.revokeObjectURL(previous);
@@ -380,6 +382,7 @@ export function useColorEditor(
     busy,
     rendering,
     preview: belongs && previewMode === mode ? preview : null,
+    previewDocument,
     dirty: belongs && dirty,
     setDraft: changeDraft,
     save,

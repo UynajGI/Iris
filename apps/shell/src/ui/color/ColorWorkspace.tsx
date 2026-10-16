@@ -338,6 +338,15 @@ export function ColorWorkspace({
               selectedPart={selectedMaskPart}
               painting={painting && !before && !cropMode && available}
               showMask={showMask}
+              maskPreview={
+                editor.record && editor.draft
+                  ? {
+                      record: editor.record,
+                      document: editor.draft,
+                      displayed: editor.previewDocument,
+                    }
+                  : undefined
+              }
               crop={cropMode ? parameters(editor.draft, 'geometry').crop : undefined}
               cropLocked={cropLocked}
               onCrop={(crop) => {

@@ -573,6 +573,11 @@ async fn mask_overlay_uses_working_input_not_output_display_or_local_adjustments
     let response = request(&app, &state, "POST", &overlay_route, payload.clone()).await;
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(response.headers()["content-type"], "image/png");
+    assert!(response.headers()["access-control-expose-headers"]
+        .to_str()
+        .unwrap()
+        .split(',')
+        .any(|header| header.trim() == "x-iris-mask-domain"));
     assert_eq!(
         response.headers()["x-iris-mask-domain"],
         "linear_rec2020_d65"
