@@ -1,6 +1,7 @@
 import type { components } from './generated/api.js';
 import type { EditDocument } from './editing-client.js';
 import { defaultAdjustments, defaultDetail } from './editing-document.js';
+import { outputLut } from './editing-lut.js';
 
 export type MaskDefinition = components['schemas']['MaskDefinition'];
 export type BrushStroke = components['schemas']['BrushStroke'];
@@ -88,18 +89,22 @@ export function addMask(
   if (document.nodes.some((node) => [id, adjustmentId, detailId, blendId].includes(node.id)))
     throw new Error('蒙版标识重复');
   const definition = createMaskDefinition(kind);
+  const lut = outputLut(document);
+  const base = lut?.inputs[0] ?? document.output_node;
   return {
     id,
     document: {
       ...document,
       nodes: [
-        ...document.nodes,
+        ...document.nodes.map((node) =>
+          node.id === lut?.id ? { ...node, inputs: [blendId] } : node
+        ),
         {
           id,
           name: `${maskNames[kind]} ${maskLayers(document).length + 1}`,
           version: 1,
           enabled: true,
-          inputs: [document.output_node],
+          inputs: [base],
           operation: { type: 'mask', parameters: definition },
         },
         {
@@ -107,7 +112,7 @@ export function addMask(
           name: '局部影调与颜色',
           version: 1,
           enabled: true,
-          inputs: [document.output_node],
+          inputs: [base],
           operation: { type: 'adjustments', parameters: defaultAdjustments() },
         },
         {
@@ -123,7 +128,7 @@ export function addMask(
           name: '局部混合',
           version: 1,
           enabled: true,
-          inputs: [document.output_node, detailId, id],
+          inputs: [base, detailId, id],
           operation: { type: 'blend', parameters: { opacity: 1 } },
         },
       ],
@@ -132,7 +137,7 @@ export function addMask(
         { role: `local-adjustments:${id}`, node_id: adjustmentId },
         { role: `local-detail:${id}`, node_id: detailId },
       ],
-      output_node: blendId,
+      output_node: lut?.id ?? blendId,
     },
   };
 }

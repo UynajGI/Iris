@@ -160,6 +160,12 @@ export class EditingClient {
       file
     );
   }
+  importLut(file: Blob) {
+    return this.client.transport.upload<S['EditResource']>(
+      '/api/v1/edit-resources/import/lut',
+      file
+    );
+  }
   lensProfile(record: EditRecord, resource: string) {
     return this.client.transport.request<LensProfileSuggestion>(
       'POST',

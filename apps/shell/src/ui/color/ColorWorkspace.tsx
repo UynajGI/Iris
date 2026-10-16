@@ -8,6 +8,7 @@ import { Panel } from '../Panel.js';
 import { useColorEditor } from './useColorEditor.js';
 import { AdjustmentPanels } from './AdjustmentPanels.js';
 import { OutputPanel } from './OutputPanel.js';
+import { LutPanel } from './LutPanel.js';
 import { LensProfilePanel } from './LensProfilePanel.js';
 import {
   defaultAdjustments,
@@ -613,11 +614,20 @@ export function ColorWorkspace({
               />
             )}
             {toolTab === 'output' && (
-              <OutputPanel
-                document={editor.draft}
-                disabled={!available}
-                onChange={editor.setDraft}
-              />
+              <>
+                <OutputPanel
+                  document={editor.draft}
+                  disabled={!available}
+                  onChange={editor.setDraft}
+                />
+                <LutPanel
+                  client={model.store.client}
+                  document={editor.draft}
+                  recordId={editor.record?.id}
+                  disabled={!available}
+                  onChange={editor.setDraft}
+                />
+              </>
             )}
             {toolTab === 'metadata' && photo && (
               <section className="grade-settings-page" aria-label="元数据">
