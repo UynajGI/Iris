@@ -3,17 +3,17 @@ import type { Photo } from '../../types.js';
 import type { IrisClient } from '../../client.js';
 import { usePhotoUrl } from '../../react.js';
 import { mediaRevision } from '../../media-cache.js';
-import {
-  primaryMask,
-  replacePrimary,
-  type BrushStroke,
-  type MaskDefinition,
-  type MaskLayer,
-} from '../../editing-masks.js';
+import { type BrushStroke, type MaskDefinition, type MaskLayer } from '../../editing-masks.js';
 import type { BrushSettings } from './MaskPanel.js';
 import { MaskOverlay } from './MaskOverlay.js';
 import { CropOverlay } from './CropOverlay.js';
 import { fitPreview } from '../../editing-canvas.js';
+import {
+  maskPartAt,
+  paintMaskPart,
+  replaceMaskPart,
+  type MaskPart,
+} from '../../editing-mask-parts.js';
 
 type Point = [number, number];
 type Gesture = {
@@ -22,6 +22,7 @@ type Gesture = {
   definition: MaskDefinition;
   points: Point[];
   primary: MaskDefinition;
+  part: MaskPart;
 };
 function pointsIn(mask: MaskDefinition): number {
   if (mask.kind === 'brush')
@@ -37,15 +38,7 @@ function brushDefinition(gesture: Gesture, brush: BrushSettings): MaskDefinition
     hardness: brush.hardness,
     flow: brush.flow,
   };
-  const addition: MaskDefinition = { kind: 'brush', strokes: [stroke] };
-  if (brush.erase)
-    return { kind: 'combine', operation: 'subtract', left: gesture.definition, right: addition };
-  if (gesture.primary.kind === 'brush')
-    return replacePrimary(gesture.definition, {
-      kind: 'brush',
-      strokes: [...gesture.primary.strokes, stroke],
-    });
-  return gesture.definition;
+  return paintMaskPart(gesture.definition, gesture.part, stroke, brush.erase);
 }
 export function ColorCanvas({
   client,
@@ -54,6 +47,7 @@ export function ColorCanvas({
   before = false,
   zoom,
   layer,
+  selectedPart = 0,
   painting,
   brush,
   onMask,
@@ -68,6 +62,7 @@ export function ColorCanvas({
   before?: boolean;
   zoom: number;
   layer: MaskLayer | undefined;
+  selectedPart?: number;
   painting: boolean;
   brush: BrushSettings;
   onMask(definition: MaskDefinition): void;
@@ -84,10 +79,13 @@ export function ColorCanvas({
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const panGesture = useRef<{ id: number; x: number; y: number; base: typeof pan } | null>(null);
   const gesture = useRef<Gesture | null>(null);
+  const part = layer && maskPartAt(layer.definition, selectedPart);
+  const primary = part?.definition;
+  useEffect(() => {
+    gesture.current = null;
+  }, [layer?.id, selectedPart]);
   const isDrawing =
-    painting &&
-    layer &&
-    ['brush', 'linear_gradient', 'radial_gradient'].includes(primaryMask(layer.definition).kind);
+    painting && primary && ['brush', 'linear_gradient', 'radial_gradient'].includes(primary.kind);
   useLayoutEffect(() => {
     if (!stage.current) return;
     const observer = new ResizeObserver(([entry]) =>
@@ -108,7 +106,6 @@ export function ColorCanvas({
       y: Math.max(-limitY, Math.min(limitY, value.y)),
     }));
   }, [width, height, zoom, size.width, size.height]);
-  const primary = layer && primaryMask(layer.definition);
   const position = (event: PointerEvent<SVGSVGElement>): Point => {
     const rect = event.currentTarget.getBoundingClientRect();
     return [
@@ -135,7 +132,7 @@ export function ColorCanvas({
       Math.hypot(current.start[0] - point[0], current.start[1] - point[1]) > 0.005
     ) {
       onMask(
-        replacePrimary(current.definition, {
+        replaceMaskPart(current.definition, current.part.path, {
           kind: 'linear_gradient',
           start: current.start,
           end: point,
@@ -143,7 +140,7 @@ export function ColorCanvas({
       );
     } else if (base.kind === 'radial_gradient') {
       onMask(
-        replacePrimary(current.definition, {
+        replaceMaskPart(current.definition, current.part.path, {
           ...base,
           center: current.start,
           radii: [
@@ -219,14 +216,15 @@ export function ColorCanvas({
               preserveAspectRatio="none"
               aria-label={`绘制${layer.name}`}
               onPointerDown={(event) => {
-                if (pointsIn(layer.definition) >= 4096) return;
+                if (!part || pointsIn(layer.definition) >= 4096) return;
                 const point = position(event);
                 gesture.current = {
                   id: event.pointerId,
                   start: point,
                   definition: layer.definition,
                   points: [point],
-                  primary: primaryMask(layer.definition),
+                  primary: part.definition,
+                  part,
                 };
                 event.currentTarget.setPointerCapture(event.pointerId);
                 if (gesture.current.primary.kind === 'brush')

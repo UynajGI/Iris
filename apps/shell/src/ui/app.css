@@ -1,6 +1,14 @@
 @import './tokens.css';
 
+html,
+body {
+  height: 100%;
+  overflow: clip;
+}
+
 #root {
+  position: fixed;
+  inset: 0;
   height: 100dvh;
   display: flex;
   flex-direction: column;

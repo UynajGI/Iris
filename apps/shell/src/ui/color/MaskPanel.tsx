@@ -4,8 +4,7 @@ import {
   addMask,
   maskLayers,
   maskNames,
-  primaryMask,
-  replacePrimary,
+  validateMaskBudget,
   removeMask,
   setMask,
   setMaskBlend,
@@ -17,6 +16,8 @@ import {
 import { Button } from '../components.js';
 import { Icon } from '../Icon.js';
 import { AdjustmentSlider } from './AdjustmentPanels.js';
+import { maskPartAt, replaceMaskPart } from '../../editing-mask-parts.js';
+import { MaskParts } from './MaskParts.js';
 
 export type BrushSettings = { radius: number; hardness: number; flow: number; erase: boolean };
 export function MaskPanel({
@@ -27,6 +28,8 @@ export function MaskPanel({
   onChange,
   brush,
   onBrush,
+  selectedPart,
+  onPartSelect,
 }: {
   document: EditDocument | null;
   disabled: boolean;
@@ -35,14 +38,28 @@ export function MaskPanel({
   onChange(document: EditDocument): void;
   brush: BrushSettings;
   onBrush(value: BrushSettings): void;
+  selectedPart: number;
+  onPartSelect(index: number): void;
 }) {
   const [error, setError] = useState<string | null>(null);
   const layers = maskLayers(document);
   const layer = layers.find((item) => item.id === selected);
-  const primary = layer && primaryMask(layer.definition);
+  const part = layer && maskPartAt(layer.definition, selectedPart);
+  const primary = part?.definition;
+  const changeDefinition = (definition: MaskDefinition) => {
+    if (!document || !layer) return false;
+    try {
+      validateMaskBudget(definition);
+      onChange(setMask(document, layer, definition));
+      setError(null);
+      return true;
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+      return false;
+    }
+  };
   const replace = (mask: MaskDefinition) => {
-    if (document && layer)
-      onChange(setMask(document, layer, replacePrimary(layer.definition, mask)));
+    if (layer && part) changeDefinition(replaceMaskPart(layer.definition, part.path, mask));
   };
   return (
     <section aria-label="蒙版编辑">
@@ -130,14 +147,10 @@ export function MaskPanel({
                 className="quiet"
                 aria-pressed={layer.definition.kind === 'invert'}
                 onClick={() =>
-                  onChange(
-                    setMask(
-                      document,
-                      layer,
-                      layer.definition.kind === 'invert'
-                        ? layer.definition.mask
-                        : { kind: 'invert', mask: layer.definition }
-                    )
+                  changeDefinition(
+                    layer.definition.kind === 'invert'
+                      ? layer.definition.mask
+                      : { kind: 'invert', mask: layer.definition }
                   )
                 }
               >
@@ -158,6 +171,12 @@ export function MaskPanel({
                 删除蒙版
               </Button>
             </div>
+            <MaskParts
+              definition={layer.definition}
+              selected={selectedPart}
+              onSelect={onPartSelect}
+              onChange={changeDefinition}
+            />
             {primary?.kind === 'brush' && (
               <>
                 <div className="segmented" role="group" aria-label="画笔模式">

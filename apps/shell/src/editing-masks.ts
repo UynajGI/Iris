@@ -23,6 +23,20 @@ export const maskNames: Record<MaskKind, string> = {
   luminance_range: '亮度范围',
   color_range: '颜色范围',
 };
+export function createMaskDefinition(kind: MaskKind): MaskDefinition {
+  switch (kind) {
+    case 'brush':
+      return { kind, strokes: [] };
+    case 'linear_gradient':
+      return { kind, start: [0.5, 0.25], end: [0.5, 0.75] };
+    case 'radial_gradient':
+      return { kind, center: [0.5, 0.5], radii: [0.25, 0.3], hardness: 0.5 };
+    case 'luminance_range':
+      return { kind, low: 0.2, high: 0.8, feather: 0.1 };
+    case 'color_range':
+      return { kind, color: [1, 1, 1], radius: 0.3, feather: 0.1 };
+  }
+}
 export function primaryMask(mask: MaskDefinition): MaskDefinition {
   if (mask.kind === 'invert' || mask.kind === 'opacity') return primaryMask(mask.mask);
   if (mask.kind === 'combine') return primaryMask(mask.left);
@@ -73,16 +87,7 @@ export function addMask(
     blendId = `${id}-blend`;
   if (document.nodes.some((node) => [id, adjustmentId, detailId, blendId].includes(node.id)))
     throw new Error('蒙版标识重复');
-  const definition: MaskDefinition =
-    kind === 'brush'
-      ? { kind, strokes: [] }
-      : kind === 'linear_gradient'
-        ? { kind, start: [0.5, 0.25], end: [0.5, 0.75] }
-        : kind === 'radial_gradient'
-          ? { kind, center: [0.5, 0.5], radii: [0.25, 0.3], hardness: 0.5 }
-          : kind === 'luminance_range'
-            ? { kind, low: 0.2, high: 0.8, feather: 0.1 }
-            : { kind: 'color_range', color: [1, 1, 1], radius: 0.3, feather: 0.1 };
+  const definition = createMaskDefinition(kind);
   return {
     id,
     document: {

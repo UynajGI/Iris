@@ -17,7 +17,8 @@ import {
   resetDocument,
   parameters,
 } from '../../editing-document.js';
-import { maskLayers, primaryMask, setMask, validateMaskBudget } from '../../editing-masks.js';
+import { maskLayers, setMask, validateMaskBudget } from '../../editing-masks.js';
+import { maskPartAt } from '../../editing-mask-parts.js';
 import { MaskPanel, type BrushSettings } from './MaskPanel.js';
 import { ColorCanvas } from './ColorCanvas.js';
 import { CropTools } from './CropTools.js';
@@ -43,6 +44,7 @@ export function ColorWorkspace({
   const editor = useColorEditor(model.store.client, photo?.id, before, cropMode);
   const [zoom, setZoom] = useState(1);
   const [selectedMask, setSelectedMask] = useState<string | null>(null);
+  const [selectedMaskPart, setSelectedMaskPart] = useState(0);
   const [toolTab, setToolTab] = useState<'adjustments' | 'masks' | 'output' | 'metadata'>(() => {
     try {
       const saved = sessionStorage.getItem('iris:grade-tool-tab');
@@ -68,6 +70,9 @@ export function ColorWorkspace({
       : undefined;
   const strip = useRef<HTMLDivElement>(null);
   const available = !!editor.draft && !editor.loading && !editor.busy;
+  useEffect(() => {
+    setSelectedMaskPart(0);
+  }, [selectedMask, editor.record?.id]);
   useEffect(() => {
     try {
       sessionStorage.setItem('iris:grade-tool-tab', toolTab);
@@ -266,6 +271,7 @@ export function ColorWorkspace({
               before={before}
               zoom={zoom}
               layer={layer}
+              selectedPart={selectedMaskPart}
               painting={painting && !before && !cropMode && available}
               showMask={showMask}
               crop={cropMode ? parameters(editor.draft, 'geometry').crop : undefined}
@@ -358,7 +364,7 @@ export function ColorWorkspace({
           )}
           {layer &&
             ['brush', 'linear_gradient', 'radial_gradient'].includes(
-              primaryMask(layer.definition).kind
+              maskPartAt(layer.definition, selectedMaskPart).definition.kind
             ) && (
               <Button
                 className="quiet"
@@ -569,6 +575,14 @@ export function ColorWorkspace({
                 onChange={editor.setDraft}
                 brush={brush}
                 onBrush={setBrush}
+                selectedPart={selectedMaskPart}
+                onPartSelect={(index) => {
+                  setSelectedMaskPart(index);
+                  setBrush((value) => ({ ...value, erase: false }));
+                  setPainting(true);
+                  setBefore(false);
+                  setShowMask(true);
+                }}
               />
             )}
             {layer && <div className="grade-adjustment-target">正在调整：{layer.name}</div>}
