@@ -4,12 +4,40 @@ on:
   push:
     branches: ['main', 'codex/color-workflow']
   workflow_dispatch:
+    inputs:
+      review_daemon:
+        description: 'Build an optimized Windows daemon for local frontend response measurements'
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
   group: render-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  review-daemon:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.review_daemon }}
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      RUSTUP_TOOLCHAIN: stable-x86_64-pc-windows-msvc
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+        with:
+          toolchain: stable-x86_64-pc-windows-msvc
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          shared-key: optimized-review-daemon
+      - name: Build optimized review daemon without an installer or release
+        run: cargo build --locked --release -p iris-daemon
+      - name: Retain optimized daemon for frontend response measurements
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: optimized-daemon-windows-x64
+          path: target/release/iris-daemon.exe
+          if-no-files-found: error
+          retention-days: 7
   render:
     strategy:
       fail-fast: false
