@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { EditingClient, type EditDocument, type EditRecord } from '../src/editing-client.js';
 import {
   defaultAdjustments,
+  defaultGeometry,
   defaultDetail,
   parameters,
   updatePanel,
@@ -14,6 +15,7 @@ import { blackWhiteMix } from '../src/editing-document.js';
 import { resetDocument } from '../src/editing-document.js';
 import { focusEditingPhoto } from '../src/editing-navigation.js';
 import { applyLensProfile, lensProfileNode } from '../src/editing-lens.js';
+import { applyColorPreset, colorPresetRecipe } from '../src/editing-presets.js';
 import type { LensProfileSuggestion } from '../src/editing-client.js';
 import {
   addMask,
@@ -73,6 +75,104 @@ function document(): EditDocument {
     node_positions: { 'custom-local': [42, 64] },
   };
 }
+
+test('color presets contain portable global controls without source identity or local branches', () => {
+  const original = document();
+  original.source.raw_white_balance = [1.8, 1, 1.3];
+  const recipe = colorPresetRecipe(original);
+  assert.equal(recipe.raw_white_balance, null);
+  assert.equal(recipe.nodes.length, 3);
+  assert.equal(JSON.stringify(recipe).includes(original.source.fingerprint), false);
+  assert.equal(
+    recipe.nodes.some((node) => node.id === 'custom-local'),
+    false
+  );
+  const basic = recipe.nodes.find((node) => node.operation.type === 'adjustments')!;
+  assert.equal(basic.operation.type === 'adjustments' && basic.operation.parameters.exposure, 0);
+  assert.equal('source' in recipe, false);
+});
+
+test('applying a color preset preserves target masks, optical geometry, output, and RAW balance', () => {
+  let donor = updatePanel(document(), {
+    type: 'adjustments',
+    parameters: { ...defaultAdjustments(), exposure: 1.25 },
+  });
+  const recipe = colorPresetRecipe(donor);
+  let target = resetDocument(document());
+  target.source = {
+    ...target.source,
+    photo_id: '2',
+    fingerprint: 'b'.repeat(64),
+    raw_white_balance: [2, 1, 1.4],
+  };
+  target = updatePanel(target, {
+    type: 'geometry',
+    parameters: { ...defaultGeometry(), crop: [0.1, 0.2, 0.6, 0.5], radial: [0.02, -0.01] },
+  });
+  target = addMask(target, 'linear_gradient').document;
+  target.output.space = 'display_p3';
+  const before = structuredClone(target);
+  const next = applyColorPreset(target, recipe);
+  assert.deepEqual(target, before);
+  assert.deepEqual(next.source, before.source);
+  assert.deepEqual(next.output, before.output);
+  assert.equal(next.output_node, before.output_node);
+  assert.deepEqual(next.panel_bindings, before.panel_bindings);
+  assert.deepEqual(next.node_positions, before.node_positions);
+  assert.deepEqual(
+    next.nodes.filter((node) => !['basic', 'detail'].includes(node.id)),
+    before.nodes.filter((node) => !['basic', 'detail'].includes(node.id))
+  );
+  assert.equal(parameters(next, 'adjustments').exposure, 1.25);
+});
+
+test('disabled donor controls are neutral and applying a preset enables the target controls', () => {
+  const donor = document();
+  donor.nodes.find((node) => node.id === 'bound-basic')!.enabled = false;
+  const recipe = colorPresetRecipe(donor);
+  const target = document();
+  const basic = target.nodes.find((node) => node.id === 'bound-basic')!;
+  basic.enabled = false;
+  const next = applyColorPreset(target, recipe);
+  assert.equal(next.nodes.find((node) => node.id === 'bound-basic')!.enabled, true);
+  assert.equal(parameters(next, 'adjustments').exposure, 0);
+});
+
+test('unsupported preset graphs fail before changing the target', () => {
+  const target = document(),
+    before = structuredClone(target);
+  const recipe = colorPresetRecipe(target);
+  recipe.nodes.push({ ...recipe.nodes[1]!, id: 'extra' });
+  assert.throws(() => applyColorPreset(target, recipe), /其他节点/);
+  assert.deepEqual(target, before);
+});
+
+test('preset transport paginates and preserves recipe data during rename', async () => {
+  const requests: { url: string; init: RequestInit }[] = [];
+  const fetcher: typeof fetch = async (url, init) => {
+    requests.push({ url: String(url), init: init! });
+    return new Response(JSON.stringify([]), { status: 200 });
+  };
+  const api = new EditingClient(
+    new IrisClient(
+      new Transport({ base_url: 'http://127.0.0.1:5412', token: 'test', version: '' }, fetcher)
+    )
+  );
+  const recipe = colorPresetRecipe(document());
+  await api.presets(100);
+  await api.savePreset('人像', recipe);
+  await api.renamePreset(
+    { id: 'preset/a', name: '人像', recipe, created_at: '', updated_at: '' },
+    '自然人像'
+  );
+  await api.deletePreset('preset/a');
+  assert.ok(requests[0]!.url.endsWith('?limit=100&offset=100'));
+  assert.deepEqual(JSON.parse(requests[2]!.init.body as string), { name: '自然人像', recipe });
+  assert.ok(requests[2]!.url.endsWith('/preset%2Fa'));
+  assert.equal(requests[3]!.init.method, 'DELETE');
+  for (const request of requests)
+    assert.equal((request.init.headers as Record<string, string>).Authorization, 'Bearer test');
+});
 function record(): EditRecord {
   return {
     id: 'edit/1',

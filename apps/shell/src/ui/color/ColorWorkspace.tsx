@@ -21,6 +21,7 @@ import { maskLayers, primaryMask, setMask, validateMaskBudget } from '../../edit
 import { MaskPanel, type BrushSettings } from './MaskPanel.js';
 import { ColorCanvas } from './ColorCanvas.js';
 import { CropTools } from './CropTools.js';
+import { PresetPanel } from './PresetPanel.js';
 import './color-workspace.css';
 import type { EditHistoryEntry } from '../../editing-client.js';
 import { focusEditingPhoto } from '../../editing-navigation.js';
@@ -547,6 +548,14 @@ export function ColorWorkspace({
             </p>
           )}
           <div id="grade-tool-page" role="tabpanel" aria-labelledby={`grade-tab-${toolTab}`}>
+            {toolTab === 'adjustments' && (
+              <PresetPanel
+                client={model.store.client}
+                document={editor.draft}
+                disabled={!available}
+                onChange={editor.setDraft}
+              />
+            )}
             {toolTab === 'masks' && (
               <MaskPanel
                 document={editor.draft}

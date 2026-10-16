@@ -9,6 +9,7 @@ export type DetailAdjustments = S['DetailAdjustments'];
 export type Geometry = S['Geometry'];
 export type EditHistoryEntry = S['EditHistoryEntry'];
 export type EditRecipe = S['EditRecipe'];
+export type EditPreset = S['EditPreset'];
 export type RenderedExportStatus = S['RenderedExportStatus'];
 export type RenderedExportRequest = S['RenderedExportRequest'];
 export type LensProfileSuggestion = S['LensProfileSuggestion'];
@@ -132,8 +133,26 @@ export class EditingClient {
       recipe,
     });
   }
-  presets() {
-    return this.client.transport.request<S['EditPreset'][]>('GET', '/api/v1/edit-presets');
+  presets(offset = 0, signal?: AbortSignal) {
+    return this.client.transport.request<EditPreset[]>(
+      'GET',
+      `/api/v1/edit-presets?limit=100&offset=${offset}`,
+      undefined,
+      signal
+    );
+  }
+  deletePreset(id: string) {
+    return this.client.transport.request<S['EditSuccess']>(
+      'DELETE',
+      `/api/v1/edit-presets/${encodeURIComponent(id)}`
+    );
+  }
+  renamePreset(preset: EditPreset, name: string) {
+    return this.client.transport.request<EditPreset>(
+      'PUT',
+      `/api/v1/edit-presets/${encodeURIComponent(preset.id)}`,
+      { name, recipe: preset.recipe }
+    );
   }
   importLensProfile(file: Blob) {
     return this.client.transport.upload<S['EditResource']>(

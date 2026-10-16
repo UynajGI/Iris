@@ -243,6 +243,36 @@
   gap: 4px;
   flex-wrap: wrap;
 }
+.grade-presets {
+  display: grid;
+  gap: 10px;
+  padding: 8px 20px 14px;
+  font-size: var(--small);
+}
+.grade-preset-choice {
+  display: flex;
+  gap: 8px;
+}
+.grade-preset-choice select {
+  flex: 1;
+  min-width: 0;
+}
+.grade-preset-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.grade-preset-form {
+  display: grid;
+  gap: 8px;
+}
+.grade-preset-form input {
+  width: 100%;
+  min-width: 0;
+}
+.grade-presets [role='status']:empty {
+  display: none;
+}
 .grade-crop-tools select {
   min-height: 30px;
   width: 104px;
