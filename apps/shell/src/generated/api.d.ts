@@ -1,5 +1,5 @@
 // Generated from iris-daemon OpenAPI. Do not edit.
-// Contract SHA-256: fd073f51041bf752f691af6bd002845939f2187d559da1bce009f40f9145feec
+// Contract SHA-256: 3a2ac07594ba6079013e4a2ef26e50840ce5f9dedb5e47908e61d88cdfe21ec1
 export interface paths {
     "/api/v1/bootstrap": {
         parameters: {
@@ -2736,6 +2736,7 @@ export interface components {
             project_id: number;
         };
         ProofRequest: {
+            document?: components["schemas"]["EditDocument"] | null;
             render: components["schemas"]["RenderRequest"];
             resource: string;
         };

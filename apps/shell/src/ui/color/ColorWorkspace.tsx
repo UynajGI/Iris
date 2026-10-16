@@ -9,6 +9,7 @@ import { useColorEditor } from './useColorEditor.js';
 import { AdjustmentPanels } from './AdjustmentPanels.js';
 import { OutputPanel } from './OutputPanel.js';
 import { LutPanel } from './LutPanel.js';
+import { ProofPanel, type ProofProfile } from './ProofPanel.js';
 import { LensProfilePanel } from './LensProfilePanel.js';
 import {
   defaultAdjustments,
@@ -42,7 +43,14 @@ export function ColorWorkspace({
   const [cropMode, setCropMode] = useState(false);
   const [cropLocked, setCropLocked] = useState(false);
   const [showMask, setShowMask] = useState(true);
-  const editor = useColorEditor(model.store.client, photo?.id, before, cropMode);
+  const [proof, setProof] = useState<ProofProfile | null>(null);
+  const editor = useColorEditor(
+    model.store.client,
+    photo?.id,
+    before,
+    cropMode,
+    proof?.enabled ? proof.hash : null
+  );
   const [zoom, setZoom] = useState(1);
   const [selectedMask, setSelectedMask] = useState<string | null>(null);
   const [selectedMaskPart, setSelectedMaskPart] = useState(0);
@@ -305,6 +313,11 @@ export function ColorWorkspace({
             </div>
           )}
           {before && <span className="grade-before-tag">原图</span>}
+          {!before && proof?.enabled && editor.preview && (
+            <span className="grade-before-tag" title={proof.name}>
+              软打样
+            </span>
+          )}
           {(editor.rendering || (before && editor.beforeLoading)) && (
             <span className="grade-render-state" role="status">
               正在预览
@@ -626,6 +639,12 @@ export function ColorWorkspace({
                   recordId={editor.record?.id}
                   disabled={!available}
                   onChange={editor.setDraft}
+                />
+                <ProofPanel
+                  client={model.store.client}
+                  profile={proof}
+                  disabled={!available}
+                  onChange={setProof}
                 />
               </>
             )}

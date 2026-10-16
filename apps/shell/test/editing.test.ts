@@ -431,6 +431,73 @@ test('binary transport rejects authentication failures and paths outside the API
   await assert.rejects(transport.postBlob('https://untrusted.invalid/', {}), /Invalid API path/);
   assert.equal(calls, 1);
 });
+
+test('soft proof sends the unsaved document and can switch back without changing output or saving', async () => {
+  const requests: { url: string; init: RequestInit }[] = [];
+  const api = new EditingClient(
+    new IrisClient(
+      new Transport(
+        { base_url: 'http://127.0.0.1:5412', token: 'test', version: '' },
+        async (url, init) => {
+          requests.push({ url: String(url), init: init! });
+          return new Response(new Uint8Array([255, 216, 255, 217]), {
+            headers: { 'content-type': 'image/jpeg' },
+          });
+        }
+      )
+    )
+  );
+  const saved = record();
+  const draft = updatePanel(saved.document, {
+    type: 'adjustments',
+    parameters: { ...defaultAdjustments(), exposure: 1.5 },
+  });
+  const original = structuredClone(saved);
+  const signal = new AbortController().signal;
+  const hash = 'b'.repeat(64);
+  await api.preview(saved, draft, 'proof-session', 1, signal, 384, hash);
+  await api.preview(saved, draft, 'proof-session', 2, signal, 1600);
+  assert.match(requests[0]!.url, /\/edit%2F1\/proof$/);
+  assert.match(requests[1]!.url, /\/edit%2F1\/preview-draft$/);
+  const proof = JSON.parse(requests[0]!.init.body as string);
+  assert.deepEqual(proof, {
+    resource: hash,
+    document: draft,
+    render: {
+      revision: 7,
+      session: 'proof-session',
+      sequence: 1,
+      quality: 'interactive',
+      max_edge: 384,
+    },
+  });
+  const normal = JSON.parse(requests[1]!.init.body as string);
+  assert.equal('resource' in normal, false);
+  assert.deepEqual(normal.document.output, saved.document.output);
+  assert.deepEqual(saved, original);
+  for (const request of requests) {
+    assert.equal(new Headers(request.init.headers).get('Authorization'), 'Bearer test');
+    assert.equal(request.init.signal, signal);
+  }
+});
+
+test('ICC upload sends binary bytes to the authenticated resource endpoint', async () => {
+  const bytes = new Blob([new Uint8Array(128)]);
+  const api = new EditingClient(
+    new IrisClient(
+      new Transport(
+        { base_url: 'http://127.0.0.1:5412', token: 'test', version: '' },
+        async (url, init) => {
+          assert.match(String(url), /\/edit-resources\/import\/icc$/);
+          assert.equal(init?.body, bytes);
+          assert.equal(new Headers(init?.headers).get('Authorization'), 'Bearer test');
+          return Response.json({ kind: 'icc', hash: 'c'.repeat(64), size_bytes: bytes.size });
+        }
+      )
+    )
+  );
+  assert.equal((await api.importIcc(bytes)).kind, 'icc');
+});
 test('local masks keep base and adjusted branches on identical geometry and can be removed without severing later layers', () => {
   const original = document();
   const first = addMask(original, 'linear_gradient', 'first');

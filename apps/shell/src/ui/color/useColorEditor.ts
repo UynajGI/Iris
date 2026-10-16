@@ -39,7 +39,8 @@ export function useColorEditor(
   client: IrisClient,
   photoId: number | undefined,
   showBefore = false,
-  cropMode = false
+  cropMode = false,
+  proofResource: string | null = null
 ) {
   const api = useMemo(() => new EditingClient(client), [client]);
   const [record, setRecord] = useState<EditRecord | null>(null);
@@ -52,9 +53,11 @@ export function useColorEditor(
   const [busy, setBusy] = useState(false);
   const [rendering, setRendering] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
-  const [previewCrop, setPreviewCrop] = useState(false);
-  const requestedCrop = useRef(cropMode);
-  requestedCrop.current = cropMode;
+  const mode = JSON.stringify([cropMode, proofResource]);
+  const [previewMode, setPreviewMode] = useState('');
+  const requestedMode = useRef(mode);
+  requestedMode.current = mode;
+  const activeProof = useRef<string | null>(null);
   const [retry, setRetry] = useState(0);
   const [previewAttempt, setPreviewAttempt] = useState(0);
   const [beforeImage, setBeforeImage] = useState<{ key: string; url: string } | null>(null);
@@ -79,6 +82,7 @@ export function useColorEditor(
     sequence: number;
     edge: number;
     crop: boolean;
+    proof: string | null;
   };
   const previewQueue = useRef<EditingPreviewQueue<PreviewInput, Blob> | null>(null);
   const activePreviewEdge = useRef(0);
@@ -147,13 +151,15 @@ export function useColorEditor(
     const queue = new EditingPreviewQueue<PreviewInput, Blob>({
       render: (input, signal) => {
         activePreviewEdge.current = input.edge;
+        activeProof.current = input.proof;
         return api.preview(
           input.record,
           input.document,
           session,
           input.sequence,
           signal,
-          input.edge
+          input.edge,
+          input.proof
         );
       },
       result: (blob, input) => {
@@ -162,11 +168,11 @@ export function useColorEditor(
           current?.id !== input.record.id ||
           current.revision !== input.record.revision ||
           current.photo_id !== requestedPhoto.current ||
-          requestedCrop.current !== input.crop
+          requestedMode.current !== JSON.stringify([input.crop, input.proof])
         )
           return;
         setPreviewError(null);
-        setPreviewCrop(input.crop);
+        setPreviewMode(JSON.stringify([input.crop, input.proof]));
         const url = URL.createObjectURL(blob);
         setPreview((previous) => {
           if (previous) URL.revokeObjectURL(previous);
@@ -195,19 +201,34 @@ export function useColorEditor(
       session,
       previewAttempt,
       cropMode,
+      proofResource,
     });
     if (previewKey.current === key) return;
     previewKey.current = key;
     const queue = previewQueue.current;
     queue?.push(
-      { record, document, sequence: ++sequence.current, edge: 384, crop: cropMode },
-      activePreviewEdge.current > 384
+      {
+        record,
+        document,
+        sequence: ++sequence.current,
+        edge: 384,
+        crop: cropMode,
+        proof: proofResource,
+      },
+      activePreviewEdge.current > 384 || activeProof.current !== proofResource
     );
     const timer = setTimeout(() => {
-      queue?.push({ record, document, sequence: ++sequence.current, edge: 1600, crop: cropMode });
+      queue?.push({
+        record,
+        document,
+        sequence: ++sequence.current,
+        edge: 1600,
+        crop: cropMode,
+        proof: proofResource,
+      });
     }, 300);
     return () => clearTimeout(timer);
-  }, [api, record, draft, session, photoId, previewAttempt, cropMode]);
+  }, [api, record, draft, session, photoId, previewAttempt, cropMode, proofResource]);
   const beforeKey = JSON.stringify({ source: draft?.source, output: draft?.output });
   useEffect(() => {
     if (!showBefore || !record || !draft || beforeImage?.key === beforeKey) {
@@ -358,7 +379,7 @@ export function useColorEditor(
     loading: loading || (photoId !== undefined && !belongs && !error),
     busy,
     rendering,
-    preview: belongs && previewCrop === cropMode ? preview : null,
+    preview: belongs && previewMode === mode ? preview : null,
     dirty: belongs && dirty,
     setDraft: changeDraft,
     save,

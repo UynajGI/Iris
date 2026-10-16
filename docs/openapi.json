@@ -7929,6 +7929,17 @@
           "resource"
         ],
         "properties": {
+          "document": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/EditDocument",
+                "description": "Optional unsaved adjustments, validated against the saved source and base revision."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "render": {
             "$ref": "#/components/schemas/RenderRequest"
           },

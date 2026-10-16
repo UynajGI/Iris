@@ -65,20 +65,24 @@ export class EditingClient {
     session: string,
     sequence: number,
     signal: AbortSignal,
-    maxEdge = 1600
+    maxEdge = 1600,
+    proofResource: string | null = null
   ) {
+    const payload = {
+      render: {
+        revision: record.revision,
+        session,
+        sequence,
+        quality: 'interactive',
+        max_edge: maxEdge,
+      },
+      document,
+    } satisfies S['DraftPreviewRequest'];
     return this.client.transport.postBlob(
-      `${path(record.id)}/preview-draft`,
-      {
-        render: {
-          revision: record.revision,
-          session,
-          sequence,
-          quality: 'interactive',
-          max_edge: maxEdge,
-        },
-        document,
-      } satisfies S['DraftPreviewRequest'],
+      `${path(record.id)}/${proofResource ? 'proof' : 'preview-draft'}`,
+      proofResource
+        ? ({ ...payload, resource: proofResource } satisfies S['ProofRequest'])
+        : payload,
       signal
     );
   }
@@ -163,6 +167,12 @@ export class EditingClient {
   importLut(file: Blob) {
     return this.client.transport.upload<S['EditResource']>(
       '/api/v1/edit-resources/import/lut',
+      file
+    );
+  }
+  importIcc(file: Blob) {
+    return this.client.transport.upload<S['EditResource']>(
+      '/api/v1/edit-resources/import/icc',
       file
     );
   }
