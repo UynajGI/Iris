@@ -13,6 +13,7 @@ import {
 import type { BrushSettings } from './MaskPanel.js';
 import { MaskOverlay } from './MaskOverlay.js';
 import { CropOverlay } from './CropOverlay.js';
+import { fitPreview } from '../../editing-canvas.js';
 
 type Point = [number, number];
 type Gesture = {
@@ -96,12 +97,7 @@ export function ColorCanvas({
   useEffect(() => {
     setPan({ x: 0, y: 0 });
   }, [photo.id, zoom]);
-  const scale = Math.min(
-    Math.max(1, size.width - 40) / Math.max(1, natural.width),
-    Math.max(1, size.height - 40) / Math.max(1, natural.height)
-  );
-  const width = Math.max(1, natural.width * scale),
-    height = Math.max(1, natural.height * scale);
+  const { width, height } = fitPreview(natural, size);
   useEffect(() => {
     const limitX = Math.max(0, (width * zoom - size.width) / 2),
       limitY = Math.max(0, (height * zoom - size.height) / 2);

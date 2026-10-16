@@ -3,6 +3,13 @@ import assert from 'node:assert/strict';
 import { gainsToWheel, wheelToGains } from '../src/editing-color-wheel.js';
 import { spatialMaskCoverage } from '../src/editing-mask-overlay.js';
 import { dragCrop } from '../src/editing-crop.js';
+import { fitPreview } from '../src/editing-canvas.js';
+
+test('interactive proxy and refined image occupy the same canvas rectangle', () => {
+  const viewport = { width: 560, height: 640 };
+  assert.deepEqual(fitPreview({ width: 320, height: 480 }, viewport), { width: 400, height: 600 });
+  assert.deepEqual(fitPreview({ width: 640, height: 960 }, viewport), { width: 400, height: 600 });
+});
 
 test('color wheels preserve saved channel gains including neutral luminance and negative colors', () => {
   for (const values of [
