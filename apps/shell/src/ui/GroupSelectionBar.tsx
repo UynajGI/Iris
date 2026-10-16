@@ -1,3 +1,4 @@
+import { Select } from './Select.js';
 import { useState } from 'react';
 import { faceRegions } from '../selection-readout.js';
 import type { Photo, GroupSelection } from '../types.js';
@@ -71,15 +72,15 @@ function MainFaceSelect({ control, photos }: { control: GroupSelectionControl; p
   return (
     <label>
       主角人脸{' '}
-      <select
+      <Select
         aria-label="本组主角人脸"
         disabled={busy || !selection}
         value={main ? `${main.photo_id}:${main.face_index}` : ''}
-        onChange={(event) => {
+        onValueChange={(nextValue) => {
           if (!intent) return;
-          if (!event.target.value) void save({ ...intent, main_face: null, face_choices: [] });
+          if (!nextValue) void save({ ...intent, main_face: null, face_choices: [] });
           else {
-            const [photo, index] = event.target.value.split(':').map(Number);
+            const [photo, index] = nextValue.split(':').map(Number);
             void chooseFace(photo!, index!, true);
           }
         }}
@@ -92,7 +93,7 @@ function MainFaceSelect({ control, photos }: { control: GroupSelectionControl; p
             </option>
           ))
         )}
-      </select>
+      </Select>
     </label>
   );
 }

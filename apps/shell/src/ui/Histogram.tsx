@@ -1,3 +1,4 @@
+import { readScopePixels, noClipping, type Clipping } from './scope-pixels.js';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { IrisClient } from '../client.js';
 import type { Photo } from '../types.js';
@@ -27,19 +28,8 @@ function preferences(): { mode: ScopeMode; selected: Channel[] } {
 }
 
 async function computeScopes(url: string): Promise<ScopeData> {
-  const image = new Image();
-  image.src = url;
-  await image.decode();
-  const scale = Math.min(1, 320 / Math.max(image.naturalWidth, image.naturalHeight));
-  const width = Math.max(1, Math.round(image.naturalWidth * scale)),
-    height = Math.max(1, Math.round(image.naturalHeight * scale));
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  const context = canvas.getContext('2d', { willReadFrequently: true });
-  if (!context) throw new Error('canvas unavailable');
-  context.drawImage(image, 0, 0, width, height);
-  return sampleScopes(context.getImageData(0, 0, width, height).data, width, height);
+  const pixels = await readScopePixels(url);
+  return sampleScopes(pixels.data, pixels.width, pixels.height);
 }
 
 function path(bins: Uint32Array, peak: number) {
@@ -64,9 +54,14 @@ function Waveform({ data, selected }: { data: ScopeData; selected: Channel[] }) 
         for (const channel of selected) {
           const count = data.waveform[channel][x * 256 + level]!;
           if (!count) continue;
-          const intensity = 0.2 + (0.8 * Math.log1p(count)) / Math.log1p(peak);
-          for (let component = 0; component < 3; component++)
-            pixels.data[index + component]! += colors[channel][component]! * intensity;
+          const intensity =
+            (0.1 + (0.8 * Math.log1p(count)) / Math.log1p(peak)) *
+            (channel === 'l' && selected.length > 1 ? 0.45 : 1);
+          for (let component = 0; component < 3; component++) {
+            const previous = pixels.data[index + component]!;
+            pixels.data[index + component] =
+              255 - (255 - previous) * (1 - (colors[channel][component]! * intensity) / 255);
+          }
           pixels.data[index + 3] = 255;
         }
       }
@@ -134,7 +129,7 @@ function ScopePlot({
             key={channel}
             className={`hist-${channel}`}
             d={path(data.histogram[channel], peak)}
-            strokeDasharray={channel === 'g' ? '3 2' : channel === 'b' ? '1 2' : undefined}
+            vectorEffect="non-scaling-stroke"
           />
         ))}
       </g>
@@ -204,10 +199,14 @@ export function Histogram({
   client,
   photo,
   previewUrl,
+  clipping = noClipping,
+  onClipping,
 }: {
   client: IrisClient;
   photo: Photo | undefined;
   previewUrl?: string | null | undefined;
+  clipping?: Clipping;
+  onClipping?: ((value: Clipping) => void) | undefined;
 }) {
   const media = usePhotoUrl(
     client,
@@ -238,16 +237,18 @@ export function Histogram({
   return (
     <section className="histogram" aria-label="色彩示波器">
       <div className="scope-toolbar">
-        <select
-          aria-label="示波器类型"
-          value={mode}
-          onChange={(event) =>
-            setSettings((current) => ({ ...current, mode: event.target.value as ScopeMode }))
-          }
-        >
-          <option value="histogram">直方图</option>
-          <option value="waveform">波形图</option>
-        </select>
+        <div className="scope-modes" role="group" aria-label="示波器类型">
+          {(['histogram', 'waveform'] as const).map((item) => (
+            <button
+              type="button"
+              key={item}
+              aria-pressed={mode === item}
+              onClick={() => setSettings((current) => ({ ...current, mode: item }))}
+            >
+              {item === 'histogram' ? '直方图' : '波形图'}
+            </button>
+          ))}
+        </div>
         <span className="scope-source" title="基于缩小预览图估算，不代表 RAW 原始曝光数据">
           预览
         </span>
@@ -267,20 +268,51 @@ export function Histogram({
         />
       </div>
       <ScopeChannels selected={selected} onChange={setSettings} />
-      <ScopeClipping data={data} />
+      <ScopeClipping data={data} clipping={clipping} onChange={onClipping} />
     </section>
   );
 }
 
-function ScopeClipping({ data }: { data: ScopeData | null }) {
+function ScopeClipping({
+  data,
+  clipping,
+  onChange,
+}: {
+  data: ScopeData | null;
+  clipping: Clipping;
+  onChange: ((value: Clipping) => void) | undefined;
+}) {
   return (
     <div className="histogram-meta tabular">
-      <span className={data && data.clipLow > 0.01 ? 'clip-warn' : ''}>
-        暗部 {data ? `${(data.clipLow * 100).toFixed(1)}%` : '—'}
-      </span>
-      <span className={data && data.clipHigh > 0.01 ? 'clip-warn' : ''}>
-        高光 {data ? `${(data.clipHigh * 100).toFixed(1)}%` : '—'}
-      </span>
+      {(['shadows', 'highlights'] as const).map((kind) => {
+        const label = kind === 'shadows' ? '暗部' : '高光';
+        const ratio = kind === 'shadows' ? data?.clipLow : data?.clipHigh;
+        const text = (
+          <>
+            {label} <span>{ratio === undefined ? '—' : `${(ratio * 100).toFixed(1)}%`}</span>
+          </>
+        );
+        return onChange ? (
+          <button
+            key={kind}
+            type="button"
+            className={`scope-clipping ${kind}`}
+            aria-label={`${label}裁切提示`}
+            aria-pressed={clipping[kind]}
+            disabled={!data}
+            title={
+              kind === 'shadows'
+                ? '蓝色标出 RGB 均接近 0 的预览像素；数字为面积占比'
+                : '红色标出任一 RGB 通道接近满值的预览像素；数字为面积占比，不代表 RAW 不可恢复'
+            }
+            onClick={() => onChange({ ...clipping, [kind]: !clipping[kind] })}
+          >
+            {text}
+          </button>
+        ) : (
+          <span key={kind}>{text}</span>
+        );
+      })}
     </div>
   );
 }

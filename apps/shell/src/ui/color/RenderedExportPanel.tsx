@@ -1,3 +1,4 @@
+import { Select } from '../Select.js';
 import { useEffect, useMemo, useState } from 'react';
 import type { IrisClient } from '../../client.js';
 import type { Photo } from '../../types.js';
@@ -152,12 +153,12 @@ export function RenderedExportPanel({
           <div className="rendered-export-fields">
             <label>
               调色版本
-              <select
+              <Select
                 value={version}
                 aria-label="调色版本"
                 disabled={busy || !versions.length}
-                onChange={(event) => {
-                  setVersion(event.target.value);
+                onValueChange={(nextValue) => {
+                  setVersion(nextValue);
                   setCustom(null);
                 }}
               >
@@ -170,20 +171,20 @@ export function RenderedExportPanel({
                 ) : (
                   <option value="">尚无已保存版本</option>
                 )}
-              </select>
+              </Select>
             </label>
             <label>
               文件格式
-              <select
+              <Select
                 value={format}
                 aria-label="文件格式"
                 disabled={busy}
-                onChange={(event) => setFormat(event.target.value as typeof format)}
+                onValueChange={(nextValue) => setFormat(nextValue as typeof format)}
               >
                 <option value="jpeg8">JPEG · 8 位</option>
                 <option value="png16">PNG · 16 位</option>
                 <option value="tiff16">TIFF · 16 位</option>
-              </select>
+              </Select>
             </label>
             {format === 'jpeg8' && (
               <label>

@@ -1,3 +1,4 @@
+import { Select } from '../Select.js';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { IrisClient } from '../../client.js';
 import { EditingClient, type EditDocument, type EditRecord } from '../../editing-client.js';
@@ -95,11 +96,11 @@ export function LensProfilePanel({
         />
         镜头配置校正
       </label>
-      <select
+      <Select
         aria-label="镜头配置"
         value={chosen}
         disabled={disabled || busy}
-        onChange={(event) => setChosen(event.target.value)}
+        onValueChange={(nextValue) => setChosen(nextValue)}
       >
         <option value="">自动匹配已导入配置</option>
         {profiles.map((item) => (
@@ -107,7 +108,7 @@ export function LensProfilePanel({
             {item.name}
           </option>
         ))}
-      </select>
+      </Select>
       <div className="grade-lens-actions">
         <Button
           disabled={disabled || busy || !profiles.length}

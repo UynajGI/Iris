@@ -1,3 +1,4 @@
+import { isShadowClipped, isHighlightClipped } from './scope-pixels.js';
 export const channels = ['l', 'r', 'g', 'b'] as const;
 export type Channel = (typeof channels)[number];
 export type ScopeMode = 'histogram' | 'waveform';
@@ -38,8 +39,8 @@ export function sampleScopes(pixels: Uint8ClampedArray, width: number, height: n
       histogram[channel][values[channel]]!++;
       waveform[channel][(p % width) * 256 + values[channel]]!++;
     }
-    if (red <= 2 && green <= 2 && blue <= 2) clipLow++;
-    if (red >= 253 || green >= 253 || blue >= 253) clipHigh++;
+    if (isShadowClipped(red, green, blue)) clipLow++;
+    if (isHighlightClipped(red, green, blue)) clipHigh++;
   }
   return {
     histogram,

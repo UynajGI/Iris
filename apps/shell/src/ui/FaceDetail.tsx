@@ -1,3 +1,4 @@
+import { Select } from './Select.js';
 import { useId, useState } from 'react';
 import type { IrisClient } from '../client.js';
 import type { Photo } from '../types.js';
@@ -61,11 +62,11 @@ export function FaceDetail({
     <div className="face-detail">
       <label className="face-detail-picker">
         人脸区域
-        <select
+        <Select
           aria-label={`${photo.filename} 的人脸区域`}
           value={region?.index ?? ''}
-          onChange={(event) => {
-            const index = Number(event.target.value);
+          onValueChange={(nextValue) => {
+            const index = Number(nextValue);
             setSelected(regions.findIndex((face) => face.index === index));
             onFaceChange?.(index);
           }}
@@ -76,7 +77,7 @@ export function FaceDetail({
               人脸 {index + 1}（从左到右）
             </option>
           ))}
-        </select>
+        </Select>
       </label>
       {viewport ? (
         <CompareViewport {...viewport} label={`${photo.filename} 的人脸视窗`}>

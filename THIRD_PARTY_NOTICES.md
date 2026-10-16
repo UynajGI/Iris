@@ -21,6 +21,8 @@ This does not replace third-party licenses or copyrights.
 
 Rust dependencies are identified by each Cargo.lock; their original package notices remain authoritative. Portable packaging collects a dependency license index. This inventory is not a completed compatibility audit for every binary/model combination.
 
+The shared dropdown uses Radix UI Select (MIT), Floating UI (MIT) and their lockfile-pinned runtime dependencies. Frontend builds collect their installed notices in `dist/licenses/npm/` with a package/version index. `react-remove-scroll-bar` 2.3.8 omits its license file from npm; its [upstream MIT notice](https://github.com/theKashey/react-remove-scroll-bar/blob/master/LICENSE) is preserved in [the local copy](apps/shell/src/ui/licenses/react-remove-scroll-bar.txt) and included in that bundle.
+
 The traditional renderer uses LittleCMS/lcms2 (MIT), wgpu (MIT OR Apache-2.0), image (MIT OR Apache-2.0), tiff (MIT), and Rayon (MIT OR Apache-2.0). Their pinned package licenses remain authoritative. RAW PPG demosaicing calls rawler's implementation within the existing standalone RAW component; it is not relicensed as Iris-owned code. Algorithm references and implementation limits are recorded in [the rendering implementation notes](docs/color-engine-implementation.md).
 
 The optional local retrieval pipeline uses Hugging Face Tokenizers (Apache-2.0), pinned in Cargo.lock. Compatible ONNX retrieval weights and tokenizer assets are supplied separately by the user and retain their own licenses; Iris does not download them or accept their terms automatically.

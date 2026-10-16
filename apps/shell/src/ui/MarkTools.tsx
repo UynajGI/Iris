@@ -1,3 +1,4 @@
+import { Select } from './Select.js';
 import { useState } from 'react';
 import type { IrisStore } from '../store.js';
 import type { Action, ColorLabel, MarkRequest, Photo } from '../types.js';
@@ -198,9 +199,9 @@ function BulkMarkFields({
     <div className="bulk-fields">
       <label className="field">
         决定
-        <select
+        <Select
           value={decision}
-          onChange={(event) => setDecision(event.target.value as Action | '')}
+          onValueChange={(nextValue) => setDecision(nextValue as Action | '')}
         >
           <option value="">不更改</option>
           {Object.entries(decisionNames).map(([value, label]) => (
@@ -208,29 +209,29 @@ function BulkMarkFields({
               {label}
             </option>
           ))}
-        </select>
+        </Select>
       </label>
       <label className="field">
         星标
-        <select value={rating} onChange={(event) => setRating(event.target.value)}>
+        <Select value={rating} onValueChange={(nextValue) => setRating(nextValue)}>
           <option value="">不更改</option>
           {[0, 1, 2, 3, 4, 5].map((value) => (
             <option key={value} value={value}>
               {value === 0 ? '无星标' : `${value} 星`}
             </option>
           ))}
-        </select>
+        </Select>
       </label>
       <label className="field">
         颜色
-        <select value={color} onChange={(event) => setColor(event.target.value as ColorLabel | '')}>
+        <Select value={color} onValueChange={(nextValue) => setColor(nextValue as ColorLabel | '')}>
           <option value="">不更改</option>
           {Object.entries(colorNames).map(([value, label]) => (
             <option key={value} value={value}>
               {label}
             </option>
           ))}
-        </select>
+        </Select>
       </label>
       <div className="bulk-actions">
         <Button

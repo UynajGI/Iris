@@ -857,10 +857,10 @@ body {
   gap: 10px;
   font-size: var(--small);
 }
-.field select {
+.field .iris-select {
   width: 150px;
 }
-.field.active select {
+.field.active .iris-select {
   border-color: var(--accent-line);
 }
 
@@ -1547,7 +1547,7 @@ img.loaded {
   background: #252525;
   padding: 6px 8px;
 }
-.face-detail-picker select {
+.face-detail-picker .iris-select {
   min-width: 0;
   max-width: 100%;
   flex: 1;
@@ -1808,7 +1808,7 @@ img.loaded {
   gap: 8px;
   margin-bottom: 8px;
 }
-.scope-toolbar select {
+.scope-toolbar .iris-select {
   min-width: 0;
   width: auto;
   padding: 3px 6px;
@@ -1818,6 +1818,58 @@ img.loaded {
 .scope-source {
   color: var(--muted);
   font-size: 11px;
+}
+.scope-modes {
+  display: flex;
+  gap: 16px;
+}
+.scope-modes button {
+  padding: 4px 0 7px;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: var(--small);
+  cursor: pointer;
+}
+.scope-modes button[aria-pressed='true'] {
+  color: var(--text);
+  border-bottom-color: var(--text);
+}
+.scope-modes button:hover {
+  color: var(--text);
+}
+.scope-clipping {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  padding: 3px 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.scope-clipping:hover {
+  color: var(--text);
+}
+.scope-clipping[aria-pressed='true'] {
+  border-bottom-color: currentColor;
+}
+.scope-clipping.shadows[aria-pressed='true'] {
+  color: #86b4ff;
+}
+.scope-clipping.highlights[aria-pressed='true'] {
+  color: #ff9797;
+}
+.grade-clipping-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
 }
 .scope-plot {
   position: relative;
@@ -1901,18 +1953,20 @@ img.loaded {
   isolation: isolate;
 }
 .histogram-curves path {
-  stroke-width: 0.7;
+  stroke-width: 0.85;
+  stroke-linejoin: round;
+  mix-blend-mode: screen;
 }
 .hist-r {
-  fill: #d7797955;
+  fill: #d779792b;
   stroke: #d9908d;
 }
 .hist-g {
-  fill: #79b89555;
+  fill: #79b8952b;
   stroke: #89be9d;
 }
 .hist-b {
-  fill: #789cc755;
+  fill: #789cc72b;
   stroke: #8baed5;
 }
 .hist-l {
@@ -2209,7 +2263,7 @@ img.loaded {
   gap: 5px;
   font-size: var(--small);
 }
-.mark-tools-toolbar .bulk-fields select {
+.mark-tools-toolbar .bulk-fields .iris-select {
   width: auto;
   min-width: 76px;
   padding: 4px;
@@ -2588,7 +2642,7 @@ img.loaded {
   gap: 16px;
   min-height: var(--control-height);
 }
-.settings-section select {
+.settings-section .iris-select {
   min-width: min(200px, 100%);
 }
 .settings-section .muted {
@@ -3146,7 +3200,7 @@ details p {
   gap: 8px;
   min-width: 0;
 }
-.compare-reference select {
+.compare-reference .iris-select {
   max-width: 180px;
   min-width: 0;
 }
@@ -3267,7 +3321,7 @@ details p {
 .group-selection-bar input {
   width: 4.5rem;
 }
-.group-selection-bar select {
+.group-selection-bar .iris-select {
   max-width: min(300px, 60vw);
 }
 .group-selection-bar p {
@@ -3307,7 +3361,7 @@ details p {
   overflow: auto;
 }
 @media (max-width: 1000px) {
-  .compare-reference select {
+  .compare-reference .iris-select {
     max-width: 120px;
   }
   .compare-options {

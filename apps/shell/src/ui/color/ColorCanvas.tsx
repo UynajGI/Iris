@@ -9,6 +9,8 @@ import { MaskOverlay } from './MaskOverlay.js';
 import { WorkingMaskOverlay, type MaskPreviewSource } from './WorkingMaskOverlay.js';
 import { needsWorkingMask } from '../../editing-mask-preview.js';
 import { CropOverlay } from './CropOverlay.js';
+import { ClippingOverlay } from './ClippingOverlay.js';
+import { noClipping, type Clipping } from '../scope-pixels.js';
 import { WhiteBalancePicker } from './WhiteBalancePicker.js';
 import { fitPreview } from '../../editing-canvas.js';
 import {
@@ -55,6 +57,7 @@ export function ColorCanvas({
   brush,
   onMask,
   showMask = true,
+  clipping = noClipping,
   maskPreview,
   crop,
   cropLocked,
@@ -72,6 +75,7 @@ export function ColorCanvas({
   brush: BrushSettings;
   onMask(definition: MaskDefinition): void;
   showMask?: boolean;
+  clipping?: Clipping;
   maskPreview?: MaskPreviewSource | undefined;
   crop?: number[] | undefined;
   cropLocked?: boolean;
@@ -203,6 +207,9 @@ export function ColorCanvas({
               });
             }}
           />
+          {loadedUrl === url && (clipping.shadows || clipping.highlights) && (
+            <ClippingOverlay url={url} clipping={clipping} />
+          )}
           {neutralPicker && preview && loadedUrl === preview && (
             <WhiteBalancePicker {...neutralPicker} />
           )}

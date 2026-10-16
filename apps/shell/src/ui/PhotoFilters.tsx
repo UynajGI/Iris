@@ -1,3 +1,4 @@
+import { Select } from './Select.js';
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import type { PhotoFilter } from '../types.js';
 import { Button } from './components.js';
@@ -49,7 +50,7 @@ export function PhotoFilters({
   }, [filter]);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
-    panel.current?.querySelector<HTMLSelectElement>('select')?.focus();
+    panel.current?.querySelector<HTMLButtonElement>('[role="combobox"]')?.focus();
     const pointer = (event: PointerEvent) => {
       if (!panel.current?.contains(event.target as Node)) onClose();
     };
@@ -91,32 +92,32 @@ export function PhotoFilters({
         {choices.map(([key, options]) => (
           <label key={key} className={filter[key] !== undefined ? 'field active' : 'field'}>
             {filterLabels[key]}
-            <select value={filter[key] ?? ''} onChange={(event) => change(key, event.target.value)}>
+            <Select value={filter[key] ?? ''} onValueChange={(nextValue) => change(key, nextValue)}>
               <option value="">全部</option>
               {Object.entries(options).map(([value, label]) => (
                 <option key={value} value={value}>
                   {label}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
         ))}
         <label className="field">
           文件名排序
-          <select
+          <Select
             value={filter.descending ? 'desc' : 'asc'}
-            onChange={(event) =>
+            onValueChange={(nextValue) =>
               onChange({
                 ...filter,
                 sort: 'name',
-                descending: event.target.value === 'desc',
+                descending: nextValue === 'desc',
                 offset: 0,
               })
             }
           >
             <option value="asc">升序</option>
             <option value="desc">降序</option>
-          </select>
+          </Select>
         </label>
       </div>
       <div className="popover-actions">

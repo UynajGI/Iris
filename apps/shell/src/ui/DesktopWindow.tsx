@@ -1,3 +1,4 @@
+import { Select } from './Select.js';
 import { useEffect, useState } from 'react';
 import { Button, Dialog } from './components.js';
 
@@ -86,16 +87,16 @@ export function CloseBehaviorSetting({ controller }: { controller: WindowControl
   return (
     <div className="setting-row">
       <label htmlFor="close-behavior">关闭主窗口</label>
-      <select
+      <Select
         id="close-behavior"
         value={controller.behavior}
         disabled={controller.busy}
-        onChange={(event) => void controller.changeBehavior(event.target.value as CloseBehavior)}
+        onValueChange={(nextValue) => void controller.changeBehavior(nextValue as CloseBehavior)}
       >
         <option value="ask">每次询问</option>
         <option value="background">后台运行</option>
         <option value="exit">退出程序</option>
-      </select>
+      </Select>
       {controller.error && (
         <p role="alert" className="inline-error">
           {controller.error}

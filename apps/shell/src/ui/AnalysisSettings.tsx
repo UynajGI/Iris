@@ -1,3 +1,4 @@
+import { Select } from './Select.js';
 import { useEffect, useRef, useState } from 'react';
 import type { IrisStore } from '../store.js';
 import type { GpuDevices, Settings } from '../types.js';
@@ -147,10 +148,10 @@ export function AnalysisSettings({
         <h2>分析参数</h2>
         <label>
           计算设备
-          <select
+          <Select
             value={selectedDevice}
-            onChange={(event) => {
-              const value = event.target.value;
+            onValueChange={(nextValue) => {
+              const value = nextValue;
               setDraft({
                 ...draft,
                 execution_provider: value.startsWith('gpu:')
@@ -176,7 +177,7 @@ export function AnalysisSettings({
               !adapters.some((adapter) => `gpu:${adapter.device_id}` === selectedDevice) && (
                 <option value={selectedDevice}>原选 GPU 当前不可用</option>
               )}
-          </select>
+          </Select>
         </label>
         {draft.execution_provider === 'auto' && (
           <p className="muted">优先可用的独立显卡，不可用时使用 CPU。</p>

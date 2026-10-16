@@ -1,3 +1,4 @@
+import { Select } from './Select.js';
 import { useState } from 'react';
 import { applyFilterPreset, FilterPresetsRepository, presetFilter } from '../filter-presets.js';
 import type { PhotoFilter } from '../types.js';
@@ -47,11 +48,11 @@ export function FilterPresets({
         <>
           <label className="field">
             常用组合
-            <select
+            <Select
               aria-label="常用组合"
               value={active}
-              onChange={(event) => {
-                const value = event.target.value;
+              onValueChange={(nextValue) => {
+                const value = nextValue;
                 setSelected(value);
                 setNotice('');
                 setError('');
@@ -65,7 +66,7 @@ export function FilterPresets({
                   {preset.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
         </>
       )}

@@ -1,3 +1,4 @@
+import { Select } from '../Select.js';
 import { useState } from 'react';
 import type { EditDocument } from '../../editing-client.js';
 import {
@@ -95,13 +96,13 @@ export function MaskPanel({
                 </div>
               ))}
             </div>
-            <select
+            <Select
               aria-label="新建蒙版"
               value=""
-              onChange={(event) => {
-                if (!document || !event.target.value) return;
+              onValueChange={(nextValue) => {
+                if (!document || !nextValue) return;
                 try {
-                  const result = addMask(document, event.target.value as MaskKind);
+                  const result = addMask(document, nextValue as MaskKind);
                   onChange(result.document);
                   onSelect(result.id);
                   setError(null);
@@ -116,7 +117,7 @@ export function MaskPanel({
                   {name}
                 </option>
               ))}
-            </select>
+            </Select>
           </>
         )}
         {layer && document && (

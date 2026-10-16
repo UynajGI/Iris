@@ -1,3 +1,4 @@
+import { Select } from '../Select.js';
 import { useState } from 'react';
 import { fitCropRatio, type Crop } from '../../editing-crop.js';
 import { Button } from '../components.js';
@@ -27,10 +28,10 @@ export function CropTools({
   };
   return (
     <div className="grade-crop-tools" role="group" aria-label="裁切比例">
-      <select
+      <Select
         aria-label="裁切比例"
         value={preset}
-        onChange={(event) => apply(event.target.value, portrait)}
+        onValueChange={(nextValue) => apply(nextValue, portrait)}
       >
         <option value="free">{locked ? '当前比例' : '自由'}</option>
         <option value="original">原始比例</option>
@@ -39,7 +40,7 @@ export function CropTools({
         <option value="1.3333333333333333">{portrait ? '3 : 4' : '4 : 3'}</option>
         <option value="1.5">{portrait ? '2 : 3' : '3 : 2'}</option>
         <option value="1.7777777777777777">{portrait ? '9 : 16' : '16 : 9'}</option>
-      </select>
+      </Select>
       <Button
         className="quiet"
         aria-pressed={locked}

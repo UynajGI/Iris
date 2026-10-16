@@ -1,3 +1,4 @@
+import { Select } from '../Select.js';
 import { syncGroups, type SyncCandidate } from '../../editing-sync.js';
 import { Button, Dialog, PhotoImage } from '../components.js';
 import { useSyncAdjustments, type SyncModel, type SyncProps } from './useSyncAdjustments.js';
@@ -141,11 +142,11 @@ function SyncTarget({
         <span title={row.photo.filename}>{row.photo.filename}</span>
       </label>
       {row.versions.length ? (
-        <select
+        <Select
           aria-label={`${row.photo.filename} 的目标版本`}
           disabled={locked || !row.selected}
           value={row.editId}
-          onChange={(event) => onChange({ editId: event.target.value })}
+          onValueChange={(nextValue) => onChange({ editId: nextValue })}
         >
           <option value="" disabled>
             选择版本
@@ -155,7 +156,7 @@ function SyncTarget({
               {version.name}
             </option>
           ))}
-        </select>
+        </Select>
       ) : (
         <span className="muted">创建原始调整</span>
       )}

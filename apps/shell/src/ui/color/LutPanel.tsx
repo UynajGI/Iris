@@ -1,3 +1,4 @@
+import { Select } from '../Select.js';
 import { useEffect, useRef, useState } from 'react';
 import type { IrisClient } from '../../client.js';
 import { EditingClient, type EditDocument } from '../../editing-client.js';
@@ -95,19 +96,19 @@ export function LutPanel(props: Props) {
         )}
         <label className="grade-output-field">
           输入色域
-          <select
+          <Select
             aria-label="LUT 输入色域"
             value={domain}
             title="请按 LUT 提供者的说明选择输入色域；不支持相机 Log 转换 LUT。"
-            onChange={(event) => {
-              const next = event.target.value as typeof domain;
+            onValueChange={(nextValue) => {
+              const next = nextValue as typeof domain;
               setDefaultDomain(next);
               if (document && node) onChange(updateLut(document, { domain: next }));
             }}
           >
             <option value="encoded_srgb">sRGB（非线性）</option>
             <option value="linear_rec2020">线性 Rec.2020</option>
-          </select>
+          </Select>
         </label>
         {node && (
           <AdjustmentSlider

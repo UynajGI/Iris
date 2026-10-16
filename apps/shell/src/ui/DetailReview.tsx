@@ -1,3 +1,4 @@
+import { Select } from './Select.js';
 import { useEffect, useState } from 'react';
 import type { IrisClient } from '../client.js';
 import type { DetailEvidence, Photo } from '../types.js';
@@ -23,11 +24,9 @@ export function DetailReview({
       {faceIndex === undefined && (
         <label className="field">
           复核区域
-          <select
+          <Select
             value={selected ?? ''}
-            onChange={(event) =>
-              setSelected(event.target.value === '' ? null : Number(event.target.value))
-            }
+            onValueChange={(nextValue) => setSelected(nextValue === '' ? null : Number(nextValue))}
           >
             <option value="">画面中央</option>
             {faceRegions(photo).map((face, i) => (
@@ -35,7 +34,7 @@ export function DetailReview({
                 人脸 {i + 1}（从左到右）
               </option>
             ))}
-          </select>
+          </Select>
         </label>
       )}
       <DetailMeasurement

@@ -28,3 +28,13 @@ export function wheelToGains({ hue, saturation, luminance }: WheelColor): number
     Math.max(-2, Math.min(2, luminance + 2 * saturation * (value - average)))
   );
 }
+/** Coordinates are normalized within the inner disk; the center retains the selected hue. */
+export function wheelPoint(x: number, y: number, hue: number) {
+  const dx = (x - 0.5) / 0.46,
+    dy = (y - 0.5) / 0.46;
+  const radius = Math.hypot(dx, dy);
+  return {
+    hue: radius < 0.01 ? hue : ((Math.atan2(dy, dx) * 180) / Math.PI + 360) % 360,
+    saturation: Math.min(1, radius) * 2,
+  };
+}

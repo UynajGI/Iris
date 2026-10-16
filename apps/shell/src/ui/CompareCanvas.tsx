@@ -1,3 +1,4 @@
+import { Select } from './Select.js';
 import { useState, type CSSProperties } from 'react';
 import { PhotoImage } from './components.js';
 import { Icon } from './Icon.js';
@@ -179,18 +180,18 @@ function CompareOptions({ control }: { control: CompareControl }) {
       </div>
       <label className="compare-reference">
         参考照片
-        <select
+        <Select
           aria-label="参考照片"
           value={referenceId}
           disabled={!photos.length || group.loading}
-          onChange={(event) => setReference(Number(event.target.value))}
+          onValueChange={(nextValue) => setReference(Number(nextValue))}
         >
           {photos.map((photo) => (
             <option key={photo.id} value={photo.id}>
               {photo.filename}
             </option>
           ))}
-        </select>
+        </Select>
       </label>
       <button
         aria-pressed={linked}

@@ -1,3 +1,4 @@
+import { Select } from '../Select.js';
 import { Panel } from '../Panel.js';
 import { Button } from '../components.js';
 import { AdjustmentSlider } from './AdjustmentPanels.js';
@@ -32,12 +33,12 @@ export function RawWhiteBalancePanel({
           <label className="visually-hidden" htmlFor="raw-white-balance-preset">
             白平衡预设
           </label>
-          <select
+          <Select
             id="raw-white-balance-preset"
             value={asShot && !model.pending ? 'as_shot' : 'custom'}
-            onChange={(event) => {
-              if (event.target.value === 'as_shot') model.request({ kind: 'as_shot' });
-              else change(Number(event.target.value), 0);
+            onValueChange={(nextValue) => {
+              if (nextValue === 'as_shot') model.request({ kind: 'as_shot' });
+              else change(Number(nextValue), 0);
             }}
           >
             <option value="as_shot">拍摄时</option>
@@ -48,7 +49,7 @@ export function RawWhiteBalancePanel({
             <option value="6500">阴天 · 6500 K</option>
             <option value="7500">阴影 · 7500 K</option>
             <option value="2850">白炽灯 · 2850 K</option>
-          </select>
+          </Select>
           <Button
             className="quiet"
             aria-label="白平衡吸管"

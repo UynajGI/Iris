@@ -1,3 +1,4 @@
+import { Select } from '../Select.js';
 import type { EditDocument } from '../../editing-client.js';
 import { outputSpaceNames } from '../../editing-document.js';
 import { AdjustmentSlider } from './AdjustmentPanels.js';
@@ -21,35 +22,33 @@ export function OutputPanel({
         <legend className="visually-hidden">输出与颜色管理</legend>
         <label className="grade-output-field">
           输出色域
-          <select
+          <Select
             aria-label="输出色域"
             value={output.space}
-            onChange={(event) => change({ space: event.target.value as typeof output.space })}
+            onValueChange={(nextValue) => change({ space: nextValue as typeof output.space })}
           >
             {Object.entries(outputSpaceNames).map(([value, name]) => (
               <option value={value} key={value}>
                 {name}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <label className="grade-output-field">
           高光输出
-          <select
+          <Select
             aria-label="高光输出"
             value={output.tone_map.kind}
-            onChange={(event) =>
+            onValueChange={(nextValue) =>
               change({
                 tone_map:
-                  event.target.value === 'shoulder'
-                    ? { kind: 'shoulder', knee: 0.8 }
-                    : { kind: 'none' },
+                  nextValue === 'shoulder' ? { kind: 'shoulder', knee: 0.8 } : { kind: 'none' },
               })
             }
           >
             <option value="none">直接输出</option>
             <option value="shoulder">柔和压缩</option>
-          </select>
+          </Select>
         </label>
         {output.tone_map.kind === 'shoulder' && (
           <AdjustmentSlider

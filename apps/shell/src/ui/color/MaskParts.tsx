@@ -1,3 +1,4 @@
+import { Select } from '../Select.js';
 import { useState } from 'react';
 import { maskNames, type MaskDefinition, type MaskKind } from '../../editing-masks.js';
 import {
@@ -52,13 +53,13 @@ export function MaskParts({
           </Button>
         ))}
       </div>
-      <select
+      <Select
         aria-label="新增蒙版组成"
         value=""
-        onChange={(event) => {
-          if (!event.target.value) return;
+        onValueChange={(nextValue) => {
+          if (!nextValue) return;
           try {
-            if (onChange(appendMaskPart(definition, operation, event.target.value as MaskKind)))
+            if (onChange(appendMaskPart(definition, operation, nextValue as MaskKind)))
               onSelect(parts.length);
             setError('');
           } catch (reason) {
@@ -72,7 +73,7 @@ export function MaskParts({
             {name}
           </option>
         ))}
-      </select>
+      </Select>
       {parts.length > 1 && (
         <Button
           className="quiet"

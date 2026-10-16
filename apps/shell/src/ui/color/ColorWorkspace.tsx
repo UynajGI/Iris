@@ -1,3 +1,5 @@
+import { Select } from '../Select.js';
+import { noClipping } from '../scope-pixels.js';
 import { useEffect, useRef, useState } from 'react';
 import type { PhotoWorkspaceModel } from '../usePhotoWorkspace.js';
 import { Icon } from '../Icon.js';
@@ -45,6 +47,7 @@ export function ColorWorkspace({
   const [cropMode, setCropMode] = useState(false);
   const [cropLocked, setCropLocked] = useState(false);
   const [showMask, setShowMask] = useState(true);
+  const [clipping, setClipping] = useState(noClipping);
   const editor = useColorEditor(model.store.client, photo?.id, before, cropMode);
   const whiteBalance = useRawWhiteBalance({
     client: model.store.client,
@@ -247,18 +250,18 @@ export function ColorWorkspace({
           <span className="spacer" />
           {editor.record && (
             <div className="grade-compact-versions">
-              <select
+              <Select
                 aria-label="当前调色版本"
                 value={editor.record.id}
                 disabled={!available}
-                onChange={(event) => void editor.selectVersion(event.target.value)}
+                onValueChange={(nextValue) => void editor.selectVersion(nextValue)}
               >
                 {editor.versions.map((version) => (
                   <option key={version.id} value={version.id}>
                     {version.name}
                   </option>
                 ))}
-              </select>
+              </Select>
               <Button
                 className="quiet"
                 aria-label="创建虚拟副本"
@@ -338,6 +341,7 @@ export function ColorWorkspace({
               selectedPart={selectedMaskPart}
               painting={painting && !before && !cropMode && available}
               showMask={showMask}
+              clipping={clipping}
               maskPreview={
                 editor.record && editor.draft
                   ? {
@@ -434,7 +438,10 @@ export function ColorWorkspace({
             <Button
               className="quiet"
               aria-pressed={showMask}
-              onClick={() => setShowMask((value) => !value)}
+              onClick={() => {
+                setClipping(noClipping);
+                setShowMask((value) => !value);
+              }}
             >
               显示蒙版
             </Button>
@@ -481,7 +488,10 @@ export function ColorWorkspace({
                 title="一张照片像素对应一个屏幕物理像素"
                 aria-pressed={nativeActive}
                 disabled={!available || cropMode || toolTab === 'masks'}
-                onClick={() => setNativeMode((value) => !value)}
+                onClick={() => {
+                  setClipping(noClipping);
+                  setNativeMode((value) => !value);
+                }}
               >
                 1:1
               </Button>
@@ -632,6 +642,12 @@ export function ColorWorkspace({
               client={model.store.client}
               photo={photo}
               previewUrl={before ? editor.beforePreview : editor.preview}
+              clipping={clipping}
+              onClipping={(value) => {
+                setClipping(value);
+                setShowMask(false);
+                setNativeMode(false);
+              }}
             />
           )}
           {(editor.error || editor.previewError || editor.beforeError) && (
@@ -698,6 +714,7 @@ export function ColorWorkspace({
                   setPainting(true);
                   setBefore(false);
                   setShowMask(true);
+                  setClipping(noClipping);
                 }}
               />
             )}

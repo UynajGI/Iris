@@ -91,7 +91,7 @@
   border-bottom: 1px solid var(--line-subtle);
   font-size: var(--small);
 }
-.grade-lens-profile > select {
+.grade-lens-profile > .iris-select {
   margin: 12px 0;
   width: 100%;
 }
@@ -193,11 +193,11 @@
 .grade-toolbar > .filename-line {
   color: var(--muted);
 }
-.grade-toolbar select {
+.grade-toolbar .iris-select {
   border-color: transparent;
   background-color: transparent;
 }
-.grade-toolbar select:hover:not(:disabled) {
+.grade-toolbar .iris-select:hover:not(:disabled) {
   background-color: var(--raised);
 }
 .grade-position {
@@ -276,7 +276,7 @@
   display: flex;
   gap: 8px;
 }
-.grade-preset-choice select {
+.grade-preset-choice .iris-select {
   flex: 1;
   min-width: 0;
 }
@@ -319,7 +319,7 @@
 .grade-mask-part-list .button span:first-child {
   color: var(--muted);
 }
-.grade-crop-tools select {
+.grade-crop-tools .iris-select {
   min-height: 30px;
   width: 104px;
   padding-block: 3px;
@@ -543,7 +543,7 @@
   justify-content: flex-end;
   gap: 6px;
 }
-.grade-inspector .histogram select {
+.grade-inspector .histogram .iris-select {
   background-color: transparent;
   border-color: transparent;
   padding-left: 0;
@@ -620,7 +620,7 @@
   font-size: var(--small);
 }
 .grade-color-mode .button,
-.grade-curve-channels .button,
+.grade-curve-channels button,
 .grade-balance-tabs .button {
   border: 0;
   border-bottom: 1px solid transparent;
@@ -630,7 +630,7 @@
   color: var(--muted);
 }
 .grade-color-mode .button[aria-pressed='true'],
-.grade-curve-channels .button[aria-pressed='true'],
+.grade-curve-channels button[aria-pressed='true'],
 .grade-balance-tabs .button[aria-pressed='true'] {
   color: var(--text);
   border-bottom-color: var(--accent-line);
@@ -794,7 +794,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.grade-sync-target select {
+.grade-sync-target .iris-select {
   width: 100%;
   min-width: 0;
   font-size: var(--small);
@@ -856,7 +856,7 @@
   grid-column: 1 / -1;
 }
 .rendered-export-fields input,
-.rendered-export-fields select {
+.rendered-export-fields .iris-select {
   width: 100%;
   min-width: 0;
 }
@@ -1131,7 +1131,7 @@
   height: 14px;
   accent-color: var(--accent);
 }
-.grade-mask-controls > select {
+.grade-mask-controls > .iris-select {
   width: 100%;
   font-size: var(--small);
 }
@@ -1209,7 +1209,7 @@
     align-items: center;
     gap: 4px;
   }
-  .grade-compact-versions select {
+  .grade-compact-versions .iris-select {
     max-width: 136px;
     min-width: 112px;
     min-height: 28px;
@@ -1269,7 +1269,7 @@
   gap: 12px;
   margin-bottom: 12px;
 }
-.grade-output-field select {
+.grade-output-field .iris-select {
   max-width: 60%;
   min-width: 0;
 }
@@ -1316,20 +1316,72 @@
   color: var(--muted);
 }
 .grade-color-wheel {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 1;
+  position: absolute;
+  inset: 18px;
   border-radius: 50%;
   touch-action: none;
   cursor: crosshair;
   background:
-    radial-gradient(circle, #898989 0%, #89898900 70%),
+    radial-gradient(circle closest-side, #a0a0a0 0%, #a0a0a000 100%),
     conic-gradient(from 90deg, #f44, #ff4, #4f4, #4ff, #44f, #f4f, #f44);
   box-shadow: inset 0 0 0 1px #0005;
 }
 .grade-color-wheel.selected {
   outline: 1px solid var(--muted);
   outline-offset: 4px;
+}
+.grade-wheel-dial {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+}
+.grade-hue-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  touch-action: none;
+  cursor: crosshair;
+}
+.grade-hue-ring::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: conic-gradient(from 90deg, #f44, #ff4, #4f4, #4ff, #44f, #f4f, #f44);
+  mask: radial-gradient(farthest-side, transparent calc(100% - 9px), #000 calc(100% - 8px));
+}
+.grade-hue-ring:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.grade-hue-ring[aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: default;
+}
+.grade-hue-marker {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.grade-hue-marker::after {
+  content: '';
+  position: absolute;
+  right: 1px;
+  top: calc(50% - 2px);
+  height: 4px;
+  width: 13px;
+  background: #fff;
+  border-radius: 1px;
+  box-shadow: 0 1px 3px #000b;
+}
+.grade-wheel-radius {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  height: 1px;
+  background: #fff8;
+  transform-origin: left center;
+  pointer-events: none;
 }
 .grade-color-wheel:focus-visible {
   outline: 2px solid var(--accent);
@@ -1440,7 +1492,7 @@
   gap: 12px;
   margin-bottom: 18px;
 }
-.grade-white-balance-actions select {
+.grade-white-balance-actions .iris-select {
   flex: 1;
   min-width: 0;
 }

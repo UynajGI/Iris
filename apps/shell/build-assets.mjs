@@ -1,7 +1,9 @@
 import { copyFile, mkdir, rm, readFile } from 'node:fs/promises';
 import { build } from 'esbuild';
 import { fileURLToPath } from 'node:url';
+import { copyRuntimeLicenses } from './build-licenses.mjs';
 const { version } = JSON.parse(await readFile(new URL('./package.json', import.meta.url), 'utf8'));
+await copyRuntimeLicenses();
 await mkdir(new URL('./dist/help/', import.meta.url), { recursive: true });
 for (const [source, target] of [
   [`../../docs/releases/v${version}.md`, 'release-notes.txt'],

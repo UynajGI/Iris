@@ -8,7 +8,7 @@
 .filter-presets > .button {
   justify-self: start;
 }
-.filter-presets select {
+.filter-presets .iris-select {
   min-width: 0;
 }
 .filter-preset-actions {

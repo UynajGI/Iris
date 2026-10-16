@@ -1,3 +1,4 @@
+import { Select } from '../Select.js';
 import { useState } from 'react';
 import type { IrisClient } from '../../client.js';
 import type { EditDocument } from '../../editing-client.js';
@@ -75,13 +76,13 @@ export function PresetPanel({
       <div className="grade-presets">
         <label htmlFor="grade-preset-choice">全局影调、颜色与细节</label>
         <div className="grade-preset-choice">
-          <select
+          <Select
             id="grade-preset-choice"
             aria-label="调色预设"
             value={selected}
             disabled={presets.busy}
-            onChange={(event) => {
-              setSelected(event.target.value);
+            onValueChange={(nextValue) => {
+              setSelected(nextValue);
               setMode(null);
               setMessage('');
             }}
@@ -92,7 +93,7 @@ export function PresetPanel({
                 {item.name}
               </option>
             ))}
-          </select>
+          </Select>
           <Button
             disabled={blocked || !current}
             onClick={() => {

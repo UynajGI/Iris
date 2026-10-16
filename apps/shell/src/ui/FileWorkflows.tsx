@@ -1,3 +1,4 @@
+import { Select } from './Select.js';
 import { useState } from 'react';
 import type { IrisStore } from '../store.js';
 import { useIris } from '../react.js';
@@ -139,33 +140,33 @@ export function FileWorkflows({ store }: { store: IrisStore }) {
             <div className="stack">
               <label>
                 导出方式
-                <select
+                <Select
                   disabled={busy}
                   value={format}
-                  onChange={(event) => {
-                    setFormat(event.target.value as typeof format);
+                  onValueChange={(nextValue) => {
+                    setFormat(nextValue as typeof format);
                     setDestination('');
                   }}
                 >
                   <option value="copy">复制照片</option>
                   <option value="xmp">XMP 标记</option>
                   <option value="csv">CSV 选片记录</option>
-                </select>
+                </Select>
               </label>
               {format === 'csv' ? (
                 <p>全部照片的路径与选片决定，包含不可用照片。</p>
               ) : (
                 <label>
                   范围
-                  <select
+                  <Select
                     disabled={busy}
                     value={scope}
-                    onChange={(event) => setScope(event.target.value)}
+                    onValueChange={(nextValue) => setScope(nextValue)}
                   >
                     <option value="keep">保留的照片</option>
                     <option value="reject">移除的照片</option>
                     <option value="all">全部照片</option>
-                  </select>
+                  </Select>
                 </label>
               )}
               {format !== 'xmp' && (
