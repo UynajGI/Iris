@@ -81,3 +81,70 @@ fn neutral_patch_reverses_camera_matrix_and_applied_sensor_gains() {
     cancelled.cancel();
     assert!(wb::neutral_patch_gains(&frame, &calibration(), rect, &cancelled).is_err());
 }
+
+#[test]
+fn recovered_temperature_recreates_saved_sensor_gains() {
+    let mut camera = calibration();
+    // Non-diagonal real-camera-like matrix exercises XYZ inversion, not just
+    // channel-wise reciprocals. Values are synthetic, not a camera profile.
+    camera.xyz_to_camera_d65 = [[0.7, -0.2, -0.1], [-0.3, 1.3, 0.1], [0.02, 0.1, 0.6]];
+    for (locus, temperatures) in [
+        (
+            Locus::Planckian,
+            vec![
+                1667.0, 2222.0, 2223.0, 3200.0, 4000.0, 4001.0, 6500.0, 25000.0,
+            ],
+        ),
+        (
+            Locus::Daylight,
+            vec![4000.0, 5500.0, 7000.0, 7001.0, 10000.0, 25000.0],
+        ),
+    ] {
+        for kelvin in temperatures {
+            for tint in [-0.02, -0.005, 0.0, 0.005, 0.02] {
+                let gains = wb::temperature_gains(&camera, kelvin, tint, locus).unwrap();
+                let reading = wb::temperature_from_gains(&camera, gains, locus)
+                    .unwrap()
+                    .expect("supported white balance must be readable");
+                let rebuilt = wb::temperature_gains(
+                    &camera,
+                    reading.kelvin,
+                    reading.tint_delta_v,
+                    reading.locus,
+                )
+                .unwrap();
+                for (expected, actual) in gains.into_iter().zip(rebuilt) {
+                    assert!(
+                        (actual - expected).abs() / expected < 2e-6,
+                        "{locus:?} {kelvin} K tint {tint}: {gains:?} -> {reading:?} -> {rebuilt:?}"
+                    );
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn readings_do_not_invent_temperature_for_unrepresentable_gains() {
+    let camera = calibration();
+    let tungsten = wb::temperature_gains(&camera, 2800.0, 0.0, Locus::Planckian).unwrap();
+    assert!(
+        wb::temperature_from_gains(&camera, tungsten, Locus::Daylight)
+            .unwrap()
+            .is_none()
+    );
+    let green = wb::gains_for_xy(&camera, [0.3, 0.55]).unwrap();
+    assert!(wb::temperature_from_gains(&camera, green, Locus::Planckian)
+        .unwrap()
+        .is_none());
+    for gains in [[1.0, 2.0, 1.0], [f32::NAN, 1.0, 1.0], [0.0, 1.0, 1.0]] {
+        assert!(wb::temperature_from_gains(&camera, gains, Locus::Planckian).is_err());
+    }
+    let mut negative = camera;
+    negative.xyz_to_camera_d65 = [[-1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
+    assert!(
+        wb::temperature_from_gains(&negative, [1.0; 3], Locus::Planckian)
+            .unwrap()
+            .is_none()
+    );
+}

@@ -46,6 +46,93 @@ pub enum WhiteBalanceLocus {
     Planckian,
 }
 
+/// Coordinates in Iris's illuminant model, not vendor-specific temperature/tint.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, ToSchema)]
+pub struct WhiteBalanceTemperature {
+    pub kelvin: f64,
+    pub tint_delta_v: f64,
+    pub locus: WhiteBalanceLocus,
+}
+
+/// Recover editable coordinates from sensor gains. An illuminant outside the
+/// supported locus/tint domain has no reading; never substitute a default white.
+pub fn temperature_from_gains(
+    calibration: &RawCalibration,
+    gains: [f32; 3],
+    locus: WhiteBalanceLocus,
+) -> Result<Option<WhiteBalanceTemperature>> {
+    calibration.validate()?;
+    validate_gains(gains)?;
+    let xyz = product(
+        inverse(calibration.xyz_to_camera_d65)?,
+        gains.map(|gain| 1.0 / gain as f64),
+    );
+    let sum: f64 = xyz.iter().sum();
+    if !sum.is_finite() || sum <= 0.0 {
+        return Ok(None);
+    }
+    let xy = [xyz[0] / sum, xyz[1] / sum];
+    if validate_xy(xy).is_err() {
+        return Ok(None);
+    }
+    let target = xy_to_uv(xy);
+    // Polynomial pieces have tiny discontinuities. Solve each continuous piece
+    // independently, then prefer the valid solution nearest its locus.
+    let pieces: &[(f64, f64)] = match locus {
+        WhiteBalanceLocus::Daylight => &[(4000.0, 7000.0), (7000.000001, 25000.0)],
+        WhiteBalanceLocus::Planckian => &[
+            (1667.0, 2222.0),
+            (2222.000001, 4000.0),
+            (4000.000001, 25000.0),
+        ],
+    };
+    let mut best: Option<WhiteBalanceTemperature> = None;
+    for &(low, high) in pieces {
+        if let Some(reading) = solve_temperature(target, locus, low, high)? {
+            if best.is_none_or(|old| reading.tint_delta_v.abs() < old.tint_delta_v.abs()) {
+                best = Some(reading);
+            }
+        }
+    }
+    Ok(best)
+}
+
+fn xy_to_uv([x, y]: [f64; 2]) -> [f64; 2] {
+    let denominator = -2.0 * x + 12.0 * y + 3.0;
+    [4.0 * x / denominator, 6.0 * y / denominator]
+}
+
+fn solve_temperature(
+    target: [f64; 2],
+    locus: WhiteBalanceLocus,
+    mut low: f64,
+    mut high: f64,
+) -> Result<Option<WhiteBalanceTemperature>> {
+    let uv = |kelvin| illuminant_xy(kelvin, 0.0, locus).map(xy_to_uv);
+    // Allow only f32 gain roundoff at endpoints, not out-of-range clamping.
+    if target[0] > uv(low)?[0] + 1e-8 || target[0] < uv(high)?[0] - 1e-8 {
+        return Ok(None);
+    }
+    for _ in 0..50 {
+        let middle = (low + high) * 0.5;
+        if uv(middle)?[0] > target[0] {
+            low = middle;
+        } else {
+            high = middle;
+        }
+    }
+    let kelvin = (low + high) * 0.5;
+    let tint = target[1] - uv(kelvin)?[1];
+    if tint.abs() > 0.02 + 1e-8 {
+        return Ok(None);
+    }
+    Ok(Some(WhiteBalanceTemperature {
+        kelvin,
+        tint_delta_v: tint.clamp(-0.02, 0.02),
+        locus,
+    }))
+}
+
 pub fn validate_gains(gains: [f32; 3]) -> Result<()> {
     ensure!(
         gains

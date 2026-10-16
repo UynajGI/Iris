@@ -9,7 +9,7 @@ use crate::Services;
 use anyhow::{ensure, Context, Result};
 use iris_render::{
     region::PixelRect,
-    white_balance::{self, RawCalibration, WhiteBalanceLocus},
+    white_balance::{self, RawCalibration, WhiteBalanceLocus, WhiteBalanceTemperature},
     RenderContext,
 };
 use serde::{Deserialize, Serialize};
@@ -24,6 +24,11 @@ use utoipa::ToSchema;
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum RawWhiteBalanceRequest {
     AsShot,
+    /// Interpret draft sensor gains without changing the saved edit.
+    Gains {
+        gains_rgb: [f32; 3],
+        locus: WhiteBalanceLocus,
+    },
     Temperature {
         kelvin: f64,
         tint_delta_v: f64,
@@ -42,6 +47,8 @@ pub struct PreparedRawWhiteBalance {
     pub source_fingerprint: String,
     pub calibration: RawCalibration,
     pub sampled_pixels: Option<u32>,
+    /// None means the gains cannot be expressed within the supported model.
+    pub temperature: Option<WhiteBalanceTemperature>,
 }
 
 pub struct RawWhiteBalanceJob {
@@ -93,8 +100,28 @@ impl RawWhiteBalanceJob {
             self.metadata_gains(context, request)?
         };
         validate_savable_gains(gains_rgb)?;
+        let temperature = match request {
+            RawWhiteBalanceRequest::Temperature {
+                kelvin,
+                tint_delta_v,
+                locus,
+            } => Some(WhiteBalanceTemperature {
+                kelvin: *kelvin,
+                tint_delta_v: *tint_delta_v,
+                locus: *locus,
+            }),
+            _ => white_balance::temperature_from_gains(
+                &calibration,
+                gains_rgb,
+                match request {
+                    RawWhiteBalanceRequest::Gains { locus, .. } => *locus,
+                    _ => WhiteBalanceLocus::Planckian,
+                },
+            )?,
+        };
         context.check_cancelled()?;
         Ok(PreparedRawWhiteBalance {
+            temperature,
             gains_rgb,
             revision: self.render.record.revision,
             source_fingerprint: self.render.record.document.source.fingerprint.clone(),
@@ -173,6 +200,10 @@ fn validate_savable_gains(gains: [f32; 3]) -> Result<()> {
 fn validate_request(request: &RawWhiteBalanceRequest) -> Result<()> {
     match request {
         RawWhiteBalanceRequest::AsShot => (),
+        RawWhiteBalanceRequest::Gains { gains_rgb, .. } => {
+            white_balance::validate_gains(*gains_rgb)?;
+            validate_savable_gains(*gains_rgb)?;
+        }
         RawWhiteBalanceRequest::Temperature {
             kelvin,
             tint_delta_v,
@@ -213,6 +244,7 @@ fn metadata_gains(
         RawWhiteBalanceRequest::AsShot => calibration
             .as_shot_gains
             .context("as-shot white balance unavailable"),
+        RawWhiteBalanceRequest::Gains { gains_rgb, .. } => Ok(*gains_rgb),
         RawWhiteBalanceRequest::Temperature {
             kelvin,
             tint_delta_v,
@@ -308,6 +340,24 @@ mod tests {
         assert!(validate_savable_gains([0.01, 1.0, 100.0]).is_ok());
         for gains in [[0.009, 1.0, 2.0], [2.0, 1.0, 101.0], [f32::NAN, 1.0, 1.0]] {
             assert!(validate_savable_gains(gains).is_err());
+        }
+    }
+
+    #[test]
+    fn interpreting_draft_gains_validates_and_preserves_them() {
+        let gains = [2.0, 1.0, 1.5];
+        let request = RawWhiteBalanceRequest::Gains {
+            gains_rgb: gains,
+            locus: WhiteBalanceLocus::Planckian,
+        };
+        validate_request(&request).unwrap();
+        assert_eq!(metadata_gains(&request, &calibration()).unwrap(), gains);
+        for invalid in [[2.0, 2.0, 1.5], [0.0, 1.0, 1.5], [101.0, 1.0, 1.5]] {
+            assert!(validate_request(&RawWhiteBalanceRequest::Gains {
+                gains_rgb: invalid,
+                locus: WhiteBalanceLocus::Daylight,
+            })
+            .is_err());
         }
     }
 
