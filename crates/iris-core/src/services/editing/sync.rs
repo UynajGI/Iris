@@ -340,6 +340,29 @@ mod tests {
     }
 
     #[test]
+    fn grading_sync_includes_global_blending_and_balance_without_copying_other_controls() {
+        let mut source = document("1");
+        let target = document("2");
+        let Operation::Adjustments(from) = &mut source.nodes[1].operation else {
+            panic!()
+        };
+        from.exposure = 1.0;
+        from.color_balance.global = [0.1, -0.2, 0.3];
+        from.color_balance.blending = 0.8;
+        from.color_balance.balance = -0.4;
+        let expected = from.color_balance.clone();
+        let synced =
+            merge_selected(&source, target.clone(), &[EditSyncGroup::ColorGrading]).unwrap();
+        let Operation::Adjustments(actual) = &synced.nodes[1].operation else {
+            panic!()
+        };
+        assert_eq!(actual.color_balance, expected);
+        assert_eq!(actual.exposure, 0.0);
+        assert_eq!(synced.source, target.source);
+        assert_eq!(synced.output, target.output);
+    }
+
+    #[test]
     fn unsupported_panels_fail_instead_of_silently_modifying_other_nodes() {
         let mut source = document("1");
         let mut target = document("2");

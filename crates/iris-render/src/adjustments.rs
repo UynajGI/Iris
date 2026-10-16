@@ -13,6 +13,8 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 mod curve;
 use curve::PreparedCurve;
+mod balance;
+use balance::PreparedBalance;
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, ToSchema)]
 #[serde(rename_all = "snake_case")]
@@ -121,13 +123,43 @@ impl Default for HueBand {
         }
     }
 }
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, ToSchema)]
 #[serde(default, deny_unknown_fields)]
 pub struct ColorBalance {
     /// Per-channel log2 gains [-2,2], smoothly blended by linear Y.
     pub shadows: [f32; 3],
     pub midtones: [f32; 3],
     pub highlights: [f32; 3],
+    /// Additional whole-image per-channel log2 gains [-2,2].
+    #[serde(skip_serializing_if = "neutral_balance_gain")]
+    pub global: [f32; 3],
+    /// Range overlap [0,1]. Missing/0.5 retains the legacy triangular weighting.
+    #[serde(skip_serializing_if = "default_balance_blending")]
+    pub blending: f32,
+    /// Range shift [-1,1]; positive extends highlights, negative extends shadows.
+    #[serde(skip_serializing_if = "neutral_balance_shift")]
+    pub balance: f32,
+}
+impl Default for ColorBalance {
+    fn default() -> Self {
+        Self {
+            shadows: [0.0; 3],
+            midtones: [0.0; 3],
+            highlights: [0.0; 3],
+            global: [0.0; 3],
+            blending: 0.5,
+            balance: 0.0,
+        }
+    }
+}
+fn neutral_balance_gain(value: &[f32; 3]) -> bool {
+    *value == [0.0; 3]
+}
+fn default_balance_blending(value: &f32) -> bool {
+    *value == 0.5
+}
+fn neutral_balance_shift(value: &f32) -> bool {
+    *value == 0.0
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, ToSchema)]
 #[serde(default, deny_unknown_fields)]
@@ -299,11 +331,24 @@ impl Adjustments {
             self.color_balance.shadows,
             self.color_balance.midtones,
             self.color_balance.highlights,
+            self.color_balance.global,
         ] {
             for v in a {
                 range(v, -2.0, 2.0, "color balance")?;
             }
         }
+        range(
+            self.color_balance.blending,
+            0.0,
+            1.0,
+            "color grading blending",
+        )?;
+        range(
+            self.color_balance.balance,
+            -1.0,
+            1.0,
+            "color grading balance",
+        )?;
         Ok(())
     }
 }
@@ -448,7 +493,7 @@ struct Prepared<'a> {
     curves: bool,
     prepared_curves: [PreparedCurve<'a>; 4],
     chroma: bool,
-    balance: bool,
+    prepared_balance: PreparedBalance<'a>,
     tone_stops: [f64; 4],
 }
 impl<'a> Prepared<'a> {
@@ -472,7 +517,7 @@ impl<'a> Prepared<'a> {
             prepared_curves: [&p.master_curve, &p.red_curve, &p.green_curve, &p.blue_curve]
                 .map(PreparedCurve::new),
             chroma: p.saturation != 0.0 || p.vibrance != 0.0,
-            balance: p.color_balance != ColorBalance::default(),
+            prepared_balance: PreparedBalance::new(&p.color_balance),
             tone_stops: [
                 p.tone_curve.shadows as f64,
                 p.tone_curve.darks as f64,
@@ -553,27 +598,14 @@ impl<'a> Prepared<'a> {
     }
     fn balance(&self, mut p: [f64; 3]) -> [f64; 3] {
         let params = self.p;
-        if self.balance {
-            let t = luma(p).clamp(0.0, 1.0);
-            let weights = [
-                (1.0 - 2.0 * t).max(0.0),
-                1.0 - (2.0 * t - 1.0).abs(),
-                (2.0 * t - 1.0).max(0.0),
-            ];
-            for (c, value) in p.iter_mut().enumerate() {
-                *value *= (weights[0] * params.color_balance.shadows[c] as f64
-                    + weights[1] * params.color_balance.midtones[c] as f64
-                    + weights[2] * params.color_balance.highlights[c] as f64)
-                    .exp2();
-            }
-        }
+        p = self.prepared_balance.apply_ranges(p);
         if params.black_and_white.enabled {
             let gray = (0..3)
                 .map(|c| p[c] * params.black_and_white.mix[c] as f64)
                 .sum::<f64>();
             p = [gray; 3];
         }
-        p
+        self.prepared_balance.apply_global(p)
     }
     fn pixel(&self, src: [f32; 4], x: u32, y: u32, width: u32, height: u32) -> Result<[f32; 4]> {
         if src[3] == 0.0 {
