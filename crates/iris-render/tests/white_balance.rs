@@ -102,6 +102,12 @@ fn recovered_temperature_recreates_saved_sensor_gains() {
     ] {
         for kelvin in temperatures {
             for tint in [-0.02, -0.005, 0.0, 0.005, 0.02] {
+                // At these warm temperatures +0.02 v is outside physical xy.
+                // It must remain rejected rather than being clamped to a white.
+                if locus == Locus::Planckian && kelvin <= 2223.0 && tint == 0.02 {
+                    assert!(wb::temperature_gains(&camera, kelvin, tint, locus).is_err());
+                    continue;
+                }
                 let gains = wb::temperature_gains(&camera, kelvin, tint, locus).unwrap();
                 let reading = wb::temperature_from_gains(&camera, gains, locus)
                     .unwrap()

@@ -7828,6 +7828,17 @@
           },
           "source_fingerprint": {
             "type": "string"
+          },
+          "temperature": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/WhiteBalanceTemperature",
+                "description": "None means the gains cannot be expressed within the supported model."
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         }
       },
@@ -8093,6 +8104,33 @@
                 "enum": [
                   "as_shot"
                 ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Interpret draft sensor gains without changing the saved edit.",
+            "required": [
+              "gains_rgb",
+              "locus",
+              "kind"
+            ],
+            "properties": {
+              "gains_rgb": {
+                "type": "array",
+                "items": {
+                  "type": "number",
+                  "format": "float"
+                }
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "gains"
+                ]
+              },
+              "locus": {
+                "$ref": "#/components/schemas/WhiteBalanceLocus"
               }
             }
           },
@@ -9138,6 +9176,28 @@
           "daylight",
           "planckian"
         ]
+      },
+      "WhiteBalanceTemperature": {
+        "type": "object",
+        "description": "Coordinates in Iris's illuminant model, not vendor-specific temperature/tint.",
+        "required": [
+          "kelvin",
+          "tint_delta_v",
+          "locus"
+        ],
+        "properties": {
+          "kelvin": {
+            "type": "number",
+            "format": "double"
+          },
+          "locus": {
+            "$ref": "#/components/schemas/WhiteBalanceLocus"
+          },
+          "tint_delta_v": {
+            "type": "number",
+            "format": "double"
+          }
+        }
       }
     },
     "securitySchemes": {

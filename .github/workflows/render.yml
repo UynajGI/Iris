@@ -29,13 +29,20 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           shared-key: optimized-review-daemon
+          workspaces: |
+            . -> target
+            components/raw-decoder -> target
       - name: Build optimized review daemon without an installer or release
         run: cargo build --locked --release -p iris-daemon
+      - name: Build matching standalone RAW decoder for frontend review
+        run: cargo build --locked --release --manifest-path components/raw-decoder/Cargo.toml
       - name: Retain optimized daemon for frontend response measurements
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: optimized-daemon-windows-x64
-          path: target/release/iris-daemon.exe
+          path: |
+            target/release/iris-daemon.exe
+            components/raw-decoder/target/release/iris-raw-decoder.exe
           if-no-files-found: error
           retention-days: 7
   render:

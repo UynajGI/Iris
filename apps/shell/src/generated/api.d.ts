@@ -1,5 +1,5 @@
 // Generated from iris-daemon OpenAPI. Do not edit.
-// Contract SHA-256: a223ca9660f33a9b3d9ed57d6b048d0ec8598336225043c20ec69e16483be0ff
+// Contract SHA-256: fe9d5613515474edb9c39eccd89dc968f71fb411fc4c3db7edca3bf465323e0d
 export interface paths {
     "/api/v1/bootstrap": {
         parameters: {
@@ -2705,6 +2705,7 @@ export interface components {
             /** Format: int32 */
             sampled_pixels?: number | null;
             source_fingerprint: string;
+            temperature?: components["schemas"]["WhiteBalanceTemperature"] | null;
         };
         PresetSettings: {
             name: string;
@@ -2772,6 +2773,11 @@ export interface components {
         RawWhiteBalanceRequest: {
             /** @enum {string} */
             kind: "as_shot";
+        } | {
+            gains_rgb: number[];
+            /** @enum {string} */
+            kind: "gains";
+            locus: components["schemas"]["WhiteBalanceLocus"];
         } | {
             /** Format: double */
             kelvin: number;
@@ -3072,6 +3078,14 @@ export interface components {
         };
         /** @enum {string} */
         WhiteBalanceLocus: "daylight" | "planckian";
+        /** @description Coordinates in Iris's illuminant model, not vendor-specific temperature/tint. */
+        WhiteBalanceTemperature: {
+            /** Format: double */
+            kelvin: number;
+            locus: components["schemas"]["WhiteBalanceLocus"];
+            /** Format: double */
+            tint_delta_v: number;
+        };
     };
     responses: never;
     parameters: never;
