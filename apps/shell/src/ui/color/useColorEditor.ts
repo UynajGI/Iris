@@ -6,6 +6,18 @@ import { preferredEdit, rememberEdit } from '../../editing-preferences.js';
 import { EditingPreviewQueue } from '../../editing-preview-queue.js';
 import { PreviewFrames } from '../../preview-frames.js';
 import {
+  EditingDrafts,
+  sameDocument,
+  hasUnsavedDraft,
+  mergeSavedDraft,
+  type PendingEditSave,
+} from '../../editing-drafts.js';
+import {
+  loadEditingDraft,
+  recoverDraftCopy,
+  type DraftRecovery,
+} from '../../editing-draft-recovery.js';
+import {
   EditingClient,
   type EditDocument,
   type EditHistoryEntry,
@@ -52,6 +64,34 @@ export function useColorEditor(
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [recovery, setRecovery] = useState<DraftRecovery | null>(null);
+  const recoveryRef = useRef(recovery);
+  recoveryRef.current = recovery;
+  const [draftStorageFailed, setDraftStorageFailed] = useState(false);
+  const drafts = useMemo(() => {
+    let storage: Storage | null = null;
+    try {
+      storage = window.sessionStorage;
+    } catch {
+      /* In-memory recovery remains available. */
+    }
+    return new EditingDrafts(storage, setDraftStorageFailed);
+  }, []);
+  useEffect(() => {
+    const flush = () => {
+      drafts.flush();
+    };
+    const visibility = () => {
+      if (document.visibilityState === 'hidden') flush();
+    };
+    window.addEventListener('pagehide', flush);
+    document.addEventListener('visibilitychange', visibility);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      document.removeEventListener('visibilitychange', visibility);
+      flush();
+    };
+  }, [drafts]);
   const [rendering, setRendering] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [previewDocument, setPreviewDocument] = useState<EditDocument | null>(null);
@@ -73,11 +113,8 @@ export function useColorEditor(
   const latest = useRef({ record, draft });
   latest.current = { record, draft };
   const mutation = useRef(false);
-  const pendingSave = useRef<{
-    record: EditRecord;
-    document: EditDocument;
-    requestId: string;
-  } | null>(null);
+  const pendingSave = useRef<PendingEditSave | null>(null);
+  const recoveryRequest = useRef<AbortController | null>(null);
   type PreviewInput = {
     record: EditRecord;
     document: EditDocument;
@@ -89,7 +126,7 @@ export function useColorEditor(
   const previewQueue = useRef<EditingPreviewQueue<PreviewInput, Blob> | null>(null);
   const activePreviewEdge = useRef(0);
   const previewKey = useRef('');
-  const dirty = !!record && !!draft && JSON.stringify(record.document) !== JSON.stringify(draft);
+  const dirty = hasUnsavedDraft(record, draft, pendingSave.current, !!recovery);
   useEffect(() => {
     if (record) rememberEdit(record);
   }, [record?.id]);
@@ -105,15 +142,22 @@ export function useColorEditor(
     setBusy(false);
     setRendering(false);
     setError(null);
+    setRecovery(null);
     setPreviewError(null);
     setLoading(!!photoId);
     pendingSave.current = null;
     if (photoId === undefined) return;
+    const controller = new AbortController();
     void openEdit(api, photoId)
-      .then((value) => {
+      .then(async (value) => {
         if (current !== epoch.current) return;
+        const loaded = await loadEditingDraft(api, drafts, value, controller.signal);
+        if (current !== epoch.current) return;
+        pendingSave.current = loaded.pending;
+        setRecovery(loaded.recovery);
         setRecord(value);
-        setDraft(value.document);
+        setDraft(loaded.document);
+        if (!loaded.recovery) drafts.write(value, loaded.document, loaded.pending);
         void api
           .list(photoId)
           .then((items) => {
@@ -129,8 +173,10 @@ export function useColorEditor(
       });
     return () => {
       ++epoch.current;
+      controller.abort();
+      recoveryRequest.current?.abort();
     };
-  }, [api, photoId, retry]);
+  }, [api, photoId, retry, drafts]);
 
   useEffect(() => {
     if (!record) return;
@@ -279,12 +325,36 @@ export function useColorEditor(
     [api, session]
   );
 
+  const rejectSave = useCallback(
+    (reason: unknown, startedAt: number, base: EditRecord) => {
+      if (startedAt !== epoch.current) return;
+      if (isFinalRejection(reason)) {
+        pendingSave.current = null;
+        if (latest.current.draft) drafts.write(base, latest.current.draft);
+      }
+      setError(describe(reason));
+    },
+    [drafts]
+  );
+  const acceptSave = useCallback(
+    (saved: EditRecord, submitted: EditDocument) => {
+      const remaining = mergeSavedDraft(latest.current.draft, submitted, saved.document);
+      pendingSave.current = null;
+      latest.current = { record: saved, draft: remaining };
+      setRecord(saved);
+      setDraft(remaining);
+      if (remaining) drafts.write(saved, remaining);
+      drafts.flush();
+      return !!remaining && sameDocument(remaining, saved.document);
+    },
+    [drafts]
+  );
   const save = useCallback(async () => {
-    if (mutation.current) return false;
+    if (mutation.current || recoveryRef.current) return false;
     const state = latest.current;
     if (!state.record || !state.draft || state.record.photo_id !== requestedPhoto.current)
       return false;
-    if (JSON.stringify(state.record.document) === JSON.stringify(state.draft)) return true;
+    if (!pendingSave.current && sameDocument(state.record.document, state.draft)) return true;
     mutation.current = true;
     setBusy(true);
     setError(null);
@@ -295,29 +365,23 @@ export function useColorEditor(
       requestId: crypto.randomUUID(),
     };
     pendingSave.current = pending;
+    drafts.write(state.record, state.draft, pending);
+    drafts.flush();
     try {
       const saved = await api.save(pending.record, pending.document, pending.requestId);
       if (current !== epoch.current) return false;
-      pendingSave.current = null;
-      setRecord(saved);
-      setDraft((value) => (value === pending.document ? saved.document : value));
-      latest.current = {
-        record: saved,
-        draft: latest.current.draft === pending.document ? saved.document : latest.current.draft,
-      };
-      return JSON.stringify(latest.current.draft) === JSON.stringify(saved.document);
+      return acceptSave(saved, pending.document);
     } catch (reason) {
-      if (isFinalRejection(reason)) pendingSave.current = null;
-      if (current === epoch.current) setError(describe(reason));
+      rejectSave(reason, current, state.record);
       return false;
     } finally {
       mutation.current = false;
       if (current === epoch.current) setBusy(false);
     }
-  }, [api]);
+  }, [api, drafts, acceptSave, rejectSave]);
 
   const command = async (operation: 'undo' | 'redo' | 'duplicate') => {
-    if (mutation.current || !latest.current.record) return;
+    if (mutation.current || recoveryRef.current || !latest.current.record) return;
     if (dirty && !(await save())) return;
     const value = latest.current.record;
     if (!value) return;
@@ -343,16 +407,20 @@ export function useColorEditor(
     }
   };
   const selectVersion = async (id: string) => {
-    if (mutation.current || (dirty && !(await save()))) return;
+    if (mutation.current || recoveryRef.current || (dirty && !(await save()))) return;
     mutation.current = true;
     setBusy(true);
     setError(null);
     const current = epoch.current;
     try {
       const result = await api.get(id);
+      const loaded = await loadEditingDraft(api, drafts, result, new AbortController().signal);
       if (current === epoch.current) {
+        pendingSave.current = loaded.pending;
+        setRecovery(loaded.recovery);
         setRecord(result);
-        setDraft(result.document);
+        setDraft(loaded.document);
+        if (!loaded.recovery) drafts.write(result, loaded.document, loaded.pending);
       }
     } catch (reason) {
       if (current === epoch.current) setError(describe(reason));
@@ -362,13 +430,43 @@ export function useColorEditor(
     }
   };
   const changeDraft = (document: EditDocument) => {
-    if (latest.current.record?.photo_id !== requestedPhoto.current) return;
+    if (recoveryRef.current || latest.current.record?.photo_id !== requestedPhoto.current) return;
     latest.current = { ...latest.current, draft: document };
+    if (latest.current.record) drafts.write(latest.current.record, document, pendingSave.current);
     if (typeof window !== 'undefined')
       window.document.documentElement.dataset.irisEditingDirty = String(
-        JSON.stringify(latest.current.record?.document) !== JSON.stringify(document)
+        !!pendingSave.current ||
+          JSON.stringify(latest.current.record?.document) !== JSON.stringify(document)
       );
     setDraft(document);
+  };
+  const recoverCopy = async () => {
+    const savedRecovery = recoveryRef.current;
+    if (mutation.current || !savedRecovery) return;
+    mutation.current = true;
+    setBusy(true);
+    setError(null);
+    const current = epoch.current;
+    const controller = new AbortController();
+    recoveryRequest.current = controller;
+    try {
+      const restored = await recoverDraftCopy(api, savedRecovery, controller.signal);
+      if (current !== epoch.current) return;
+      drafts.write(restored.record, restored.document);
+      if (drafts.flush()) drafts.remove(savedRecovery.id);
+      pendingSave.current = null;
+      latest.current = { record: restored.record, draft: restored.document };
+      setRecord(restored.record);
+      setDraft(restored.document);
+      setVersions((items) => [...items, restored.record]);
+      setRecovery(null);
+    } catch (reason) {
+      if (current === epoch.current) setError(describe(reason));
+    } finally {
+      if (recoveryRequest.current === controller) recoveryRequest.current = null;
+      mutation.current = false;
+      if (current === epoch.current) setBusy(false);
+    }
   };
   const belongs = record?.photo_id === photoId;
   return {
@@ -380,6 +478,9 @@ export function useColorEditor(
     previewError,
     loading: loading || (photoId !== undefined && !belongs && !error),
     busy,
+    recovery,
+    draftStorageFailed,
+    recoverCopy,
     rendering,
     preview: belongs && previewMode === mode ? preview : null,
     previewDocument,
@@ -392,12 +493,17 @@ export function useColorEditor(
     beforeLoading,
     beforeError,
     retry: () => {
-      if (record) setPreviewAttempt((value) => value + 1);
+      if (recovery) setRetry((value) => value + 1);
+      else if (record) setPreviewAttempt((value) => value + 1);
       else setRetry((value) => value + 1);
     },
     discard: () => {
       if (record) {
+        drafts.remove(record.id);
         pendingSave.current = null;
+        setRecovery(null);
+        setError(null);
+        latest.current = { record, draft: record.document };
         setDraft(record.document);
       }
     },

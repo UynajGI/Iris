@@ -90,7 +90,8 @@ export function ColorWorkspace({
       ? maskLayers(editor.draft).find((item) => item.id === selectedMask)
       : undefined;
   const strip = useRef<HTMLDivElement>(null);
-  const available = !!editor.draft && !editor.loading && !editor.busy && !whiteBalance.pending;
+  const available =
+    !!editor.draft && !editor.loading && !editor.busy && !editor.recovery && !whiteBalance.pending;
   useEffect(() => {
     setSelectedMaskPart(0);
   }, [selectedMask, editor.record?.id]);
@@ -238,7 +239,9 @@ export function ColorWorkspace({
               </Button>
             </>
           ) : (
-            <span className="muted">{editor.loading ? '正在读取' : '暂无版本'}</span>
+            <span className="muted" aria-busy={editor.loading}>
+              {editor.loading ? '' : '暂无版本'}
+            </span>
           )}
         </Panel>
       </aside>
@@ -505,7 +508,7 @@ export function ColorWorkspace({
           )}
           <span className="grade-save-state" role="status">
             {editor.loading
-              ? '正在读取'
+              ? ''
               : whiteBalance.pending
                 ? '正在调整白平衡'
                 : editor.busy
@@ -645,6 +648,30 @@ export function ColorWorkspace({
               }}
             />
           )}
+          {editor.recovery && (
+            <div className="grade-draft-recovery" role="alert">
+              <p>{editor.recovery.message}</p>
+              <div className="grade-draft-actions">
+                <Button
+                  disabled={editor.busy}
+                  onClick={() => {
+                    if (editor.recovery?.conflict) void editor.recoverCopy();
+                    else editor.retry();
+                  }}
+                >
+                  {editor.recovery.conflict ? '恢复为副本' : '重试恢复'}
+                </Button>
+                <Button className="quiet" disabled={editor.busy} onClick={editor.discard}>
+                  放弃草稿
+                </Button>
+              </div>
+            </div>
+          )}
+          {editor.draftStorageFailed && (
+            <p className="grade-error" role="alert">
+              此窗口暂时无法暂存草稿，请及时保存调整。
+            </p>
+          )}
           {(editor.error || editor.previewError || editor.beforeError) && (
             <div className="grade-error" role="alert">
               <Icon name="warning" />
@@ -653,7 +680,7 @@ export function ColorWorkspace({
                 className="quiet"
                 disabled={editor.busy}
                 onClick={() => {
-                  if (editor.error && editor.dirty) void editor.save();
+                  if (editor.error && editor.dirty && !editor.recovery) void editor.save();
                   else editor.retry();
                 }}
               >

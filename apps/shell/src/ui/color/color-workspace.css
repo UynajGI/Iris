@@ -1465,6 +1465,20 @@
 .grade-wheel-controls {
   min-width: 0;
 }
+.grade-draft-recovery {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line-subtle);
+}
+.grade-draft-recovery p {
+  margin: 0 0 8px;
+  font-size: var(--small);
+  color: var(--muted);
+}
+.grade-draft-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
 .grade-mask-overlay {
   position: absolute;
   inset: 0;
