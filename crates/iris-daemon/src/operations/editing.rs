@@ -154,6 +154,10 @@ pub(super) fn routes() -> Router<AppState> {
         .route("/api/v1/edits/{id}/proof", post(preview::proof))
         .route("/api/v1/edits/{id}/region", post(preview::region))
         .route(
+            "/api/v1/edits/{id}/mask-preview",
+            post(preview::mask_preview),
+        )
+        .route(
             "/api/v1/edits/{id}/lens-profile",
             post(calibration::lens_profile),
         )
@@ -459,6 +463,7 @@ pub async fn resource_bytes(
         preview::draft_preview,
         preview::proof,
         preview::region,
+        preview::mask_preview,
         calibration::lens_profile,
         calibration::raw_white_balance,
         preview::histogram,

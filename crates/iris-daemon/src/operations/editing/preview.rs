@@ -263,6 +263,48 @@ pub async fn region(
 
 #[derive(Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
+pub struct MaskPreviewRequest {
+    pub render: RenderRequest,
+    pub document: iris_core::render::document::EditDocument,
+    pub mask_id: String,
+}
+
+#[utoipa::path(operation_id="editing_preview_mask_preview",post,path="/api/v1/edits/{id}/mask-preview",params(("id"=String,Path)),request_body=MaskPreviewRequest,responses((status=200,body=Vec<u8>,content_type="image/png")))]
+pub async fn mask_preview(
+    State(s): State<AppState>,
+    Path(id): Path<String>,
+    Json(request): Json<MaskPreviewRequest>,
+) -> Result<Response, ApiError> {
+    let revision = request.render.revision;
+    let sequence = request.render.sequence;
+    let fingerprint = request.document.fingerprint()?;
+    let bytes = render_with_document(
+        s,
+        id,
+        request.render,
+        Some(request.document),
+        move |job, engine, render, context| {
+            job.encode_mask_preview(engine, render, &request.mask_id, context)
+        },
+    )
+    .await?;
+    Ok((
+        [
+            ("content-type", "image/png".to_string()),
+            ("cache-control", "no-store".to_string()),
+            ("x-iris-revision", revision.to_string()),
+            ("x-iris-sequence", sequence.to_string()),
+            ("x-iris-fingerprint", fingerprint),
+            ("x-iris-approximate", "true".to_string()),
+            ("x-iris-mask-domain", "linear_rec2020_d65".to_string()),
+        ],
+        bytes,
+    )
+        .into_response())
+}
+
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
 pub struct ProofRequest {
     pub render: RenderRequest,
     pub resource: String,

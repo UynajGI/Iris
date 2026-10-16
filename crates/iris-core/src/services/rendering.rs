@@ -19,6 +19,7 @@ use std::{
 
 mod export;
 mod lens;
+mod mask_preview;
 mod region;
 mod validation;
 mod white_balance;
@@ -175,26 +176,29 @@ impl EditRenderJob {
         request: &RenderRequest,
         context: &RenderContext,
     ) -> Result<RenderedFrame> {
+        self.preview_document(engine, request, context, &self.record.document)
+    }
+
+    fn preview_document(
+        &self,
+        engine: &RenderEngine,
+        request: &RenderRequest,
+        context: &RenderContext,
+        document: &iris_render::document::EditDocument,
+    ) -> Result<RenderedFrame> {
         ensure!(
             request.revision == self.record.revision,
             "preview revision mismatch"
         );
         let force = request.quality == iris_render::engine::RenderQuality::Full;
-        let (identity, _) = validation::validate(
-            &self.source,
-            &self.record.document.source.fingerprint,
-            force,
-            context,
-        )?;
+        let (identity, _) =
+            validation::validate(&self.source, &document.source.fingerprint, force, context)?;
         let result = engine.render_with_context(
-            &self.record.document,
+            document,
             request,
             |context| {
-                let decoded = decode_source(
-                    &self.source,
-                    self.record.document.source.raw_white_balance,
-                    context,
-                )?;
+                let decoded =
+                    decode_source(&self.source, document.source.raw_white_balance, context)?;
                 // Even with a warm metadata hint, a source-cache miss must not
                 // decode and cache changed bytes under the old fingerprint.
                 self.verify_source(context)?;

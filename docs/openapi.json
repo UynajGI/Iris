@@ -687,6 +687,51 @@
         }
       }
     },
+    "/api/v1/edits/{id}/mask-preview": {
+      "post": {
+        "tags": [
+          "preview"
+        ],
+        "operationId": "editing_preview_mask_preview",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MaskPreviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "image/png": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "format": "int32",
+                    "minimum": 0
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/edits/{id}/preview": {
       "post": {
         "tags": [
@@ -7032,6 +7077,26 @@
           "subtract",
           "intersect"
         ]
+      },
+      "MaskPreviewRequest": {
+        "type": "object",
+        "required": [
+          "render",
+          "document",
+          "mask_id"
+        ],
+        "properties": {
+          "document": {
+            "$ref": "#/components/schemas/EditDocument"
+          },
+          "mask_id": {
+            "type": "string"
+          },
+          "render": {
+            "$ref": "#/components/schemas/RenderRequest"
+          }
+        },
+        "additionalProperties": false
       },
       "ModelAvailability": {
         "type": "string",

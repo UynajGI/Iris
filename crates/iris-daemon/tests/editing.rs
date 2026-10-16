@@ -544,6 +544,167 @@ async fn native_region_accepts_draft_view_without_saving() {
     state.wait_for_rendered_exports().await;
 }
 
+fn range_mask_document(edit: &Value) -> Value {
+    let mut document = edit["document"].clone();
+    let base = document["output_node"].clone();
+    let nodes = document["nodes"].as_array_mut().unwrap();
+    nodes.push(json!({"id":"range-mask","name":"Range","version":1,"enabled":true,
+        "inputs":[base],"operation":{"type":"mask","parameters":{"kind":"luminance_range","low":0,"high":0.3,"feather":0}}}));
+    nodes.push(
+        json!({"id":"local","name":"Local","version":1,"enabled":true,
+        "inputs":[base],"operation":{"type":"adjustments","parameters":{"exposure":4}}}),
+    );
+    nodes.push(json!({"id":"range-blend","name":"Blend","version":1,"enabled":true,
+        "inputs":[base,"local","range-mask"],"operation":{"type":"blend","parameters":{"opacity":1}}}));
+    document["output_node"] = json!("range-blend");
+    document
+}
+
+#[tokio::test]
+async fn mask_overlay_uses_working_input_not_output_display_or_local_adjustments() {
+    let (_temp, state, app, id) = fixture();
+    let edit = create(&app, &state, id).await;
+    let route = format!("/api/v1/edits/{}", edit["id"].as_str().unwrap());
+    let history_route = format!("{route}/history");
+    let history = value(request(&app, &state, "GET", &history_route, Value::Null).await).await;
+    let overlay_route = format!("{route}/mask-preview");
+    let mut payload = json!({"render":{"revision":0,"session":"mask-preview","sequence":1,
+        "quality":"interactive","max_edge":32},"document":range_mask_document(&edit),"mask_id":"range-mask"});
+    let response = request(&app, &state, "POST", &overlay_route, payload.clone()).await;
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.headers()["content-type"], "image/png");
+    assert_eq!(
+        response.headers()["x-iris-mask-domain"],
+        "linear_rec2020_d65"
+    );
+    let png = response.into_body().collect().await.unwrap().to_bytes();
+    let image = image::load_from_memory(&png).unwrap().to_rgba8();
+    assert_eq!(image.dimensions(), (32, 24));
+    assert!(image.pixels().all(|p| p[0] == 255 && p[3] == 140));
+    payload["render"]["sequence"] = json!(2);
+    payload["document"]["nodes"][1]["operation"]["parameters"]["exposure"] = json!(3.0);
+    let response = request(&app, &state, "POST", &overlay_route, payload.clone()).await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let png = response.into_body().collect().await.unwrap().to_bytes();
+    assert!(image::load_from_memory(&png)
+        .unwrap()
+        .to_rgba8()
+        .pixels()
+        .all(|p| p[3] == 0));
+    payload["render"]["sequence"] = json!(3);
+    payload["document"] = range_mask_document(&edit);
+    let mask = payload["document"]["nodes"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|n| n["id"] == "range-mask")
+        .unwrap();
+    let range = mask["operation"]["parameters"].clone();
+    mask["operation"]["parameters"] = json!({"kind":"combine","operation":"intersect","left":range,
+        "right":{"kind":"linear_gradient","start":[0,0],"end":[1,0]}});
+    let response = request(&app, &state, "POST", &overlay_route, payload.clone()).await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let png = response.into_body().collect().await.unwrap().to_bytes();
+    let image = image::load_from_memory(&png).unwrap().to_rgba8();
+    assert!(image.get_pixel(0, 0)[3] < 5 && image.get_pixel(31, 0)[3] > 135);
+    payload["render"]["sequence"] = json!(4);
+    payload["document"]["source"]["photo_id"] = json!("other");
+    assert_eq!(
+        request(&app, &state, "POST", &overlay_route, payload.clone())
+            .await
+            .status(),
+        StatusCode::BAD_REQUEST
+    );
+    payload["document"] = range_mask_document(&edit);
+    payload["render"]["sequence"] = json!(5);
+    payload["render"]["revision"] = json!(1);
+    assert_eq!(
+        request(&app, &state, "POST", &overlay_route, payload)
+            .await
+            .status(),
+        StatusCode::BAD_REQUEST
+    );
+    assert_eq!(
+        value(request(&app, &state, "GET", &route, Value::Null).await).await["document"],
+        edit["document"]
+    );
+    assert_eq!(
+        value(request(&app, &state, "GET", &history_route, Value::Null).await).await,
+        history
+    );
+    state.shutdown_rendering();
+    state.wait_for_rendered_exports().await;
+}
+
+#[tokio::test]
+async fn color_mask_overlay_preserves_inversion_opacity_and_rejects_unsafe_grids() {
+    let (_temp, state, app, id) = fixture();
+    let edit = create(&app, &state, id).await;
+    let route = format!(
+        "/api/v1/edits/{}/mask-preview",
+        edit["id"].as_str().unwrap()
+    );
+    let mut document = range_mask_document(&edit);
+    let index = document["nodes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .position(|node| node["id"] == "range-mask")
+        .unwrap();
+    // This radius contains the working-linear fixture but not encoded display RGB.
+    let range = json!({"kind":"color_range","color":[0,0,0],"radius":0.6,"feather":0});
+    for (sequence, definition, alpha) in [
+        (1, range.clone(), 140),
+        (2, json!({"kind":"invert","mask":range}), 0),
+        (3, json!({"kind":"opacity","mask":range,"opacity":0.5}), 70),
+    ] {
+        document["nodes"][index]["operation"]["parameters"] = definition;
+        let payload = json!({"render":{"revision":0,"session":"color-mask","sequence":sequence,
+            "quality":"interactive","max_edge":32},"document":document,"mask_id":"range-mask"});
+        let response = request(&app, &state, "POST", &route, payload).await;
+        assert_eq!(response.status(), StatusCode::OK);
+        let png = response.into_body().collect().await.unwrap().to_bytes();
+        assert!(image::load_from_memory(&png)
+            .unwrap()
+            .to_rgba8()
+            .pixels()
+            .all(|p| p[3] == alpha));
+    }
+    let base = json!({"render":{"revision":0,"session":"reject-mask","sequence":1,
+        "quality":"interactive","max_edge":32},"document":document,"mask_id":"range-mask"});
+    let mut invalid = Vec::new();
+    let mut payload = base.clone();
+    payload["mask_id"] = json!("missing");
+    invalid.push(payload);
+    let mut payload = base.clone();
+    payload["document"]["nodes"][index]["enabled"] = json!(false);
+    invalid.push(payload);
+    let mut payload = base.clone();
+    payload["render"]["max_edge"] = json!(1025);
+    invalid.push(payload);
+    let mut payload = base.clone();
+    payload["render"]["quality"] = json!("full");
+    invalid.push(payload);
+    let mut payload = base;
+    payload["document"]["nodes"].as_array_mut().unwrap().push(json!({
+        "id":"after-mask-crop","name":"Crop","version":1,"enabled":true,
+        "inputs":["range-blend"],"operation":{"type":"geometry","parameters":{"crop":[0,0,0.5,1]}}
+    }));
+    payload["document"]["output_node"] = json!("after-mask-crop");
+    invalid.push(payload);
+    for (index, mut payload) in invalid.into_iter().enumerate() {
+        payload["render"]["sequence"] = json!(index + 1);
+        assert_eq!(
+            request(&app, &state, "POST", &route, payload)
+                .await
+                .status(),
+            StatusCode::BAD_REQUEST
+        );
+    }
+    state.shutdown_rendering();
+    state.wait_for_rendered_exports().await;
+}
+
 #[tokio::test]
 async fn lens_profile_import_requires_exif_evidence_and_wb_requires_raw() {
     let (_temp, state, app, id) = fixture();

@@ -1,5 +1,5 @@
 // Generated from iris-daemon OpenAPI. Do not edit.
-// Contract SHA-256: 1e05fabc3ab0306b246f12bb1e3288a4736ada197a2c831a7e38cd98ae464414
+// Contract SHA-256: db8fef455b252ce0ba7f94185e6267f7586696ce029fe233ae04744388dfb981
 export interface paths {
     "/api/v1/bootstrap": {
         parameters: {
@@ -243,6 +243,22 @@ export interface paths {
          *     the existing expected-revision edit command after reviewing this response.
          */
         post: operations["editing_calibration_lens_profile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/edits/{id}/mask-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["editing_preview_mask_preview"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2501,6 +2517,11 @@ export interface components {
         };
         /** @enum {string} */
         MaskOperation: "add" | "subtract" | "intersect";
+        MaskPreviewRequest: {
+            document: components["schemas"]["EditDocument"];
+            mask_id: string;
+            render: components["schemas"]["RenderRequest"];
+        };
         /** @enum {string} */
         ModelAvailability: "disabled" | "available" | "missing" | "invalid";
         ModelStatusResponse: {
@@ -3619,6 +3640,32 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LensProfileSuggestion"];
+                };
+            };
+        };
+    };
+    editing_preview_mask_preview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MaskPreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/png": number[];
                 };
             };
         };
