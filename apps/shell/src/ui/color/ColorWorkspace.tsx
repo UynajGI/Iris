@@ -7,9 +7,6 @@ import { Histogram } from '../Histogram.js';
 import { Panel } from '../Panel.js';
 import { useColorEditor } from './useColorEditor.js';
 import { AdjustmentPanels } from './AdjustmentPanels.js';
-import { OutputPanel } from './OutputPanel.js';
-import { LutPanel } from './LutPanel.js';
-import { ProofPanel, type ProofProfile } from './ProofPanel.js';
 import { LensProfilePanel } from './LensProfilePanel.js';
 import {
   defaultAdjustments,
@@ -43,21 +40,14 @@ export function ColorWorkspace({
   const [cropMode, setCropMode] = useState(false);
   const [cropLocked, setCropLocked] = useState(false);
   const [showMask, setShowMask] = useState(true);
-  const [proof, setProof] = useState<ProofProfile | null>(null);
-  const editor = useColorEditor(
-    model.store.client,
-    photo?.id,
-    before,
-    cropMode,
-    proof?.enabled ? proof.hash : null
-  );
+  const editor = useColorEditor(model.store.client, photo?.id, before, cropMode);
   const [zoom, setZoom] = useState(1);
   const [selectedMask, setSelectedMask] = useState<string | null>(null);
   const [selectedMaskPart, setSelectedMaskPart] = useState(0);
-  const [toolTab, setToolTab] = useState<'adjustments' | 'masks' | 'output' | 'metadata'>(() => {
+  const [toolTab, setToolTab] = useState<'adjustments' | 'masks' | 'metadata'>(() => {
     try {
       const saved = sessionStorage.getItem('iris:grade-tool-tab');
-      if (saved === 'masks' || saved === 'output' || saved === 'metadata') return saved;
+      if (saved === 'masks' || saved === 'metadata') return saved;
     } catch {
       /* Optional view preference. */
     }
@@ -313,11 +303,6 @@ export function ColorWorkspace({
             </div>
           )}
           {before && <span className="grade-before-tag">原图</span>}
-          {!before && proof?.enabled && editor.preview && (
-            <span className="grade-before-tag" title={proof.name}>
-              软打样
-            </span>
-          )}
           {(editor.rendering || (before && editor.beforeLoading)) && (
             <span className="grade-render-state" role="status">
               正在预览
@@ -504,7 +489,6 @@ export function ColorWorkspace({
             [
               ['adjustments', '调色'],
               ['masks', '蒙版'],
-              ['output', '颜色管理'],
               ['metadata', '信息'],
             ] as const
           ).map(([id, label], index, tabs) => (
@@ -625,28 +609,6 @@ export function ColorWorkspace({
                   setZoom(1);
                 }}
               />
-            )}
-            {toolTab === 'output' && (
-              <>
-                <OutputPanel
-                  document={editor.draft}
-                  disabled={!available}
-                  onChange={editor.setDraft}
-                />
-                <LutPanel
-                  client={model.store.client}
-                  document={editor.draft}
-                  recordId={editor.record?.id}
-                  disabled={!available}
-                  onChange={editor.setDraft}
-                />
-                <ProofPanel
-                  client={model.store.client}
-                  profile={proof}
-                  disabled={!available}
-                  onChange={setProof}
-                />
-              </>
             )}
             {toolTab === 'metadata' && photo && (
               <section className="grade-settings-page" aria-label="元数据">

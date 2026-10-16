@@ -8223,6 +8223,17 @@
           "destination_directory": {
             "type": "string"
           },
+          "document": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/EditDocument",
+                "description": "Export-only adjustments. Snapshot them without changing the saved edit."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "document_id": {
             "type": "string"
           },

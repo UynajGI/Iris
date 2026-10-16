@@ -498,6 +498,41 @@ test('ICC upload sends binary bytes to the authenticated resource endpoint', asy
   );
   assert.equal((await api.importIcc(bytes)).kind, 'icc');
 });
+
+test('export-only color settings travel with the export without saving the photo version', async () => {
+  const calls: string[] = [];
+  const saved = record();
+  const output = { ...saved.document.output, space: 'adobe_rgb' as const };
+  const api = new EditingClient(
+    new IrisClient(
+      new Transport(
+        { base_url: 'http://127.0.0.1:5412', token: 'test', version: '' },
+        async (url, init) => {
+          calls.push(String(url));
+          assert.match(String(url), /\/rendered-exports$/);
+          const request = JSON.parse(init?.body as string).exports[0];
+          assert.equal(request.expected_revision, saved.revision);
+          assert.deepEqual(request.document.output, output);
+          assert.deepEqual(request.document.source, saved.document.source);
+          assert.equal('proof' in request, false);
+          return Response.json([]);
+        }
+      )
+    )
+  );
+  await api.exports([
+    {
+      document_id: saved.id,
+      expected_revision: saved.revision,
+      destination_directory: 'fixture-output',
+      filename: 'image.tif',
+      format: { format: 'tiff16' },
+      ...{ document: { ...saved.document, output } },
+    },
+  ]);
+  assert.equal(calls.length, 1);
+  assert.equal(saved.document.output.space, 'srgb');
+});
 test('local masks keep base and adjusted branches on identical geometry and can be removed without severing later layers', () => {
   const original = document();
   const first = addMask(original, 'linear_gradient', 'first');

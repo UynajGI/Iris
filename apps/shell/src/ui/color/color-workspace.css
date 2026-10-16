@@ -56,14 +56,15 @@
 .grade-tool-tabs {
   display: flex;
   border-bottom: 1px solid var(--line-subtle);
-  padding: 0 8px;
+  padding: 0 20px;
+  gap: 24px;
 }
 .grade-tool-tabs button {
-  flex: 1;
+  flex: 0 0 auto;
   border: 0;
   border-bottom: 2px solid transparent;
   border-radius: 0;
-  padding: 10px 2px;
+  padding: 12px 0;
   background: transparent;
   color: var(--muted);
   font-size: var(--small);
@@ -379,8 +380,8 @@
   transform: scaleX(-1);
 }
 .grade-inspector .histogram {
-  padding: 12px 18px;
-  background: var(--sunken);
+  padding: 18px 20px 16px;
+  background: transparent;
 }
 .grade-inspector .panel {
   border-radius: 0;
@@ -388,12 +389,12 @@
   border-bottom: 1px solid var(--line-subtle);
 }
 .grade-inspector .panel-bar {
-  padding: 0 14px 0 18px;
-  min-height: 42px;
+  padding: 0 16px 0 20px;
+  min-height: 46px;
   background: var(--tool);
 }
 .grade-inspector .panel-body {
-  padding: 8px 20px 18px;
+  padding: 8px 22px 22px;
   background: var(--tool);
 }
 .grade-adjustments {
@@ -424,11 +425,11 @@
   font-variant-numeric: tabular-nums;
   color: var(--muted);
 }
-.grade-value input {
+.grade-slider .grade-value input[type='number'] {
   width: 100%;
   padding: 0 2px;
-  min-height: 20px;
-  line-height: 20px;
+  min-height: 24px;
+  line-height: 24px;
   border: 0;
   border-radius: 2px;
   text-align: right;
@@ -459,9 +460,13 @@
   padding: 0;
   accent-color: var(--muted);
   background: transparent;
+  appearance: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
 }
 .grade-slider > input[type='range']::-webkit-slider-runnable-track {
-  height: 3px;
+  height: 2px;
   border-radius: 2px;
   background: var(--divider);
 }
@@ -469,10 +474,33 @@
   appearance: none;
   width: 10px;
   height: 10px;
-  margin-top: -3.5px;
+  margin-top: -4px;
   border-radius: 50%;
   background: var(--text);
-  border: 1px solid var(--sunken);
+  border: 0;
+}
+
+.grade-inspector .scope-channel {
+  flex: 0 0 28px;
+  min-height: 24px;
+  border: 0;
+  background: transparent;
+  border-radius: 2px;
+  color: var(--muted);
+}
+.grade-inspector .scope-channel[aria-pressed='true'] {
+  opacity: 1;
+  color: var(--channel-color);
+  background: var(--raised);
+}
+.grade-inspector .scope-channels {
+  justify-content: flex-end;
+  gap: 6px;
+}
+.grade-inspector .histogram select {
+  background-color: transparent;
+  border-color: transparent;
+  padding-left: 0;
 }
 .grade-slider > input.grade-track-temperature::-webkit-slider-runnable-track {
   background: linear-gradient(90deg, #6989b7, #a6a6aa 50%, #b29468);
@@ -642,6 +670,77 @@
 .rendered-export-fields select {
   width: 100%;
   min-width: 0;
+}
+.export-advanced {
+  max-width: 800px;
+  margin: 4px 0 24px;
+  border-block: 1px solid var(--line-subtle);
+}
+.export-advanced > summary {
+  cursor: pointer;
+  padding: 16px 0;
+  font-size: var(--small);
+  font-weight: 500;
+}
+.export-advanced > summary span {
+  margin-left: 16px;
+  color: var(--muted);
+  font-weight: 400;
+}
+.export-color-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+  gap: 24px;
+  padding: 8px 0 24px;
+  align-items: start;
+}
+.export-color-preview {
+  position: sticky;
+  top: 16px;
+  display: grid;
+  place-items: center;
+  min-height: 200px;
+  background: var(--photo-ground);
+  color: var(--text);
+}
+.export-color-preview img {
+  width: 100%;
+  max-height: 440px;
+  object-fit: contain;
+}
+.export-preview-label {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  padding: 4px 8px;
+  background: var(--chrome);
+  border-radius: 3px;
+  font-size: var(--small);
+}
+.export-color-controls .grade-settings-page {
+  padding: 0 0 20px;
+}
+.export-color-controls .panel {
+  margin: 0;
+  border-radius: 0;
+  border-top: 1px solid var(--line-subtle);
+}
+.export-color-controls .panel-bar {
+  background: transparent;
+  padding-inline: 0;
+}
+.export-color-controls .panel-body {
+  padding: 8px 0 20px;
+  background: transparent;
+}
+@media (max-width: 740px) {
+  .export-color-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .export-color-preview {
+    position: relative;
+    top: auto;
+  }
 }
 .rendered-export-name,
 .rendered-export-destination {

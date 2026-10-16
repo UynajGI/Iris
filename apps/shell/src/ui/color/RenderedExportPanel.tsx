@@ -1,10 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { IrisClient } from '../../client.js';
 import type { Photo } from '../../types.js';
-import { EditingClient, type EditRecord, type RenderedExportStatus } from '../../editing-client.js';
+import {
+  EditingClient,
+  type EditRecord,
+  type EditDocument,
+  type RenderedExportStatus,
+} from '../../editing-client.js';
 import { selectProjectFolder } from '../../native-dialog.js';
 import { preferredEdit } from '../../editing-preferences.js';
-import { outputSpaceNames } from '../../editing-document.js';
+import { ExportAdvanced } from './ExportAdvanced.js';
 import { Button } from '../components.js';
 import { Icon } from '../Icon.js';
 
@@ -27,6 +32,7 @@ export function RenderedExportPanel({
   const api = useMemo(() => new EditingClient(client), [client]);
   const [versions, setVersions] = useState<EditRecord[]>([]);
   const [version, setVersion] = useState('');
+  const [custom, setCustom] = useState<{ id: string; document: EditDocument } | null>(null);
   const [format, setFormat] = useState<'jpeg8' | 'png16' | 'tiff16'>('jpeg8');
   const [quality, setQuality] = useState(92);
   const [destination, setDestination] = useState('');
@@ -35,7 +41,9 @@ export function RenderedExportPanel({
   const [error, setError] = useState<string | null>(null);
   const [jobs, setJobs] = useState<RenderedExportStatus[]>([]);
   const extension = format === 'jpeg8' ? 'jpg' : format === 'png16' ? 'png' : 'tif';
-  const selectedVersion = versions.find((item) => item.id === version);
+  const selectedVersion = versions.find(
+    (item) => item.id === version && item.photo_id === photo?.id
+  );
   useEffect(() => {
     const controller = new AbortController();
     let active = true;
@@ -54,6 +62,7 @@ export function RenderedExportPanel({
     let active = true;
     setVersions([]);
     setVersion('');
+    setCustom(null);
     setError(null);
     setFilename(photo ? `${photo.filename.replace(/\.[^.]+$/, '')}-edited` : '');
     if (photo)
@@ -117,7 +126,8 @@ export function RenderedExportPanel({
     }
   };
   const queue = async () => {
-    const record = await api.get(version);
+    const record = selectedVersion;
+    if (!record) return;
     const result = await api.exports([
       {
         document_id: record.id,
@@ -125,6 +135,7 @@ export function RenderedExportPanel({
         destination_directory: destination,
         filename: `${filename}.${extension}`,
         format: format === 'jpeg8' ? { format, quality } : { format },
+        ...(custom?.id === record.id ? { document: custom.document } : {}),
       },
     ]);
     setJobs((items) => [...result, ...items]);
@@ -145,7 +156,10 @@ export function RenderedExportPanel({
                 value={version}
                 aria-label="调色版本"
                 disabled={busy || !versions.length}
-                onChange={(event) => setVersion(event.target.value)}
+                onChange={(event) => {
+                  setVersion(event.target.value);
+                  setCustom(null);
+                }}
               >
                 {versions.length ? (
                   versions.map((item) => (
@@ -158,12 +172,6 @@ export function RenderedExportPanel({
                 )}
               </select>
             </label>
-            {selectedVersion && (
-              <div className="rendered-export-color" aria-label="成片颜色空间">
-                <span>颜色空间</span>
-                <strong>{outputSpaceNames[selectedVersion.document.output.space]}</strong>
-              </div>
-            )}
             <label>
               文件格式
               <select
@@ -230,6 +238,18 @@ export function RenderedExportPanel({
               </div>
             </label>
           </div>
+          {selectedVersion && (
+            <ExportAdvanced
+              key={selectedVersion.id}
+              client={client}
+              record={selectedVersion}
+              document={
+                custom?.id === selectedVersion.id ? custom.document : selectedVersion.document
+              }
+              disabled={busy}
+              onChange={(document) => setCustom({ id: selectedVersion.id, document })}
+            />
+          )}
           {error && (
             <p className="inline-error" role="alert">
               {error}
