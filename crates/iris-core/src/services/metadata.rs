@@ -30,7 +30,7 @@ impl PhotoMetadataJob {
 impl Services {
     pub fn prepare_photo_metadata(&self, id: i64) -> Result<PhotoMetadataJob> {
         let source = self.photo_path(id)?;
-        let (mtime, size) = self.store.conn.query_row(
+        let (mtime, size): (i64, i64) = self.store.conn.query_row(
             "SELECT mtime,size_bytes FROM photos WHERE id=?1",
             [id],
             |row| Ok((row.get(0)?, row.get(1)?)),
@@ -38,7 +38,7 @@ impl Services {
         Ok(PhotoMetadataJob {
             source,
             mtime,
-            size,
+            size: u64::try_from(size)?,
         })
     }
 }
