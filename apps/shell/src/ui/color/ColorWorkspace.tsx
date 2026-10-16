@@ -25,6 +25,7 @@ import { ColorCanvas } from './ColorCanvas.js';
 import { NativeDetailCanvas } from './NativeDetailCanvas.js';
 import { CropTools } from './CropTools.js';
 import { PresetPanel } from './PresetPanel.js';
+import { AdjustmentClipboardControls } from './AdjustmentClipboard.js';
 import { RawWhiteBalancePanel } from './RawWhiteBalancePanel.js';
 import { SyncAdjustmentsDialog } from './SyncAdjustmentsDialog.js';
 import { useRawWhiteBalance } from './useRawWhiteBalance.js';
@@ -694,6 +695,16 @@ export function ColorWorkspace({
             </p>
           )}
           <div id="grade-tool-page" role="tabpanel" aria-labelledby={`grade-tab-${toolTab}`}>
+            {toolTab === 'adjustments' && (
+              <AdjustmentClipboardControls
+                document={editor.draft}
+                disabled={!available}
+                onChange={(document) => {
+                  editor.setDraft(document);
+                  setBefore(false);
+                }}
+              />
+            )}
             {toolTab === 'adjustments' && (
               <PresetPanel
                 client={model.store.client}
