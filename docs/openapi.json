@@ -8248,15 +8248,72 @@
         "type": "object",
         "description": "Native 1:1 pixels in final edited-image coordinates. The entire graph is\ncurrently evaluated before cropping; max_edge does not resize this region.",
         "required": [
-          "render",
-          "rect"
+          "render"
         ],
         "properties": {
+          "document": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/EditDocument",
+                "description": "Transient adjustments; source identity and saved base revision remain checked."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "rect": {
-            "$ref": "#/components/schemas/PixelRect"
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PixelRect",
+                "description": "Supply exactly one of rect (absolute output pixels) or view (centered viewport)."
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "render": {
             "$ref": "#/components/schemas/RenderRequest"
+          },
+          "view": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/RegionView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "RegionView": {
+        "type": "object",
+        "description": "A native-pixel viewport centered in the final, edited image. Normalized\ncoordinates avoid guessing dimensions after rotation, perspective or crop.",
+        "required": [
+          "center",
+          "width",
+          "height"
+        ],
+        "properties": {
+          "center": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "float"
+            }
+          },
+          "height": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "width": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
           }
         },
         "additionalProperties": false

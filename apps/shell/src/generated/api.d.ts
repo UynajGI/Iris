@@ -1,5 +1,5 @@
 // Generated from iris-daemon OpenAPI. Do not edit.
-// Contract SHA-256: ba1efe310fd8b76eaa59a91149bb65fd974950ff9e8dee69ef63a30d2c5ed188
+// Contract SHA-256: 1e05fabc3ab0306b246f12bb1e3288a4736ada197a2c831a7e38cd98ae464414
 export interface paths {
     "/api/v1/bootstrap": {
         parameters: {
@@ -2816,8 +2816,21 @@ export interface components {
          *     currently evaluated before cropping; max_edge does not resize this region.
          */
         RegionRequest: {
-            rect: components["schemas"]["PixelRect"];
+            document?: components["schemas"]["EditDocument"] | null;
+            rect?: components["schemas"]["PixelRect"] | null;
             render: components["schemas"]["RenderRequest"];
+            view?: components["schemas"]["RegionView"] | null;
+        };
+        /**
+         * @description A native-pixel viewport centered in the final, edited image. Normalized
+         *     coordinates avoid guessing dimensions after rotation, perspective or crop.
+         */
+        RegionView: {
+            center: number[];
+            /** Format: int32 */
+            height: number;
+            /** Format: int32 */
+            width: number;
         };
         /** @enum {string} */
         RenderQuality: "interactive" | "full";

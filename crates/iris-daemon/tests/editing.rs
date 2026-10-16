@@ -462,6 +462,89 @@ async fn native_region_uses_edited_coordinates_without_proxy_scaling() {
 }
 
 #[tokio::test]
+async fn native_region_accepts_draft_view_without_saving() {
+    let (_temp, state, app, id) = fixture();
+    let edit = create(&app, &state, id).await;
+    let route = format!("/api/v1/edits/{}", edit["id"].as_str().unwrap());
+    let history_route = format!("{route}/history");
+    let history = value(request(&app, &state, "GET", &history_route, Value::Null).await).await;
+    let region_route = format!("{route}/region");
+    let mut payload = json!({"render":{"revision":0,"session":"native-draft","sequence":1,
+        "quality":"interactive","max_edge":16},"view":{"center":[1.0,1.0],"width":20,"height":16}});
+    let original = request(&app, &state, "POST", &region_route, payload.clone()).await;
+    assert_eq!(original.status(), StatusCode::OK);
+    assert_eq!(original.headers()["x-iris-region-x"], "12");
+    let original = original.into_body().collect().await.unwrap().to_bytes();
+    let mut document = edit["document"].clone();
+    document["nodes"][1]["operation"]["parameters"]["exposure"] = json!(1.0);
+    let output_node = document["output_node"].as_str().unwrap().to_string();
+    document["nodes"].as_array_mut().unwrap().push(json!({
+        "id":"view-crop","name":"Crop","version":1,"enabled":true,"inputs":[output_node],
+        "operation":{"type":"geometry","parameters":{"crop":[0.0,0.0,0.75,0.75]}}
+    }));
+    document["output_node"] = json!("view-crop");
+    payload["document"] = document;
+    payload["render"]["sequence"] = json!(2);
+    let draft = request(&app, &state, "POST", &region_route, payload.clone()).await;
+    assert_eq!(draft.status(), StatusCode::OK);
+    assert_eq!(draft.headers()["x-iris-full-width"], "24");
+    assert_eq!(draft.headers()["x-iris-full-height"], "18");
+    assert_eq!(draft.headers()["x-iris-region-x"], "4");
+    assert_eq!(draft.headers()["x-iris-region-y"], "2");
+    assert_eq!(draft.headers()["x-iris-approximate"], "false");
+    let draft = draft.into_body().collect().await.unwrap().to_bytes();
+    let adjusted = image::load_from_memory(&draft).unwrap().to_rgb8();
+    assert_eq!(adjusted.dimensions(), (20, 16));
+    let original = image::load_from_memory(&original).unwrap().to_rgb8();
+    assert!(adjusted.get_pixel(0, 0)[0] > original.get_pixel(0, 0)[0]);
+    for (sequence, field, bad_value) in [
+        (3, "rect", json!({"x":0,"y":0,"width":2,"height":2})),
+        (4, "view", Value::Null),
+        (
+            5,
+            "view",
+            json!({"center":[-0.1,0.5],"width":20,"height":16}),
+        ),
+    ] {
+        let mut bad = payload.clone();
+        bad["render"]["sequence"] = json!(sequence);
+        bad[field] = bad_value;
+        assert_eq!(
+            request(&app, &state, "POST", &region_route, bad)
+                .await
+                .status(),
+            StatusCode::BAD_REQUEST
+        );
+    }
+    payload["render"]["sequence"] = json!(6);
+    payload["document"]["source"]["photo_id"] = json!("wrong");
+    assert_eq!(
+        request(&app, &state, "POST", &region_route, payload.clone())
+            .await
+            .status(),
+        StatusCode::BAD_REQUEST
+    );
+    payload["document"]["source"]["photo_id"] = edit["document"]["source"]["photo_id"].clone();
+    payload["render"]["sequence"] = json!(7);
+    payload["render"]["revision"] = json!(1);
+    assert_eq!(
+        request(&app, &state, "POST", &region_route, payload)
+            .await
+            .status(),
+        StatusCode::BAD_REQUEST
+    );
+    let current = value(request(&app, &state, "GET", &route, Value::Null).await).await;
+    assert_eq!(current["document"], edit["document"]);
+    assert_eq!(current["revision"], 0);
+    assert_eq!(
+        value(request(&app, &state, "GET", &history_route, Value::Null).await).await,
+        history
+    );
+    state.shutdown_rendering();
+    state.wait_for_rendered_exports().await;
+}
+
+#[tokio::test]
 async fn lens_profile_import_requires_exif_evidence_and_wb_requires_raw() {
     let (_temp, state, app, id) = fixture();
     let edit = create(&app, &state, id).await;

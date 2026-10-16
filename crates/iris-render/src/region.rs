@@ -15,6 +15,103 @@ pub struct PixelRect {
     pub height: u32,
 }
 
+/// A native-pixel viewport centered in the final, edited image. Normalized
+/// coordinates avoid guessing dimensions after rotation, perspective or crop.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct RegionView {
+    pub center: [f32; 2],
+    pub width: u32,
+    pub height: u32,
+}
+
+impl RegionView {
+    pub fn validate(&self) -> Result<()> {
+        ensure!(
+            self.center
+                .iter()
+                .all(|v| v.is_finite() && (0.0..=1.0).contains(v)),
+            "region center must be finite and within 0..=1"
+        );
+        PixelRect {
+            x: 0,
+            y: 0,
+            width: self.width,
+            height: self.height,
+        }
+        .validate()
+    }
+
+    pub fn resolve(&self, width: u32, height: u32) -> Result<PixelRect> {
+        self.validate()?;
+        ensure!(width > 0 && height > 0, "empty output image");
+        let w = self.width.min(width);
+        let h = self.height.min(height);
+        let origin = |center: f32, full: u32, size: u32| {
+            (f64::from(center) * f64::from(full) - f64::from(size) / 2.0)
+                .round()
+                .clamp(0.0, f64::from(full - size)) as u32
+        };
+        Ok(PixelRect {
+            x: origin(self.center[0], width, w),
+            y: origin(self.center[1], height, h),
+            width: w,
+            height: h,
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn centered_view_clamps_native_pixels_without_scaling() {
+        let mut view = RegionView {
+            center: [0.5, 0.5],
+            width: 200,
+            height: 100,
+        };
+        assert_eq!(
+            view.resolve(1000, 600).unwrap(),
+            PixelRect {
+                x: 400,
+                y: 250,
+                width: 200,
+                height: 100
+            }
+        );
+        view.center = [0.0, 1.0];
+        assert_eq!(
+            view.resolve(1000, 600).unwrap(),
+            PixelRect {
+                x: 0,
+                y: 500,
+                width: 200,
+                height: 100
+            }
+        );
+        assert_eq!(
+            view.resolve(32, 24).unwrap(),
+            PixelRect {
+                x: 0,
+                y: 0,
+                width: 32,
+                height: 24
+            }
+        );
+        for center in [[-0.1, 0.5], [1.1, 0.5], [f32::NAN, 0.5]] {
+            view.center = center;
+            assert!(view.resolve(1000, 600).is_err());
+        }
+        view.center = [0.5, 0.5];
+        view.width = 2049;
+        assert!(view.resolve(32, 24).is_err());
+        view.width = 0;
+        assert!(view.validate().is_err());
+    }
+}
+
 impl PixelRect {
     pub fn validate(&self) -> Result<()> {
         ensure!(

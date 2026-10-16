@@ -205,7 +205,11 @@ pub async fn draft_preview(
 #[serde(deny_unknown_fields)]
 pub struct RegionRequest {
     pub render: RenderRequest,
-    pub rect: iris_core::render::region::PixelRect,
+    /// Supply exactly one of rect (absolute output pixels) or view (centered viewport).
+    pub rect: Option<iris_core::render::region::PixelRect>,
+    pub view: Option<iris_core::render::region::RegionView>,
+    /// Transient adjustments; source identity and saved base revision remain checked.
+    pub document: Option<iris_core::render::document::EditDocument>,
 }
 
 #[utoipa::path(operation_id="editing_preview_region",post,path="/api/v1/edits/{id}/region",params(("id"=String,Path)),request_body=RegionRequest,responses((status=200,body=Vec<u8>,content_type="image/jpeg",headers(("x-iris-revision"=u64,description="Edit revision"),("x-iris-sequence"=u64,description="Render sequence"),("x-iris-fingerprint"=String,description="Canonical rendering fingerprint"),("x-iris-approximate"=bool,description="Always false: native output pixels"),("x-iris-region-x"=u32,description="Output pixel origin x"),("x-iris-region-y"=u32,description="Output pixel origin y"),("x-iris-region-width"=u32,description="Native region width"),("x-iris-region-height"=u32,description="Native region height"),("x-iris-full-width"=u32,description="Full edited output width"),("x-iris-full-height"=u32,description="Full edited output height"),("x-iris-full-frame-evaluation"=bool,description="True: evaluates entire image before crop")))))]
@@ -214,11 +218,23 @@ pub async fn region(
     Path(id): Path<String>,
     Json(request): Json<RegionRequest>,
 ) -> Result<Response, ApiError> {
-    request.rect.validate()?;
+    match (request.rect, request.view) {
+        (Some(rect), None) => rect.validate()?,
+        (None, Some(view)) => view.validate()?,
+        _ => return Err(anyhow::anyhow!("supply exactly one region rect or view").into()),
+    }
     let sequence = request.render.sequence;
-    let result = render(s, id, request.render, move |job, _, _, context| {
-        job.encode_edit_region(context, request.rect)
-    })
+    let result = render_with_document(
+        s,
+        id,
+        request.render,
+        request.document,
+        move |job, _, _, context| match (request.rect, request.view) {
+            (Some(rect), None) => job.encode_edit_region(context, rect),
+            (None, Some(view)) => job.encode_edit_region_view(context, view),
+            _ => unreachable!("region selection validated before rendering"),
+        },
+    )
     .await?;
     let metadata = result.metadata;
     Ok((

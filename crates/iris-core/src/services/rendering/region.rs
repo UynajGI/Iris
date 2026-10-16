@@ -3,7 +3,7 @@ use super::EditRenderJob;
 use anyhow::Result;
 use iris_render::{
     color, output,
-    region::{self, PixelRect},
+    region::{self, PixelRect, RegionView},
     RenderContext,
 };
 use serde::{Deserialize, Serialize};
@@ -36,8 +36,26 @@ impl EditRenderJob {
         rect: PixelRect,
     ) -> Result<EncodedEditRegion> {
         rect.validate()?;
+        self.encode_selected_region(context, |_| Ok(rect))
+    }
+
+    pub fn encode_edit_region_view(
+        &self,
+        context: &RenderContext,
+        view: RegionView,
+    ) -> Result<EncodedEditRegion> {
+        view.validate()?;
+        self.encode_selected_region(context, |frame| view.resolve(frame.width, frame.height))
+    }
+
+    fn encode_selected_region(
+        &self,
+        context: &RenderContext,
+        select: impl FnOnce(&iris_render::Frame) -> Result<PixelRect>,
+    ) -> Result<EncodedEditRegion> {
         context.check_cancelled()?;
         let full = self.full_resolution(context)?;
+        let rect = select(&full)?;
         let metadata = EditRegionMetadata {
             rect,
             full_width: full.width,
