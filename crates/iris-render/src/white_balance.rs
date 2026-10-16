@@ -109,8 +109,10 @@ fn solve_temperature(
     mut high: f64,
 ) -> Result<Option<WhiteBalanceTemperature>> {
     let uv = |kelvin| illuminant_xy(kelvin, 0.0, locus).map(xy_to_uv);
-    // Allow only f32 gain roundoff at endpoints, not out-of-range clamping.
-    if target[0] > uv(low)?[0] + 1e-8 || target[0] < uv(high)?[0] - 1e-8 {
+    // Stored gains are f32. Their inverse and chromaticity division propagate
+    // that roundoff; a tolerance below f32 epsilon rejects valid end points.
+    let roundoff = f32::EPSILON as f64;
+    if target[0] > uv(low)?[0] + roundoff || target[0] < uv(high)?[0] - roundoff {
         return Ok(None);
     }
     for _ in 0..50 {
@@ -123,7 +125,7 @@ fn solve_temperature(
     }
     let kelvin = (low + high) * 0.5;
     let tint = target[1] - uv(kelvin)?[1];
-    if tint.abs() > 0.02 + 1e-8 {
+    if tint.abs() > 0.02 + roundoff {
         return Ok(None);
     }
     Ok(Some(WhiteBalanceTemperature {

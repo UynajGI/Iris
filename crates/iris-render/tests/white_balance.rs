@@ -111,7 +111,7 @@ fn recovered_temperature_recreates_saved_sensor_gains() {
                 let gains = wb::temperature_gains(&camera, kelvin, tint, locus).unwrap();
                 let reading = wb::temperature_from_gains(&camera, gains, locus)
                     .unwrap()
-                    .expect("supported white balance must be readable");
+                    .unwrap_or_else(|| panic!("supported {locus:?} {kelvin} K tint {tint}: {gains:?} must be readable"));
                 let rebuilt = wb::temperature_gains(
                     &camera,
                     reading.kelvin,
