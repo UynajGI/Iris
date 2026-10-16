@@ -54,7 +54,8 @@ pub use cache::{
 };
 mod media;
 pub use media::{
-    __path_detail, __path_original, __path_preview, __path_thumb, detail, original, preview, thumb,
+    __path_detail, __path_original, __path_photo_metadata, __path_preview, __path_thumb, detail,
+    original, photo_metadata, preview, thumb,
 };
 
 use super::*;
@@ -128,6 +129,7 @@ pub fn routes() -> Router<AppState> {
         )
         .route("/api/v1/photos/{id}/thumb", get(thumb))
         .route("/api/v1/photos/{id}/detail", post(detail))
+        .route("/api/v1/photos/{id}/metadata", get(photo_metadata))
         .route("/api/v1/photos/{id}/preview", get(preview))
         .route("/api/v1/photos/{id}/original", get(original))
 }

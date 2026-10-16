@@ -532,7 +532,7 @@ pub use operations::*;
     operations::models,operations::settings,operations::put_settings,operations::profiles,operations::save_profile,
     operations::delete_profile,operations::apply_profile,operations::estimate_profile,
     operations::cache_status,operations::cache_cleanup,operations::cache_migrate,operations::cache_migrations,operations::cache_cleanup_old,
-    operations::thumb,operations::preview,operations::original
+    operations::thumb,operations::preview,operations::original,operations::photo_metadata
 ),components(schemas(PhotoFilter)),security(("session"=[])),modifiers(&Security))]
 struct GeneratedApiDoc;
 

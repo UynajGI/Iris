@@ -1,5 +1,23 @@
 use super::*;
+use iris_core::metadata::PhotoMetadata;
 use iris_core::vision::detail::{DetailEvidence, DetailRequest};
+
+#[utoipa::path(get,path="/api/v1/photos/{id}/metadata",params(("id"=i64,Path)),responses((status=200,body=PhotoMetadata)))]
+pub async fn photo_metadata(
+    State(state): State<AppState>,
+    Path(id): Path<i64>,
+) -> ApiResult<PhotoMetadata> {
+    let prepared = run(state.clone(), move |services| {
+        services.prepare_photo_metadata(id)
+    })
+    .await?;
+    let bytes = state
+        .media_queue
+        .render(2, move |cancel| prepared.read(cancel))
+        .await?;
+    run(state, move |services| services.photo_path(id)).await?;
+    Ok(Json(serde_json::from_slice(&bytes)?))
+}
 
 #[utoipa::path(post,path="/api/v1/photos/{id}/detail",params(("id"=i64,Path)),request_body=DetailRequest,responses((status=200,body=DetailEvidence)))]
 pub async fn detail(

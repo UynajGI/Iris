@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 use super::{EditRenderJob, Services};
+use crate::metadata::{rational_field, text_field};
 use crate::services::EditResourceKind;
 use anyhow::{ensure, Result};
 use iris_render::{
@@ -97,30 +98,4 @@ fn capture_metadata(
     }
     context.check_cancelled()?;
     Ok(capture)
-}
-fn text_field(exif: &exif::Exif, tag: exif::Tag) -> Option<String> {
-    let exif::Value::Ascii(values) = &exif.get_field(tag, exif::In::PRIMARY)?.value else {
-        return None;
-    };
-    if values.len() != 1 {
-        return None;
-    }
-    let text = std::str::from_utf8(values.first()?)
-        .ok()?
-        .trim_matches('\0')
-        .trim();
-    if text.is_empty() || text.len() > 128 || text.chars().any(char::is_control) {
-        return None;
-    }
-    Some(text.to_owned())
-}
-fn rational_field(exif: &exif::Exif, tag: exif::Tag) -> Option<f64> {
-    let exif::Value::Rational(values) = &exif.get_field(tag, exif::In::PRIMARY)?.value else {
-        return None;
-    };
-    if values.len() != 1 {
-        return None;
-    }
-    let value = values.first()?.to_f64();
-    (value.is_finite() && value > 0.0).then_some(value)
 }
