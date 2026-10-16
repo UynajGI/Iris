@@ -152,6 +152,13 @@ jobs:
           node tools/api.mjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           git diff --exit-code -- docs/openapi.json apps/shell/src/generated/api.d.ts
+      - name: Retain tested daemon for local frontend integration
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: tested-daemon-windows-x64
+          path: target/debug/iris-daemon.exe
+          if-no-files-found: error
+          retention-days: 7
   local-media:
     runs-on: windows-latest
     env:
