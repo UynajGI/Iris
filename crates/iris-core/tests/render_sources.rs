@@ -372,6 +372,7 @@ fn same_size_srgb_preview_and_fixed_jpeg_export_decode_identically() {
             destination_directory: exports.to_string_lossy().into_owned(),
             filename: "fixed.jpg".into(),
             format: OutputFormat::Jpeg8 { quality: 90 },
+            document: None,
         }])
         .unwrap();
     let mut prepared = services

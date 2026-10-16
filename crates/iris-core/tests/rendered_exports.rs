@@ -61,6 +61,7 @@ fn request(temp: &tempfile::TempDir, record: &EditRecord, name: &str) -> Rendere
         destination_directory: temp.path().join("exports").to_string_lossy().into_owned(),
         filename: name.into(),
         format: OutputFormat::Png16,
+        document: None,
     }
 }
 fn complete(services: &mut Services, id: &str) -> iris_core::services::RenderedExportResult {
@@ -97,6 +98,33 @@ fn export_roundtrip_preserves_source_and_16bit_differences() {
         services.rendered_export(&queued[0].id).unwrap().state,
         RenderedExportState::Completed
     ));
+}
+
+#[test]
+fn export_only_document_is_snapshotted_without_changing_saved_edit() {
+    let (temp, mut services, record) = fixture();
+    let base = services
+        .queue_rendered_exports(&[request(&temp, &record, "base.png")])
+        .unwrap();
+    let base = complete(&mut services, &base[0].id);
+    let mut custom = request(&temp, &record, "custom.png");
+    let mut value = serde_json::to_value(&record.document).unwrap();
+    value["nodes"][1]["operation"]["parameters"]["exposure"] = serde_json::json!(1.0);
+    custom.document = Some(serde_json::from_value(value).unwrap());
+    let queued = services.queue_rendered_exports(&[custom.clone()]).unwrap();
+    custom.document.as_mut().unwrap().source.photo_id = "other".into();
+    custom.filename = "invalid.png".into();
+    assert!(services.queue_rendered_exports(&[custom.clone()]).is_err());
+    custom.document.as_mut().unwrap().source = record.document.source.clone();
+    custom.expected_revision += 1;
+    assert!(services.queue_rendered_exports(&[custom]).is_err());
+    let result = complete(&mut services, &queued[0].id);
+    let before = image::open(&base.destination).unwrap().to_rgba16();
+    let after = image::open(&result.destination).unwrap().to_rgba16();
+    assert!(after.get_pixel(0, 0)[0] > before.get_pixel(0, 0)[0]);
+    let saved = services.edit_document(&record.id).unwrap();
+    assert_eq!(saved.revision, record.revision);
+    assert_eq!(saved.document, record.document);
 }
 
 #[test]

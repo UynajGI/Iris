@@ -30,6 +30,8 @@ pub struct RenderedExportRequest {
     pub destination_directory: String,
     pub filename: String,
     pub format: OutputFormat,
+    /// Export-only adjustments. Snapshot them without changing the saved edit.
+    pub document: Option<iris_render::document::EditDocument>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -289,7 +291,14 @@ impl Services {
         );
         let directory = Path::new(&request.destination_directory).canonicalize()?;
         ensure!(directory.is_dir(), "export directory must exist");
-        let render = self.prepare_edit_render(&request.document_id, request.expected_revision)?;
+        let render = match &request.document {
+            Some(document) => self.prepare_draft_edit_render(
+                &request.document_id,
+                request.expected_revision,
+                document.clone(),
+            )?,
+            None => self.prepare_edit_render(&request.document_id, request.expected_revision)?,
+        };
         let snapshot = Snapshot {
             record: render.record,
             source: render.source.canonicalize()?,
