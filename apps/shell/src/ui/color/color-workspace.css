@@ -976,6 +976,72 @@
   overflow: hidden;
   touch-action: none;
 }
+.grade-native-stage {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+.grade-native-viewport {
+  position: relative;
+  overflow: hidden;
+  touch-action: none;
+  cursor: grab;
+}
+.grade-native-viewport:active {
+  cursor: grabbing;
+}
+.grade-native-image {
+  position: absolute;
+  pointer-events: none;
+  user-select: none;
+}
+.grade-native-image > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.grade-native-image > .grade-native-tile {
+  position: absolute;
+}
+.grade-native-state {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 9px;
+  background: var(--sunken);
+  font-size: var(--small);
+  pointer-events: none;
+}
+.grade-native-state button {
+  pointer-events: auto;
+}
+.grade-native-navigator {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  overflow: hidden;
+  cursor: crosshair;
+  touch-action: none;
+}
+.grade-native-navigator img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.grade-native-navigator span {
+  position: absolute;
+  border: 1px solid white;
+  background: #ffffff12;
+  pointer-events: none;
+}
 .grade-canvas.panning {
   cursor: grab;
 }

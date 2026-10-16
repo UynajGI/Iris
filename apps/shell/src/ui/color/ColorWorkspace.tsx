@@ -20,6 +20,7 @@ import { maskLayers, setMask, validateMaskBudget } from '../../editing-masks.js'
 import { maskPartAt } from '../../editing-mask-parts.js';
 import { MaskPanel, type BrushSettings } from './MaskPanel.js';
 import { ColorCanvas } from './ColorCanvas.js';
+import { NativeDetailCanvas } from './NativeDetailCanvas.js';
 import { CropTools } from './CropTools.js';
 import { PresetPanel } from './PresetPanel.js';
 import { RawWhiteBalancePanel } from './RawWhiteBalancePanel.js';
@@ -54,6 +55,7 @@ export function ColorWorkspace({
   });
   const [pickingWhite, setPickingWhite] = useState(false);
   const [zoom, setZoom] = useState(1);
+  const [nativeMode, setNativeMode] = useState(false);
   const [selectedMask, setSelectedMask] = useState<string | null>(null);
   const [selectedMaskPart, setSelectedMaskPart] = useState(0);
   const [toolTab, setToolTab] = useState<'adjustments' | 'masks' | 'metadata'>(() => {
@@ -66,6 +68,10 @@ export function ColorWorkspace({
     return 'adjustments';
   });
   const [historyOpen, setHistoryOpen] = useState(false);
+  const nativeActive = nativeMode && !before && !cropMode && toolTab !== 'masks';
+  useEffect(() => {
+    setNativeMode(false);
+  }, [before, cropMode, toolTab, photo?.id]);
   const [syncOpen, setSyncOpen] = useState(false);
   const historyMenu = useRef<HTMLDivElement>(null);
   const [painting, setPainting] = useState(true);
@@ -290,7 +296,16 @@ export function ColorWorkspace({
           aria-label={before ? '原图预览' : '调整后预览'}
           aria-busy={editor.rendering || (before && editor.beforeLoading)}
         >
-          {photo ? (
+          {photo && nativeActive && editor.record && editor.draft ? (
+            <NativeDetailCanvas
+              key={editor.record.id}
+              client={model.store.client}
+              record={editor.record}
+              document={editor.draft}
+              preview={editor.preview}
+              filename={photo.filename}
+            />
+          ) : photo ? (
             <ColorCanvas
               key={photo.id}
               client={model.store.client}
@@ -357,7 +372,7 @@ export function ColorWorkspace({
               {pickingWhite ? '点击中性灰或白色区域' : '原图'}
             </span>
           )}
-          {(editor.rendering || (before && editor.beforeLoading)) && (
+          {!nativeActive && (editor.rendering || (before && editor.beforeLoading)) && (
             <span className="grade-render-state" role="status">
               正在预览
             </span>
@@ -434,19 +449,41 @@ export function ColorWorkspace({
               <Button
                 className="quiet icon-only"
                 aria-label="缩小"
-                disabled={zoom <= 1}
-                onClick={() => setZoom((value) => Math.max(1, value / 1.25))}
+                disabled={!nativeActive && zoom <= 1}
+                onClick={() => {
+                  setNativeMode(false);
+                  setZoom((value) => Math.max(1, value / 1.25));
+                }}
               >
                 <Icon name="zoom-out" />
               </Button>
-              <Button className="quiet" onClick={() => setZoom(1)}>
-                {zoom === 1 ? '适合窗口' : `${Math.round(zoom * 100)}%`}
+              <Button
+                className="quiet"
+                onClick={() => {
+                  setNativeMode(false);
+                  setZoom(1);
+                }}
+              >
+                {zoom === 1 || nativeActive ? '适合窗口' : `放大 ${Number(zoom.toFixed(2))}×`}
+              </Button>
+              <Button
+                className="quiet"
+                aria-label="原尺寸细节"
+                title="一张照片像素对应一个屏幕物理像素"
+                aria-pressed={nativeActive}
+                disabled={!available || cropMode || toolTab === 'masks'}
+                onClick={() => setNativeMode((value) => !value)}
+              >
+                1:1
               </Button>
               <Button
                 className="quiet icon-only"
                 aria-label="放大"
-                disabled={zoom >= 4}
-                onClick={() => setZoom((value) => Math.min(4, value * 1.25))}
+                disabled={!nativeActive && zoom >= 4}
+                onClick={() => {
+                  setNativeMode(false);
+                  setZoom((value) => Math.min(4, value * 1.25));
+                }}
               >
                 <Icon name="zoom-in" />
               </Button>
