@@ -8,7 +8,7 @@ use axum::{
 };
 use iris_core::services::{
     BatchEditTarget, EditCommand, EditHistoryEntry, EditPreset, EditRecipe, EditRecord,
-    EditResource, EditResourceKind, SaveEdit,
+    EditResource, EditResourceKind, SaveEdit, SelectiveEditSync,
 };
 use serde::{Deserialize, Serialize};
 use utoipa::{OpenApi, ToSchema};
@@ -131,6 +131,7 @@ pub(super) fn routes() -> Router<AppState> {
             get(export_recipe).put(import_recipe),
         )
         .route("/api/v1/edits/{id}/batch", post(batch_settings))
+        .route("/api/v1/edits/{id}/sync", post(sync_settings))
         .route(
             "/api/v1/edit-presets",
             get(list_presets).post(create_preset),
@@ -343,6 +344,16 @@ pub async fn batch_settings(
         .await?,
     ))
 }
+#[utoipa::path(operation_id="editing_sync_settings",post,path="/api/v1/edits/{id}/sync",params(("id"=String,Path)),request_body=SelectiveEditSync,responses((status=200,body=Vec<EditRecord>)))]
+pub async fn sync_settings(
+    State(s): State<AppState>,
+    Path(id): Path<String>,
+    Json(body): Json<SelectiveEditSync>,
+) -> ApiResult<Vec<EditRecord>> {
+    Ok(Json(
+        run(s, move |s| s.sync_edit_settings(&id, body)).await?,
+    ))
+}
 #[utoipa::path(operation_id="editing_list_presets",get,path="/api/v1/edit-presets",params(("limit"=Option<u32>,Query),("offset"=Option<u32>,Query)),responses((status=200,body=Vec<EditPreset>)))]
 pub async fn list_presets(
     State(s): State<AppState>,
@@ -436,6 +447,7 @@ pub async fn resource_bytes(
         export_recipe,
         import_recipe,
         batch_settings,
+        sync_settings,
         list_presets,
         get_preset,
         create_preset,

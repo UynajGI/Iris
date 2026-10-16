@@ -11,8 +11,10 @@ use utoipa::ToSchema;
 mod recipes;
 mod resources;
 mod state;
+mod sync;
 pub use recipes::{BatchEditTarget, EditPreset, EditRecipe};
 pub use resources::{EditResource, EditResourceKind};
+pub use sync::{EditSyncGroup, SelectiveEditSync};
 
 pub const MAX_EDIT_JSON: usize = 2 * 1024 * 1024;
 const MAX_HISTORY: i64 = 10_000;

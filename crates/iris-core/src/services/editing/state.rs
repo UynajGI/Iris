@@ -68,13 +68,25 @@ pub(super) fn save_in_transaction(
     id: &str,
     request: &SaveEdit,
 ) -> Result<EditRecord> {
+    save_with_context(conn, id, request, None)
+}
+
+pub(super) fn save_with_context(
+    conn: &Connection,
+    id: &str,
+    request: &SaveEdit,
+    context: Option<&str>,
+) -> Result<EditRecord> {
     let command = EditCommand {
         expected_revision: request.expected_revision,
         request_id: request.request_id.clone(),
     };
     validate_command(&command)?;
     request.document.validate()?;
-    let payload = hash_bytes(bounded_json(&("save", request))?.as_bytes());
+    let payload = match context {
+        Some(value) => hash_bytes(bounded_json(&("sync", request, value))?.as_bytes()),
+        None => hash_bytes(bounded_json(&("save", request))?.as_bytes()),
+    };
     let current = record(conn, id, None)?;
     require_available(conn, current.photo_id)?;
     if let Some(result) = retry(conn, id, &command, &payload)? {

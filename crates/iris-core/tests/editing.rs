@@ -373,3 +373,167 @@ fn edit_history_rejects_negative_sqlite_revision() {
     assert!(services.delete_edit_document(&edit.id, u64::MAX).is_err());
     assert_eq!(services.edit_document(&edit.id).unwrap().revision, 0);
 }
+
+#[test]
+fn selective_sync_preserves_target_graph_and_replays_original_snapshot() {
+    use iris_core::services::{EditSyncGroup, SelectiveEditSync};
+    let (_temp, mut services, ids) = fixture();
+    let source = create(&mut services, ids[0]);
+    let target = create(&mut services, ids[1]);
+    let mut document = source.document.clone();
+    if let Operation::Adjustments(p) = &mut document.nodes[1].operation {
+        p.exposure = 1.25;
+        p.saturation = 0.4;
+    }
+    let source = services
+        .save_edit_document(
+            &source.id,
+            SaveEdit {
+                expected_revision: 0,
+                request_id: "sync-source".into(),
+                document,
+            },
+        )
+        .unwrap();
+    let mut document = target.document.clone();
+    if let Operation::Geometry(p) = &mut document.nodes[3].operation {
+        p.crop = [0.1, 0.2, 0.7, 0.6];
+        p.radial = [0.03, 0.0];
+    }
+    document.nodes.push(Node {
+        id: "mask".into(),
+        name: "Local mask".into(),
+        version: 1,
+        enabled: true,
+        operation: Operation::Mask(MaskDefinition::LinearGradient {
+            start: [0.0, 0.0],
+            end: [1.0, 0.0],
+        }),
+        inputs: vec!["geometry".into()],
+    });
+    document.nodes.push(Node {
+        id: "blend".into(),
+        name: "Local blend".into(),
+        version: 1,
+        enabled: true,
+        operation: Operation::Blend { opacity: 0.6 },
+        inputs: vec!["geometry".into(), "geometry".into(), "mask".into()],
+    });
+    document.output_node = "blend".into();
+    let target = services
+        .save_edit_document(
+            &target.id,
+            SaveEdit {
+                expected_revision: 0,
+                request_id: "sync-target".into(),
+                document,
+            },
+        )
+        .unwrap();
+    let request = SelectiveEditSync {
+        expected_revision: source.revision,
+        request_id: "selective-sync".into(),
+        targets: vec![BatchEditTarget {
+            id: target.id.clone(),
+            expected_revision: target.revision,
+        }],
+        groups: vec![EditSyncGroup::Tone],
+    };
+    let result = services
+        .sync_edit_settings(&source.id, request.clone())
+        .unwrap()
+        .remove(0);
+    let mut expected = target.document.clone();
+    if let Operation::Adjustments(p) = &mut expected.nodes[1].operation {
+        p.exposure = 1.25;
+    }
+    assert_eq!(result.document, expected);
+    assert_eq!(
+        services.edit_document(&source.id).unwrap().revision,
+        source.revision
+    );
+    let undone = services
+        .undo_edit_document(&target.id, command(result.revision, "undo-sync"))
+        .unwrap();
+    assert_eq!(undone.document, target.document);
+    // A lost response replay returns its historical result without re-applying
+    // the sync over a later user edit or undo.
+    let replay = services
+        .sync_edit_settings(&source.id, request.clone())
+        .unwrap()
+        .remove(0);
+    assert_eq!(replay.revision, result.revision);
+    assert_eq!(
+        services.edit_document(&target.id).unwrap().revision,
+        undone.revision
+    );
+    let mut reused = request;
+    reused.groups.push(EditSyncGroup::Color);
+    assert!(services.sync_edit_settings(&source.id, reused).is_err());
+    assert_eq!(
+        services.edit_document(&target.id).unwrap().document,
+        target.document
+    );
+}
+
+#[test]
+fn selective_sync_conflicts_are_atomic_and_source_revision_is_required() {
+    use iris_core::services::{EditSyncGroup, SelectiveEditSync};
+    let (_temp, mut services, ids) = fixture();
+    let source = create(&mut services, ids[0]);
+    let a = create(&mut services, ids[1]);
+    let b = create(&mut services, ids[2]);
+    services
+        .save_edit_document(
+            &b.id,
+            SaveEdit {
+                expected_revision: 0,
+                request_id: "target-newer".into(),
+                document: b.document.clone(),
+            },
+        )
+        .unwrap();
+    let mut request = SelectiveEditSync {
+        expected_revision: 0,
+        request_id: "atomic-sync".into(),
+        targets: vec![
+            BatchEditTarget {
+                id: a.id.clone(),
+                expected_revision: 0,
+            },
+            BatchEditTarget {
+                id: b.id.clone(),
+                expected_revision: 0,
+            },
+        ],
+        groups: vec![EditSyncGroup::Tone],
+    };
+    assert!(services
+        .sync_edit_settings(&source.id, request.clone())
+        .is_err());
+    assert_eq!(services.edit_document(&a.id).unwrap().revision, 0);
+    request.targets[1].expected_revision = 1;
+    request.expected_revision = 1;
+    assert!(services
+        .sync_edit_settings(&source.id, request.clone())
+        .is_err());
+    request.expected_revision = 0;
+    request.groups.clear();
+    assert!(services
+        .sync_edit_settings(&source.id, request.clone())
+        .is_err());
+    request.groups = vec![EditSyncGroup::Tone, EditSyncGroup::Tone];
+    assert!(services
+        .sync_edit_settings(&source.id, request.clone())
+        .is_err());
+    request.groups = vec![EditSyncGroup::Tone];
+    let result = services
+        .sync_edit_settings(&source.id, request.clone())
+        .unwrap();
+    assert_eq!(result[0].revision, 1);
+    assert_eq!(result[1].revision, 2);
+    assert_eq!(
+        services.sync_edit_settings(&source.id, request).unwrap()[0].revision,
+        1
+    );
+}
