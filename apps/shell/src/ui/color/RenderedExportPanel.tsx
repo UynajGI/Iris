@@ -4,6 +4,7 @@ import type { Photo } from '../../types.js';
 import { EditingClient, type EditRecord, type RenderedExportStatus } from '../../editing-client.js';
 import { selectProjectFolder } from '../../native-dialog.js';
 import { preferredEdit } from '../../editing-preferences.js';
+import { outputSpaceNames } from '../../editing-document.js';
 import { Button } from '../components.js';
 import { Icon } from '../Icon.js';
 
@@ -34,6 +35,7 @@ export function RenderedExportPanel({
   const [error, setError] = useState<string | null>(null);
   const [jobs, setJobs] = useState<RenderedExportStatus[]>([]);
   const extension = format === 'jpeg8' ? 'jpg' : format === 'png16' ? 'png' : 'tif';
+  const selectedVersion = versions.find((item) => item.id === version);
   useEffect(() => {
     const controller = new AbortController();
     let active = true;
@@ -156,6 +158,12 @@ export function RenderedExportPanel({
                 )}
               </select>
             </label>
+            {selectedVersion && (
+              <div className="rendered-export-color" aria-label="成片颜色空间">
+                <span>颜色空间</span>
+                <strong>{outputSpaceNames[selectedVersion.document.output.space]}</strong>
+              </div>
+            )}
             <label>
               文件格式
               <select

@@ -2,6 +2,12 @@ import type { Adjustments, DetailAdjustments, EditDocument, Geometry } from './e
 import type { components } from './generated/api.js';
 
 type Operation = components['schemas']['Operation'];
+export const outputSpaceNames: Record<components['schemas']['OutputSpace'], string> = {
+  srgb: 'sRGB',
+  display_p3: 'Display P3',
+  adobe_rgb: 'Adobe RGB',
+  linear_rec2020: '线性 Rec.2020',
+};
 export type EditableKind = 'adjustments' | 'detail' | 'geometry';
 export function blackWhiteMix(values: number[], channel: number, value: number): number[] {
   const next = [...values];
@@ -32,6 +38,26 @@ export function sourceDocument(document: EditDocument): EditDocument {
     nodes: [source],
     output_node: source.id,
     panel_bindings: [],
+    node_positions: {},
+  };
+}
+/** Crop handles operate on the image before user geometry, in its normalized coordinates. */
+export function cropPreviewDocument(document: EditDocument): EditDocument {
+  const geometry = panelNode(document, 'geometry');
+  if (!geometry?.inputs[0]) return document;
+  const output = geometry.inputs[0],
+    retained = new Set<string>();
+  const visit = (id: string) => {
+    if (retained.has(id)) return;
+    retained.add(id);
+    document.nodes.find((node) => node.id === id)?.inputs.forEach(visit);
+  };
+  visit(output);
+  return {
+    ...document,
+    output_node: output,
+    nodes: document.nodes.filter((node) => retained.has(node.id)),
+    panel_bindings: document.panel_bindings.filter((item) => retained.has(item.node_id)),
     node_positions: {},
   };
 }

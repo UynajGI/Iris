@@ -2,7 +2,7 @@ import type { PhotoWorkspaceModel } from './usePhotoWorkspace.js';
 import { ZoomViewer } from './ZoomViewer.js';
 import { ColorWorkspace, type EditorBridge } from './color/ColorWorkspace.js';
 
-/** Workspace layout for the next phase; no image adjustments are applied yet. */
+/** Traditional grading uses the shared editor; retouch tools remain pending. */
 export function EditingWorkspace({
   model,
   stage,

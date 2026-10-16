@@ -13,6 +13,8 @@ import { sourceDocument } from '../src/editing-document.js';
 import { blackWhiteMix } from '../src/editing-document.js';
 import { resetDocument } from '../src/editing-document.js';
 import { focusEditingPhoto } from '../src/editing-navigation.js';
+import { applyLensProfile, lensProfileNode } from '../src/editing-lens.js';
+import type { LensProfileSuggestion } from '../src/editing-client.js';
 import {
   addMask,
   maskLayers,
@@ -82,6 +84,111 @@ function record(): EditRecord {
     updated_at: '',
   };
 }
+function lensSuggestion(): LensProfileSuggestion {
+  return {
+    document_id: 'edit/1',
+    expected_revision: 7,
+    source_fingerprint: 'a'.repeat(64),
+    resource: 'b'.repeat(64),
+    placement: 'optical_coefficients_only_on_uncropped_source_extent',
+    capture: { dimensions: [32, 24] },
+    matching: {
+      applicable: true,
+      issues: [],
+      correction: { radial: [0.01, 0], chromatic_aberration: [0, 0.001], vignette_stops: 0.2 },
+    },
+  };
+}
+test('lens calibration precedes user crop and preserves existing local branches', () => {
+  const original = updatePanel(document(), {
+    type: 'geometry',
+    parameters: {
+      crop: [0.1, 0.2, 0.8, 0.9],
+      rotation_degrees: 12,
+      perspective: [1, 0, 0, 0, 1, 0, 0, 0, 1],
+      radial: [0, 0],
+      chromatic_aberration: [0, 0],
+      vignette_stops: 0,
+    },
+  });
+  const result = applyLensProfile(record(), original, lensSuggestion());
+  const lens = lensProfileNode(result)!;
+  assert.deepEqual(lens.inputs, ['source']);
+  assert.deepEqual(result.nodes.find((n) => n.id === 'bound-basic')!.inputs, [lens.id]);
+  assert.deepEqual(parameters(result, 'geometry'), parameters(original, 'geometry'));
+  assert.deepEqual(
+    result.nodes.find((n) => n.id === 'custom-local'),
+    original.nodes.find((n) => n.id === 'custom-local')
+  );
+  assert.deepEqual(result.source, original.source);
+  assert.equal(result.output_node, original.output_node);
+  assert.deepEqual(
+    lens.operation.type === 'geometry' && lens.operation.parameters.crop,
+    [0, 0, 1, 1]
+  );
+});
+test('reapplying a lens profile updates its existing source calibration node', () => {
+  const first = applyLensProfile(record(), document(), lensSuggestion());
+  const result = applyLensProfile(record(), first, lensSuggestion());
+  assert.equal(result.nodes.length, first.nodes.length);
+  assert.deepEqual(result.panel_bindings, first.panel_bindings);
+  assert.deepEqual(lensProfileNode(result), lensProfileNode(first));
+});
+test('stale or inapplicable lens suggestions cannot alter an edit', () => {
+  assert.throws(
+    () => applyLensProfile(record(), document(), { ...lensSuggestion(), expected_revision: 8 }),
+    /已变更/
+  );
+  assert.throws(
+    () =>
+      applyLensProfile(record(), document(), {
+        ...lensSuggestion(),
+        source_fingerprint: 'c'.repeat(64),
+      }),
+    /已变更/
+  );
+  assert.throws(
+    () =>
+      applyLensProfile(record(), document(), {
+        ...lensSuggestion(),
+        matching: { applicable: false, issues: ['missing_metadata'] },
+      }),
+    /不匹配/
+  );
+});
+test('lens resource import sends authenticated binary bytes and matching binds the saved revision', async () => {
+  const requests: { url: string; init: RequestInit }[] = [];
+  const fetcher: typeof fetch = async (url, init) => {
+    requests.push({ url: String(url), init: init! });
+    return new Response(
+      JSON.stringify(
+        requests.length === 1
+          ? { hash: 'b'.repeat(64), kind: 'lens_profile', size_bytes: 2 }
+          : lensSuggestion()
+      ),
+      { status: 200 }
+    );
+  };
+  const api = new EditingClient(
+    new IrisClient(
+      new Transport({ base_url: 'http://127.0.0.1:5412', token: 'test', version: '' }, fetcher)
+    )
+  );
+  const bytes = new Blob(['{}']);
+  await api.importLensProfile(bytes);
+  await api.lensProfile(record(), 'b'.repeat(64));
+  assert.equal(requests[0]!.init.body, bytes);
+  assert.equal(
+    (requests[0]!.init.headers as Record<string, string>)['Content-Type'],
+    'application/octet-stream'
+  );
+  assert.equal((requests[0]!.init.headers as Record<string, string>).Authorization, 'Bearer test');
+  assert.equal(requests[0]!.init.redirect, 'error');
+  assert.deepEqual(JSON.parse(requests[1]!.init.body as string), {
+    expected_revision: 7,
+    resource: 'b'.repeat(64),
+  });
+});
 test('a traditional panel changes only its bound node without flattening local branches', () => {
   const original = document();
   const edited = updatePanel(original, {

@@ -12,7 +12,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: render-${{ github.ref }}
+  group: render-${{ github.ref }}-${{ inputs.review_daemon && 'review' || 'checks' }}
   cancel-in-progress: true
 jobs:
   review-daemon:

@@ -31,6 +31,83 @@
   font-size: var(--font);
   font-weight: 500;
 }
+.grade-history-menu {
+  position: relative;
+  margin-left: auto;
+}
+.grade-history-popup {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 12;
+  width: 260px;
+  max-height: 55vh;
+  overflow: auto;
+  padding: 14px;
+  background: var(--tool);
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px #0006;
+}
+.grade-history-popup h2 {
+  font-size: var(--font);
+  margin: 0 0 8px;
+}
+.grade-tool-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--line-subtle);
+  padding: 0 8px;
+}
+.grade-tool-tabs button {
+  flex: 1;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  padding: 10px 2px;
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--small);
+  white-space: nowrap;
+}
+.grade-tool-tabs button[aria-selected='true'] {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+.grade-settings-page {
+  padding: 16px;
+}
+.grade-lens-profile {
+  padding-bottom: 14px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--line-subtle);
+  font-size: var(--small);
+}
+.grade-lens-profile > select {
+  margin: 12px 0;
+  width: 100%;
+}
+.grade-lens-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.grade-resource-import {
+  position: relative;
+  cursor: pointer;
+  color: var(--muted);
+  padding: 8px;
+  overflow: hidden;
+}
+.grade-resource-import input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+}
+.grade-resource-import:focus-within {
+  outline: 2px solid var(--accent);
+}
 .grade-navigator {
   padding: 0 14px 16px;
 }
@@ -260,7 +337,7 @@
 }
 .grade-slider {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) 76px;
   gap: 4px 12px;
   margin: 0 0 11px;
   font-size: var(--small);
@@ -273,14 +350,15 @@
   cursor: default;
 }
 .grade-value {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 18px;
   align-items: center;
   gap: 4px;
   font-variant-numeric: tabular-nums;
   color: var(--muted);
 }
 .grade-value input {
-  width: 56px;
+  width: 100%;
   padding: 0 2px;
   min-height: 20px;
   line-height: 20px;
@@ -590,7 +668,7 @@
 .grade-mask-controls {
   min-width: 0;
   margin: 0;
-  padding: 0;
+  padding: 16px 20px;
   border: 0;
 }
 .grade-mask-list {
@@ -712,9 +790,9 @@
   }
   .grade-compact-versions select {
     max-width: 136px;
-    min-width: 0;
+    min-width: 112px;
     min-height: 28px;
-    padding: 3px 6px;
+    padding: 3px 24px 3px 6px;
     font-size: var(--small);
   }
   .grade-compact-versions .button {
@@ -762,4 +840,122 @@
   .grade-toolbar {
     min-height: 38px;
   }
+}
+.grade-output-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.grade-output-field select {
+  max-width: 60%;
+  min-width: 0;
+}
+.grade-output-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.rendered-export-color {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.grade-color-wheels {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 6px 0 22px;
+}
+.grade-wheel-group {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  font-size: var(--small);
+  color: var(--muted);
+}
+.grade-color-wheel {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  touch-action: none;
+  cursor: crosshair;
+  background:
+    radial-gradient(circle, #898989 0%, #89898900 70%),
+    conic-gradient(from 90deg, #f44, #ff4, #4f4, #4ff, #44f, #f4f, #f44);
+  box-shadow: inset 0 0 0 1px #0005;
+}
+.grade-color-wheel.selected {
+  outline: 1px solid var(--muted);
+  outline-offset: 4px;
+}
+.grade-color-wheel:focus-visible {
+  outline: 2px solid var(--accent);
+}
+.grade-wheel-puck {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  transform: translate(-50%, -50%);
+  border: 1.5px solid white;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px #0009;
+  pointer-events: none;
+}
+.grade-mask-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.grade-crop-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  overflow: visible;
+}
+.grade-crop-frame {
+  fill: transparent;
+  stroke: white;
+  stroke-width: 1.5px;
+  vector-effect: non-scaling-stroke;
+  cursor: move;
+}
+.grade-crop-thirds {
+  stroke: #fff8;
+  stroke-width: 1px;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+.grade-crop-thirds line {
+  vector-effect: non-scaling-stroke;
+}
+.grade-crop-handle {
+  fill: white;
+  stroke: #0007;
+  stroke-width: 1px;
+  vector-effect: non-scaling-stroke;
+}
+.crop-nw,
+.crop-se {
+  cursor: nwse-resize;
+}
+.crop-ne,
+.crop-sw {
+  cursor: nesw-resize;
+}
+.crop-n,
+.crop-s {
+  cursor: ns-resize;
+}
+.crop-w,
+.crop-e {
+  cursor: ew-resize;
 }

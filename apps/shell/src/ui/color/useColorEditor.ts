@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { IrisClient } from '../../client.js';
 import { ApiError } from '../../api-error.js';
-import { sourceDocument } from '../../editing-document.js';
+import { sourceDocument, cropPreviewDocument } from '../../editing-document.js';
 import { preferredEdit, rememberEdit } from '../../editing-preferences.js';
+import { EditingPreviewQueue } from '../../editing-preview-queue.js';
 import {
   EditingClient,
   type EditDocument,
@@ -37,7 +38,8 @@ function isFinalRejection(error: unknown): boolean {
 export function useColorEditor(
   client: IrisClient,
   photoId: number | undefined,
-  showBefore = false
+  showBefore = false,
+  cropMode = false
 ) {
   const api = useMemo(() => new EditingClient(client), [client]);
   const [record, setRecord] = useState<EditRecord | null>(null);
@@ -50,6 +52,9 @@ export function useColorEditor(
   const [busy, setBusy] = useState(false);
   const [rendering, setRendering] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
+  const [previewCrop, setPreviewCrop] = useState(false);
+  const requestedCrop = useRef(cropMode);
+  requestedCrop.current = cropMode;
   const [retry, setRetry] = useState(0);
   const [previewAttempt, setPreviewAttempt] = useState(0);
   const [beforeImage, setBeforeImage] = useState<{ key: string; url: string } | null>(null);
@@ -68,6 +73,16 @@ export function useColorEditor(
     document: EditDocument;
     requestId: string;
   } | null>(null);
+  type PreviewInput = {
+    record: EditRecord;
+    document: EditDocument;
+    sequence: number;
+    edge: number;
+    crop: boolean;
+  };
+  const previewQueue = useRef<EditingPreviewQueue<PreviewInput, Blob> | null>(null);
+  const activePreviewEdge = useRef(0);
+  const previewKey = useRef('');
   const dirty = !!record && !!draft && JSON.stringify(record.document) !== JSON.stringify(draft);
   useEffect(() => {
     if (record) rememberEdit(record);
@@ -128,37 +143,71 @@ export function useColorEditor(
   }, [api, record?.id, record?.revision]);
 
   useEffect(() => {
-    if (!record || !draft) return;
-    const controller = new AbortController();
-    const number = ++sequence.current;
-    let active = true;
-    const timer = setTimeout(() => {
-      setRendering(true);
-      setPreviewError(null);
-      void api
-        .preview(record, draft, session, number, controller.signal)
-        .then((blob) => {
-          if (!active) return;
-          const url = URL.createObjectURL(blob);
-          setPreview((previous) => {
-            if (previous) URL.revokeObjectURL(previous);
-            return url;
-          });
-        })
-        .catch((reason) => {
-          if (active) setPreviewError(describe(reason));
-        })
-        .finally(() => {
-          if (active) setRendering(false);
+    previewKey.current = '';
+    const queue = new EditingPreviewQueue<PreviewInput, Blob>({
+      render: (input, signal) => {
+        activePreviewEdge.current = input.edge;
+        return api.preview(
+          input.record,
+          input.document,
+          session,
+          input.sequence,
+          signal,
+          input.edge
+        );
+      },
+      result: (blob, input) => {
+        const current = latest.current.record;
+        if (
+          current?.id !== input.record.id ||
+          current.revision !== input.record.revision ||
+          current.photo_id !== requestedPhoto.current ||
+          requestedCrop.current !== input.crop
+        )
+          return;
+        setPreviewError(null);
+        setPreviewCrop(input.crop);
+        const url = URL.createObjectURL(blob);
+        setPreview((previous) => {
+          if (previous) URL.revokeObjectURL(previous);
+          return url;
         });
-    }, 100);
+      },
+      error: (reason) => setPreviewError(describe(reason)),
+      busy: setRendering,
+      cancel: (input) => {
+        void api.cancel(session, input.sequence).catch(() => {});
+      },
+    });
+    previewQueue.current = queue;
     return () => {
-      active = false;
-      clearTimeout(timer);
-      controller.abort();
-      void api.cancel(session, number).catch(() => {});
+      queue.dispose();
+      if (previewQueue.current === queue) previewQueue.current = null;
     };
-  }, [api, record, draft, session, previewAttempt]);
+  }, [api, session]);
+  useEffect(() => {
+    if (!record || !draft || record.photo_id !== photoId) return;
+    const document = cropMode ? cropPreviewDocument(draft) : draft;
+    const key = JSON.stringify({
+      document,
+      id: record.id,
+      revision: record.revision,
+      session,
+      previewAttempt,
+      cropMode,
+    });
+    if (previewKey.current === key) return;
+    previewKey.current = key;
+    const queue = previewQueue.current;
+    queue?.push(
+      { record, document, sequence: ++sequence.current, edge: 384, crop: cropMode },
+      activePreviewEdge.current > 384
+    );
+    const timer = setTimeout(() => {
+      queue?.push({ record, document, sequence: ++sequence.current, edge: 1600, crop: cropMode });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [api, record, draft, session, photoId, previewAttempt, cropMode]);
   const beforeKey = JSON.stringify({ source: draft?.source, output: draft?.output });
   useEffect(() => {
     if (!showBefore || !record || !draft || beforeImage?.key === beforeKey) {
@@ -309,7 +358,7 @@ export function useColorEditor(
     loading: loading || (photoId !== undefined && !belongs && !error),
     busy,
     rendering,
-    preview: belongs ? preview : null,
+    preview: belongs && previewCrop === cropMode ? preview : null,
     dirty: belongs && dirty,
     setDraft: changeDraft,
     save,

@@ -11,6 +11,8 @@ import {
   type MaskLayer,
 } from '../../editing-masks.js';
 import type { BrushSettings } from './MaskPanel.js';
+import { MaskOverlay } from './MaskOverlay.js';
+import { CropOverlay } from './CropOverlay.js';
 
 type Point = [number, number];
 type Gesture = {
@@ -54,6 +56,9 @@ export function ColorCanvas({
   painting,
   brush,
   onMask,
+  showMask = true,
+  crop,
+  onCrop,
 }: {
   client: IrisClient;
   photo: Photo;
@@ -64,6 +69,9 @@ export function ColorCanvas({
   painting: boolean;
   brush: BrushSettings;
   onMask(definition: MaskDefinition): void;
+  showMask?: boolean;
+  crop?: number[] | undefined;
+  onCrop?: ((crop: number[]) => void) | undefined;
 }) {
   const original = usePhotoUrl(client, photo.id, 'preview', mediaRevision(photo));
   const url = preview ?? original.url;
@@ -89,7 +97,6 @@ export function ColorCanvas({
     setPan({ x: 0, y: 0 });
   }, [photo.id, zoom]);
   const scale = Math.min(
-    1,
     Math.max(1, size.width - 40) / Math.max(1, natural.width),
     Math.max(1, size.height - 40) / Math.max(1, natural.height)
   );
@@ -154,7 +161,7 @@ export function ColorCanvas({
       ref={stage}
       className={`grade-canvas ${isDrawing ? 'drawing' : zoom > 1 ? 'panning' : ''}`}
       onPointerDown={(event) => {
-        if (isDrawing || zoom === 1) return;
+        if (isDrawing || crop || zoom === 1) return;
         panGesture.current = { id: event.pointerId, x: event.clientX, y: event.clientY, base: pan };
         event.currentTarget.setPointerCapture(event.pointerId);
       }}
@@ -191,6 +198,16 @@ export function ColorCanvas({
               })
             }
           />
+          {crop && onCrop && (
+            <CropOverlay crop={crop} width={width} height={height} onChange={onCrop} />
+          )}
+          {layer && showMask && !before && !crop && (
+            <MaskOverlay
+              definition={layer.definition}
+              width={natural.width}
+              height={natural.height}
+            />
+          )}
           {isDrawing && layer && (
             <svg
               className="grade-mask-guides"

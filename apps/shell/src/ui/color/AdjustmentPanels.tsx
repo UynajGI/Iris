@@ -16,6 +16,7 @@ import { Panel } from '../Panel.js';
 import { Button } from '../components.js';
 import { Icon } from '../Icon.js';
 import { CurveEditor } from './CurveEditor.js';
+import { ColorWheels } from './ColorWheels.js';
 import { blackWhiteMix } from '../../editing-document.js';
 
 type SliderSpec = {
@@ -119,11 +120,15 @@ export function AdjustmentPanels({
   disabled,
   onChange,
   target,
+  optics,
+  onCrop,
 }: {
   document: EditDocument | null;
   disabled: boolean;
   onChange(document: EditDocument): void;
   target?: { adjustmentId: string; detailId: string } | undefined;
+  optics?: import('react').ReactNode;
+  onCrop?: (() => void) | undefined;
 }) {
   const localA =
     target && document?.nodes.find((node) => node.id === target.adjustmentId)?.operation;
@@ -236,11 +241,11 @@ export function AdjustmentPanels({
       </Panel>
       <Panel
         id="grade-balance"
-        title="色彩平衡"
+        title="颜色分级"
         defaultOpen={false}
-        aside={<Reset label="色彩平衡" onClick={() => resetA(['color_balance'])} />}
+        aside={<Reset label="颜色分级" onClick={() => resetA(['color_balance'])} />}
       >
-        <ColorBalanceControls adjustments={a} onChange={changeA} />
+        <ColorWheels adjustments={a} onChange={changeA} disabled={disabled} />
       </Panel>
       <Panel
         id="grade-curve"
@@ -273,9 +278,9 @@ export function AdjustmentPanels({
       </Panel>
       <Panel
         id="grade-hsl"
-        title="混色"
+        title="HSL"
         defaultOpen={false}
-        aside={<Reset label="混色" onClick={() => changeA({ ...a, hsl: [] })} />}
+        aside={<Reset label="HSL" onClick={() => changeA({ ...a, hsl: [] })} />}
       >
         <HueMixer adjustments={a} onChange={changeA} />
       </Panel>
@@ -354,12 +359,15 @@ export function AdjustmentPanels({
           defaultOpen={false}
           aside={<Reset label="几何与光学" onClick={() => changeG(defaultGeometry())} />}
         >
+          {optics}
           <AdjustmentSlider
             spec={{ key: 'rotation', label: '拉直', min: -45, max: 45, step: 0.1, unit: '°' }}
             value={g.rotation_degrees}
             onChange={(value) => changeG({ ...g, rotation_degrees: value })}
           />
-          <CropControls geometry={g} onChange={changeG} />
+          <Button className="ghost block" onClick={onCrop}>
+            在画布上裁切
+          </Button>
           {[6, 7].map((index) => (
             <AdjustmentSlider
               key={index}
@@ -472,88 +480,6 @@ function BlackWhiteMixer({
     </div>
   );
 }
-function ColorBalanceControls({
-  adjustments: a,
-  onChange,
-}: {
-  adjustments: Adjustments;
-  onChange(value: Adjustments): void;
-}) {
-  const [band, setBand] = useState<'shadows' | 'midtones' | 'highlights'>('midtones');
-  return (
-    <>
-      <div className="segmented grade-balance-tabs" role="group" aria-label="色彩平衡范围">
-        {(
-          [
-            ['shadows', '阴影'],
-            ['midtones', '中间调'],
-            ['highlights', '高光'],
-          ] as const
-        ).map(([key, name]) => (
-          <Button key={key} aria-pressed={band === key} onClick={() => setBand(key)}>
-            {name}
-          </Button>
-        ))}
-      </div>
-      {['红色', '绿色', '蓝色'].map((label, index) => (
-        <AdjustmentSlider
-          key={label}
-          spec={{ key: `balance-${index}`, label, min: -2, max: 2, scale: 50 }}
-          value={a.color_balance[band][index]!}
-          onChange={(value) =>
-            onChange({
-              ...a,
-              color_balance: {
-                ...a.color_balance,
-                [band]: a.color_balance[band].map((item, i) => (i === index ? value : item)),
-              },
-            })
-          }
-        />
-      ))}
-    </>
-  );
-}
-function CropControls({
-  geometry: g,
-  onChange,
-}: {
-  geometry: Geometry;
-  onChange(value: Geometry): void;
-}) {
-  const edges = [g.crop[0]!, 1 - g.crop[0]! - g.crop[2]!, g.crop[1]!, 1 - g.crop[1]! - g.crop[3]!];
-  return (
-    <details className="grade-advanced">
-      <summary>裁切边界</summary>
-      {['左侧裁切', '右侧裁切', '顶部裁切', '底部裁切'].map((label, index) => {
-        const opposite = index % 2 === 0 ? index + 1 : index - 1;
-        return (
-          <AdjustmentSlider
-            key={label}
-            spec={{
-              key: `crop-${index}`,
-              label,
-              min: 0,
-              max: Math.max(0, 0.99 - edges[opposite]!),
-              step: 0.001,
-              scale: 100,
-            }}
-            value={Math.max(0, edges[index]!)}
-            onChange={(value) => {
-              const next = [...edges];
-              next[index] = value;
-              onChange({
-                ...g,
-                crop: [next[0]!, next[2]!, 1 - next[0]! - next[1]!, 1 - next[2]! - next[3]!],
-              });
-            }}
-          />
-        );
-      })}
-    </details>
-  );
-}
-
 const hues = [
   ['红', 0],
   ['橙', 30],
@@ -588,7 +514,7 @@ function HueMixer({
     });
   return (
     <>
-      <div className="grade-hues" role="group" aria-label="混色颜色">
+      <div className="grade-hues" role="group" aria-label="HSL 颜色">
         {hues.map(([name, hue]) => (
           <button
             type="button"

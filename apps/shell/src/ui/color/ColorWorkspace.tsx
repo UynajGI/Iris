@@ -7,12 +7,15 @@ import { Histogram } from '../Histogram.js';
 import { Panel } from '../Panel.js';
 import { useColorEditor } from './useColorEditor.js';
 import { AdjustmentPanels } from './AdjustmentPanels.js';
+import { OutputPanel } from './OutputPanel.js';
+import { LensProfilePanel } from './LensProfilePanel.js';
 import {
   defaultAdjustments,
   defaultDetail,
   defaultGeometry,
   updatePanel,
   resetDocument,
+  parameters,
 } from '../../editing-document.js';
 import { maskLayers, primaryMask, setMask, validateMaskBudget } from '../../editing-masks.js';
 import { MaskPanel, type BrushSettings } from './MaskPanel.js';
@@ -32,9 +35,22 @@ export function ColorWorkspace({
 }: { model: PhotoWorkspaceModel } & EditorBridge) {
   const photo = model.current;
   const [before, setBefore] = useState(false);
-  const editor = useColorEditor(model.store.client, photo?.id, before);
+  const [cropMode, setCropMode] = useState(false);
+  const [showMask, setShowMask] = useState(true);
+  const editor = useColorEditor(model.store.client, photo?.id, before, cropMode);
   const [zoom, setZoom] = useState(1);
   const [selectedMask, setSelectedMask] = useState<string | null>(null);
+  const [toolTab, setToolTab] = useState<'adjustments' | 'masks' | 'output' | 'metadata'>(() => {
+    try {
+      const saved = sessionStorage.getItem('iris:grade-tool-tab');
+      if (saved === 'masks' || saved === 'output' || saved === 'metadata') return saved;
+    } catch {
+      /* Optional view preference. */
+    }
+    return 'adjustments';
+  });
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const historyMenu = useRef<HTMLDivElement>(null);
   const [painting, setPainting] = useState(true);
   const [brush, setBrush] = useState<BrushSettings>({
     radius: 0.05,
@@ -43,9 +59,35 @@ export function ColorWorkspace({
     erase: false,
   });
   const [drawError, setDrawError] = useState<string | null>(null);
-  const layer = maskLayers(editor.draft).find((item) => item.id === selectedMask);
+  const layer =
+    toolTab === 'masks'
+      ? maskLayers(editor.draft).find((item) => item.id === selectedMask)
+      : undefined;
   const strip = useRef<HTMLDivElement>(null);
   const available = !!editor.draft && !editor.loading && !editor.busy;
+  useEffect(() => {
+    try {
+      sessionStorage.setItem('iris:grade-tool-tab', toolTab);
+    } catch {
+      /* Optional view preference. */
+    }
+  }, [toolTab]);
+  useEffect(() => {
+    if (!historyOpen) return;
+    const dismiss = (event: PointerEvent) => {
+      if (event.target instanceof Node && !historyMenu.current?.contains(event.target))
+        setHistoryOpen(false);
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setHistoryOpen(false);
+    };
+    window.addEventListener('pointerdown', dismiss);
+    window.addEventListener('keydown', escape);
+    return () => {
+      window.removeEventListener('pointerdown', dismiss);
+      window.removeEventListener('keydown', escape);
+    };
+  }, [historyOpen]);
   useEffect(() => {
     onDirty?.(editor.dirty);
   }, [editor.dirty, onDirty]);
@@ -58,6 +100,7 @@ export function ColorWorkspace({
   }, [editor.save, onDirty, registerSave]);
   useEffect(() => {
     setBefore(false);
+    setCropMode(false);
     setZoom(1);
     setSelectedMask(null);
     setDrawError(null);
@@ -116,7 +159,7 @@ export function ColorWorkspace({
   const position = photos.findIndex((item) => item.id === photo?.id);
   return (
     <main className="color-workspace" aria-label="调色工作区">
-      <aside className="grade-library" aria-label="调色版本与历史">
+      <aside className="grade-library" aria-label="调色版本">
         <div className="grade-library-heading">
           <Icon name="image" />
           <span>当前照片</span>
@@ -154,9 +197,6 @@ export function ColorWorkspace({
           ) : (
             <span className="muted">{editor.loading ? '正在读取' : '暂无版本'}</span>
           )}
-        </Panel>
-        <Panel id="grade-history" title="历史">
-          <EditHistoryList history={editor.history} />
         </Panel>
       </aside>
       <section className="grade-center" aria-label="照片与胶片栏">
@@ -223,7 +263,18 @@ export function ColorWorkspace({
               before={before}
               zoom={zoom}
               layer={layer}
-              painting={painting && !before && available}
+              painting={painting && !before && !cropMode && available}
+              showMask={showMask}
+              crop={cropMode ? parameters(editor.draft, 'geometry').crop : undefined}
+              onCrop={(crop) => {
+                if (available && editor.draft)
+                  editor.setDraft(
+                    updatePanel(editor.draft, {
+                      type: 'geometry',
+                      parameters: { ...parameters(editor.draft, 'geometry'), crop },
+                    })
+                  );
+              }}
               brush={brush}
               onMask={(definition) => {
                 if (!editor.draft || !layer) return;
@@ -253,12 +304,36 @@ export function ColorWorkspace({
           <Button
             className="quiet"
             aria-pressed={before}
-            disabled={!photo}
+            disabled={!photo || cropMode}
             onClick={() => setBefore((value) => !value)}
           >
             <Icon name="compare" />
             原图
           </Button>
+          <Button
+            className="quiet"
+            aria-pressed={cropMode}
+            disabled={!available}
+            onClick={() => {
+              setCropMode((value) => !value);
+              setBefore(false);
+              setSelectedMask(null);
+              setToolTab('adjustments');
+              setZoom(1);
+            }}
+          >
+            <Icon name="fit" />
+            {cropMode ? '完成裁切' : '裁切'}
+          </Button>
+          {layer && !cropMode && (
+            <Button
+              className="quiet"
+              aria-pressed={showMask}
+              onClick={() => setShowMask((value) => !value)}
+            >
+              显示蒙版
+            </Button>
+          )}
           {layer &&
             ['brush', 'linear_gradient', 'radial_gradient'].includes(
               primaryMask(layer.definition).kind
@@ -358,7 +433,71 @@ export function ColorWorkspace({
           >
             <Icon name="undo" />
           </Button>
+          <div className="grade-history-menu" ref={historyMenu}>
+            <Button
+              className="quiet icon-only"
+              aria-label="调色历史"
+              title="调色历史"
+              aria-expanded={historyOpen}
+              aria-controls="grade-history-popup"
+              onClick={() => setHistoryOpen((value) => !value)}
+            >
+              <Icon name="schedule" />
+            </Button>
+            {historyOpen && (
+              <div
+                id="grade-history-popup"
+                className="grade-history-popup"
+                role="region"
+                aria-label="调色历史记录"
+              >
+                <h2>历史</h2>
+                <EditHistoryList history={editor.history} />
+              </div>
+            )}
+          </div>
         </header>
+        <div className="grade-tool-tabs" role="tablist" aria-label="调色工具分页">
+          {(
+            [
+              ['adjustments', '调色'],
+              ['masks', '蒙版'],
+              ['output', '颜色管理'],
+              ['metadata', '信息'],
+            ] as const
+          ).map(([id, label], index, tabs) => (
+            <button
+              type="button"
+              role="tab"
+              id={`grade-tab-${id}`}
+              key={id}
+              aria-selected={toolTab === id}
+              aria-controls="grade-tool-page"
+              tabIndex={toolTab === id ? 0 : -1}
+              onClick={() => {
+                setToolTab(id);
+                setBefore(false);
+              }}
+              onKeyDown={(event) => {
+                const offset = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
+                const next =
+                  event.key === 'Home'
+                    ? 0
+                    : event.key === 'End'
+                      ? tabs.length - 1
+                      : offset
+                        ? (index + offset + tabs.length) % tabs.length
+                        : null;
+                if (next === null) return;
+                event.preventDefault();
+                setToolTab(tabs[next]![0]);
+                document.getElementById(`grade-tab-${tabs[next]![0]}`)?.focus();
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
         <div className="grade-inspector-scroll">
           <Histogram
             client={model.store.client}
@@ -386,43 +525,67 @@ export function ColorWorkspace({
               {drawError}
             </p>
           )}
-          <MaskPanel
-            document={editor.draft}
-            disabled={!available}
-            selected={layer?.id ?? null}
-            onSelect={(id) => {
-              setSelectedMask(id);
-              setPainting(true);
-              setBefore(false);
-            }}
-            onChange={editor.setDraft}
-            brush={brush}
-            onBrush={setBrush}
-          />
-          <div className="grade-compact-history">
-            <Panel id="grade-compact-history" title="历史" defaultOpen={false}>
-              <EditHistoryList history={editor.history} />
-            </Panel>
+          <div id="grade-tool-page" role="tabpanel" aria-labelledby={`grade-tab-${toolTab}`}>
+            {toolTab === 'masks' && (
+              <MaskPanel
+                document={editor.draft}
+                disabled={!available}
+                selected={layer?.id ?? null}
+                onSelect={(id) => {
+                  setSelectedMask(id);
+                  setPainting(true);
+                  setBefore(false);
+                }}
+                onChange={editor.setDraft}
+                brush={brush}
+                onBrush={setBrush}
+              />
+            )}
+            {layer && <div className="grade-adjustment-target">正在调整：{layer.name}</div>}
+            {(toolTab === 'adjustments' || (toolTab === 'masks' && layer)) && (
+              <AdjustmentPanels
+                document={editor.draft}
+                disabled={!available}
+                onChange={editor.setDraft}
+                target={
+                  layer ? { adjustmentId: layer.adjustmentId, detailId: layer.detailId } : undefined
+                }
+                optics={
+                  <LensProfilePanel
+                    client={model.store.client}
+                    record={editor.record}
+                    document={editor.draft}
+                    disabled={!available}
+                    onChange={editor.setDraft}
+                  />
+                }
+                onCrop={() => {
+                  setCropMode(true);
+                  setBefore(false);
+                  setZoom(1);
+                }}
+              />
+            )}
+            {toolTab === 'output' && (
+              <OutputPanel
+                document={editor.draft}
+                disabled={!available}
+                onChange={editor.setDraft}
+              />
+            )}
+            {toolTab === 'metadata' && photo && (
+              <section className="grade-settings-page" aria-label="元数据">
+                <Metadata photo={photo} />
+              </section>
+            )}
           </div>
-          {layer && <div className="grade-adjustment-target">正在调整：{layer.name}</div>}
-          <AdjustmentPanels
-            document={editor.draft}
-            disabled={!available}
-            onChange={editor.setDraft}
-            target={
-              layer ? { adjustmentId: layer.adjustmentId, detailId: layer.detailId } : undefined
-            }
-          />
-          {photo && (
-            <Panel id="grade-metadata" title="元数据" defaultOpen={false}>
-              <Metadata photo={photo} />
-            </Panel>
-          )}
         </div>
         <footer className="grade-inspector-footer">
-          <Button className="ghost" disabled={!available} onClick={reset}>
-            {layer ? '重置局部' : '重置全局'}
-          </Button>
+          {(toolTab === 'adjustments' || layer) && (
+            <Button className="ghost" disabled={!available} onClick={reset}>
+              {layer ? '重置局部' : '重置全局'}
+            </Button>
+          )}
           <Button primary disabled={!available || !editor.dirty} onClick={() => void editor.save()}>
             保存调整
           </Button>

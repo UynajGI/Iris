@@ -11,6 +11,7 @@ export type EditHistoryEntry = S['EditHistoryEntry'];
 export type EditRecipe = S['EditRecipe'];
 export type RenderedExportStatus = S['RenderedExportStatus'];
 export type RenderedExportRequest = S['RenderedExportRequest'];
+export type LensProfileSuggestion = S['LensProfileSuggestion'];
 
 const path = (id: string) => `/api/v1/edits/${encodeURIComponent(id)}`;
 export class EditingClient {
@@ -62,7 +63,8 @@ export class EditingClient {
     document: EditDocument,
     session: string,
     sequence: number,
-    signal: AbortSignal
+    signal: AbortSignal,
+    maxEdge = 1600
   ) {
     return this.client.transport.postBlob(
       `${path(record.id)}/preview-draft`,
@@ -72,7 +74,7 @@ export class EditingClient {
           session,
           sequence,
           quality: 'interactive',
-          max_edge: 1600,
+          max_edge: maxEdge,
         },
         document,
       } satisfies S['DraftPreviewRequest'],
@@ -132,6 +134,22 @@ export class EditingClient {
   }
   presets() {
     return this.client.transport.request<S['EditPreset'][]>('GET', '/api/v1/edit-presets');
+  }
+  importLensProfile(file: Blob) {
+    return this.client.transport.upload<S['EditResource']>(
+      '/api/v1/edit-resources/import/lens_profile',
+      file
+    );
+  }
+  lensProfile(record: EditRecord, resource: string) {
+    return this.client.transport.request<LensProfileSuggestion>(
+      'POST',
+      `${path(record.id)}/lens-profile`,
+      {
+        expected_revision: record.revision,
+        resource,
+      }
+    );
   }
   savePreset(name: string, recipe: EditRecipe) {
     return this.client.transport.request<S['EditPreset']>('POST', '/api/v1/edit-presets', {

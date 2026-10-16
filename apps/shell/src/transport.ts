@@ -65,6 +65,21 @@ export class Transport {
     if (!response.ok) throw new ApiError(response.status, await response.text());
     return response.blob();
   }
+  async upload<T>(path: string, body: Blob): Promise<T> {
+    if (!path.startsWith('/api/v1/')) throw new Error('Invalid API path');
+    const response = await this.fetcher(this.baseUrl + path, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${this.session.token}`,
+        'Content-Type': 'application/octet-stream',
+      },
+      body,
+      redirect: 'error',
+      cache: 'no-store',
+    });
+    if (!response.ok) throw new ApiError(response.status, await response.text());
+    return response.json() as Promise<T>;
+  }
   async postBlob(path: string, body: unknown, signal?: AbortSignal): Promise<Blob> {
     if (!path.startsWith('/api/v1/')) throw new Error('Invalid API path');
     const response = await this.fetcher(this.baseUrl + path, {

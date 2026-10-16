@@ -14,7 +14,6 @@ import {
   type MaskDefinition,
   type MaskKind,
 } from '../../editing-masks.js';
-import { Panel } from '../Panel.js';
 import { Button } from '../components.js';
 import { Icon } from '../Icon.js';
 import { AdjustmentSlider } from './AdjustmentPanels.js';
@@ -46,57 +45,63 @@ export function MaskPanel({
       onChange(setMask(document, layer, replacePrimary(layer.definition, mask)));
   };
   return (
-    <Panel id="grade-masks" title="蒙版" defaultOpen={false}>
+    <section aria-label="蒙版编辑">
       <fieldset disabled={disabled} className="grade-mask-controls">
-        <div className="grade-mask-list" role="group" aria-label="调整范围">
-          <button type="button" aria-pressed={selected === null} onClick={() => onSelect(null)}>
-            <Icon name="image" />
-            <span>全局调整</span>
-          </button>
-          {layers.map((item) => (
-            <div key={item.id} className="grade-mask-row">
-              <button
-                type="button"
-                aria-pressed={selected === item.id}
-                onClick={() => onSelect(item.id)}
-              >
-                <Icon name="tune" />
-                <span>{item.name}</span>
-              </button>
-              <input
-                type="checkbox"
-                aria-label={`启用${item.name}`}
-                checked={item.visible}
-                onChange={(event) => {
-                  if (document)
-                    onChange(setMaskBlend(document, item, event.target.checked, item.opacity));
-                }}
-              />
+        {layer && (
+          <Button className="quiet" onClick={() => onSelect(null)}>
+            <Icon name="back" />
+            全部蒙版
+          </Button>
+        )}
+        {!layer && (
+          <>
+            <div className="grade-mask-list" role="group" aria-label="调整范围">
+              {layers.map((item) => (
+                <div key={item.id} className="grade-mask-row">
+                  <button
+                    type="button"
+                    aria-pressed={selected === item.id}
+                    onClick={() => onSelect(item.id)}
+                  >
+                    <Icon name="tune" />
+                    <span>{item.name}</span>
+                  </button>
+                  <input
+                    type="checkbox"
+                    aria-label={`启用${item.name}`}
+                    checked={item.visible}
+                    onChange={(event) => {
+                      if (document)
+                        onChange(setMaskBlend(document, item, event.target.checked, item.opacity));
+                    }}
+                  />
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-        <select
-          aria-label="新建蒙版"
-          value=""
-          onChange={(event) => {
-            if (!document || !event.target.value) return;
-            try {
-              const result = addMask(document, event.target.value as MaskKind);
-              onChange(result.document);
-              onSelect(result.id);
-              setError(null);
-            } catch (reason) {
-              setError(String(reason));
-            }
-          }}
-        >
-          <option value="">新建蒙版</option>
-          {Object.entries(maskNames).map(([kind, name]) => (
-            <option key={kind} value={kind}>
-              {name}
-            </option>
-          ))}
-        </select>
+            <select
+              aria-label="新建蒙版"
+              value=""
+              onChange={(event) => {
+                if (!document || !event.target.value) return;
+                try {
+                  const result = addMask(document, event.target.value as MaskKind);
+                  onChange(result.document);
+                  onSelect(result.id);
+                  setError(null);
+                } catch (reason) {
+                  setError(String(reason));
+                }
+              }}
+            >
+              <option value="">新建蒙版</option>
+              {Object.entries(maskNames).map(([kind, name]) => (
+                <option key={kind} value={kind}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </>
+        )}
         {layer && document && (
           <div className="grade-mask-options">
             <label className="grade-mask-name">
@@ -252,6 +257,6 @@ export function MaskPanel({
           </p>
         )}
       </fieldset>
-    </Panel>
+    </section>
   );
 }
