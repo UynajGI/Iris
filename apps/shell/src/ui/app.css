@@ -1163,9 +1163,7 @@ body {
   color: #efefef;
 }
 .photo-placeholder.loading {
-  background: linear-gradient(100deg, #555 30%, #606060 50%, #555 70%);
-  background-size: 250% 100%;
-  animation: sweep 1.8s linear infinite;
+  background: #343434;
 }
 .photo-placeholder.unavailable {
   background: #343434;
@@ -1175,7 +1173,7 @@ img.loading {
   opacity: 0;
 }
 img.loaded {
-  animation: fade 160ms var(--ease-out);
+  animation: none;
 }
 .canvas-empty {
   display: grid;

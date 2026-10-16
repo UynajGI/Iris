@@ -93,11 +93,6 @@ function DetailMeasurement({
       >
         {request ? '取消细节复核' : '复核原始细节'}
       </Button>
-      {request && (
-        <p className="muted" role="status">
-          正在读取原图区域…
-        </p>
-      )}
       {error && (
         <p className="inline-error" role="alert">
           细节复核未完成，可重试：{error}

@@ -25,7 +25,7 @@ test('clipping overlays use the same boundary samples as the percentage readout'
 
 test('wheel disk maps angle and radial distance, retaining hue at neutral and clamping outside', () => {
   assert.deepEqual(wheelPoint(0.5, 0.5, 217), { hue: 217, saturation: 0 });
-  assert.equal(wheelPoint(0.5, 0.73, 0).hue, 90);
+  assert.equal(wheelPoint(0.5, 0.73, 0).hue, 270);
   assert.ok(Math.abs(wheelPoint(0.5, 0.73, 0).saturation - 1) < 1e-12);
   assert.deepEqual(wheelPoint(2, 0.5, 0), { hue: 0, saturation: 2 });
 });

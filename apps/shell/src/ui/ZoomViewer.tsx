@@ -355,7 +355,11 @@ export function ZoomViewer({
         </div>
       )}
       {(!source || loaded !== source) && !failed && (
-        <span className="zoom-loading" role="status" aria-label={`${photo.filename}：正在载入`} />
+        <span
+          className="visually-hidden"
+          role="status"
+          aria-label={`${photo.filename}：正在载入`}
+        />
       )}
       {failed && (
         <span className="zoom-failed" role="img" aria-label={`${photo.filename}：照片暂不可用`}>
@@ -363,9 +367,9 @@ export function ZoomViewer({
           照片暂不可用，请重新打开此照片
         </span>
       )}
-      {originalRequested && !showOriginal && (
+      {originalRequested && !showOriginal && originalFailed && (
         <span className="zoom-badge" role="status">
-          {originalFailed ? '原图暂不可用 · 当前显示预览' : '正在载入原图'}
+          原图暂不可用 · 当前显示预览
         </span>
       )}
       {zoomed && size.width > 0 && (

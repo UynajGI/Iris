@@ -96,13 +96,7 @@ function ScopePlot({
   if (!data || !selected.length)
     return (
       <div className="histogram-empty">
-        {!photo
-          ? '未选择照片'
-          : failed
-            ? '示波图暂不可用'
-            : !selected.length
-              ? '选择下方通道'
-              : '正在读取预览'}
+        {!photo ? '未选择照片' : failed ? '示波图暂不可用' : !selected.length ? '选择下方通道' : ''}
       </div>
     );
   if (mode !== 'histogram')
@@ -175,23 +169,27 @@ function ScopeChannels({
   );
 }
 
-function useScopeResult(mediaUrl: string | null) {
-  const [result, setResult] = useState<{ url: string; data: ScopeData | null } | null>(null);
+function useScopeResult(mediaUrl: string | null, photoId: number | undefined) {
+  const [result, setResult] = useState<{
+    photoId: number | undefined;
+    url: string;
+    data: ScopeData | null;
+  } | null>(null);
   useEffect(() => {
     if (!mediaUrl) return;
     const url = mediaUrl;
     let active = true;
     void computeScopes(url)
       .then((data) => {
-        if (active) setResult({ url, data });
+        if (active) setResult({ photoId, url, data });
       })
       .catch(() => {
-        if (active) setResult({ url, data: null });
+        if (active) setResult({ photoId, url, data: null });
       });
     return () => {
       active = false;
     };
-  }, [mediaUrl]);
+  }, [mediaUrl, photoId]);
   return result;
 }
 
@@ -217,7 +215,7 @@ export function Histogram({
   const [settings, setSettings] = useState(preferences);
   const { mode, selected } = settings;
   const displayedUrl = previewUrl ?? media.url;
-  const result = useScopeResult(displayedUrl);
+  const result = useScopeResult(displayedUrl, photo?.id);
   useEffect(() => {
     try {
       localStorage.setItem(preferenceKey, JSON.stringify({ mode }));
@@ -225,7 +223,8 @@ export function Histogram({
       /* Preferences are optional. */
     }
   }, [mode]);
-  const data = result?.url === displayedUrl ? result?.data : null;
+  // Keep the last complete measurement while this photo's next frame is sampled.
+  const data = photo && result?.photoId === photo.id ? result.data : null;
   const failed =
     (!previewUrl && !!media.error) ||
     (!!displayedUrl && result?.url === displayedUrl && !result.data);

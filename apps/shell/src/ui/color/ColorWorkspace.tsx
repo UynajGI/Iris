@@ -385,11 +385,6 @@ export function ColorWorkspace({
               {pickingWhite ? '点击中性灰或白色区域' : '原图'}
             </span>
           )}
-          {!nativeActive && (editor.rendering || (before && editor.beforeLoading)) && (
-            <span className="grade-render-state" role="status">
-              正在预览
-            </span>
-          )}
         </section>
         <div className="grade-viewbar">
           <Button

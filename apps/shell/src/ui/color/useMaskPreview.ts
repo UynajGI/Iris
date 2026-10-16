@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { IrisClient } from '../../client.js';
 import { EditingClient, type EditDocument, type EditRecord } from '../../editing-client.js';
 import { EditingPreviewQueue } from '../../editing-preview-queue.js';
+import { PreviewFrames } from '../../preview-frames.js';
 import { maskGridKey } from '../../editing-mask-preview.js';
 
 type Input = {
@@ -36,18 +37,27 @@ export function useMaskPreview(
   const latest = useRef({ key, grid, scope });
   latest.current = { key, grid, scope };
   useEffect(() => {
+    const frames = new PreviewFrames();
     const pending = new EditingPreviewQueue<Input, Blob>({
       render: (input, signal) =>
         api.maskPreview(input.record, input.document, maskId, session, input.sequence, signal),
       result: (blob, input) => {
-        const inputScope = JSON.stringify([input.record.id, input.record.revision, maskId]);
-        if (latest.current.scope !== inputScope || latest.current.grid !== input.grid) return;
-        setResult({
-          key: input.key,
-          grid: input.grid,
-          scope: inputScope,
-          url: URL.createObjectURL(blob),
-        });
+        void frames.show(
+          blob,
+          (url) => {
+            const inputScope = JSON.stringify([input.record.id, input.record.revision, maskId]);
+            if (latest.current.scope !== inputScope || latest.current.grid !== input.grid)
+              return false;
+            setResult({
+              key: input.key,
+              grid: input.grid,
+              scope: inputScope,
+              url,
+            });
+            return true;
+          },
+          () => setError({ key: input.key, message: '蒙版覆盖读取失败' })
+        );
       },
       error: (reason, input) => {
         if (latest.current.key !== input.key) return;
@@ -65,6 +75,7 @@ export function useMaskPreview(
     queue.current = pending;
     return () => {
       pending.dispose();
+      frames.dispose();
       if (queue.current === pending) queue.current = null;
       void api.close(session).catch(() => {});
     };
@@ -72,12 +83,6 @@ export function useMaskPreview(
   useEffect(() => {
     queue.current?.push({ record, document, key, grid, sequence: ++sequence.current });
   }, [key, session]);
-  useEffect(
-    () => () => {
-      if (result) URL.revokeObjectURL(result.url);
-    },
-    [result]
-  );
   const failure = error?.key === key ? error.message : null;
   const current = result?.scope === scope && result.grid === grid && !failure ? result : null;
   return {

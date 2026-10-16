@@ -1285,8 +1285,8 @@
 }
 .grade-wheel-bands {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
   border-bottom: 1px solid var(--line-subtle);
 }
 .grade-wheel-bands button {
@@ -1317,13 +1317,13 @@
 }
 .grade-color-wheel {
   position: absolute;
-  inset: 18px;
+  inset: 9px;
   border-radius: 50%;
   touch-action: none;
   cursor: crosshair;
   background:
-    radial-gradient(circle closest-side, #a0a0a0 0%, #a0a0a000 100%),
-    conic-gradient(from 90deg, #f44, #ff4, #4f4, #4ff, #44f, #f4f, #f44);
+    radial-gradient(circle closest-side, #b8b8b8 0%, #b8b8b800 100%),
+    conic-gradient(from 90deg, #ed4545, #d848de, #4949e4, #48d6d6, #5bdb50, #e4df46, #ed4545);
   box-shadow: inset 0 0 0 1px #0005;
 }
 .grade-color-wheel.selected {
@@ -1347,8 +1347,8 @@
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: conic-gradient(from 90deg, #f44, #ff4, #4f4, #4ff, #44f, #f4f, #f44);
-  mask: radial-gradient(farthest-side, transparent calc(100% - 9px), #000 calc(100% - 8px));
+  inset: 5px;
+  border: 1px solid #ffffff24;
 }
 .grade-hue-ring:focus-visible {
   outline: 2px solid var(--accent);
@@ -1366,20 +1366,21 @@
 .grade-hue-marker::after {
   content: '';
   position: absolute;
-  right: 1px;
-  top: calc(50% - 2px);
-  height: 4px;
-  width: 13px;
-  background: #fff;
-  border-radius: 1px;
-  box-shadow: 0 1px 3px #000b;
+  right: 0;
+  top: calc(50% - 5px);
+  height: 10px;
+  width: 10px;
+  background: #bdbdbd;
+  border: 1px solid #252525;
+  border-radius: 50%;
 }
 .grade-wheel-radius {
   position: absolute;
   left: 50%;
   top: 50%;
   height: 1px;
-  background: #fff8;
+  width: 50%;
+  background: #202020a0;
   transform-origin: left center;
   pointer-events: none;
 }
@@ -1410,7 +1411,56 @@
   border: 1.5px solid white;
   border-radius: 50%;
   box-shadow: 0 1px 3px #0009;
-  pointer-events: none;
+  cursor: grab;
+}
+.grade-wheel-puck:active {
+  cursor: grabbing;
+}
+.grade-wheels-three {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding-top: 12px;
+}
+.grade-wheels-three > :first-child {
+  grid-column: 1 / -1;
+  width: calc(50% - 6px);
+  justify-self: center;
+}
+.grade-wheel-mini {
+  min-width: 0;
+}
+.grade-wheel-mini .grade-color-wheels {
+  margin: 4px auto 8px;
+}
+.grade-wheel-mini > button {
+  display: block;
+  margin: auto;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--small);
+}
+.grade-wheel-mini .grade-slider {
+  grid-template-columns: minmax(0, 1fr) 40px;
+}
+.grade-wheel-mini .grade-slider > label {
+  display: none;
+}
+.grade-wheel-values {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  font-size: var(--small);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.grade-wheel-controls > summary {
+  text-align: center;
+  color: var(--muted);
+  font-size: var(--small);
+  cursor: pointer;
+  padding: 8px;
 }
 .grade-mask-overlay {
   position: absolute;

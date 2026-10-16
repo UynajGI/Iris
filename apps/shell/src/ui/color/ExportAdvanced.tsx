@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { IrisClient } from '../../client.js';
 import { EditingClient, type EditDocument, type EditRecord } from '../../editing-client.js';
 import { EditingPreviewQueue } from '../../editing-preview-queue.js';
+import { PreviewFrames } from '../../preview-frames.js';
 import { OutputPanel } from './OutputPanel.js';
 import { LutPanel } from './LutPanel.js';
 import { ProofPanel, type ProofProfile } from './ProofPanel.js';
@@ -27,7 +28,6 @@ function useExportPreview(props: Props, proof: string | null) {
   const session = useMemo(() => crypto.randomUUID(), [props.record.id]);
   const sequence = useRef(0);
   const queue = useRef<EditingPreviewQueue<PreviewInput, Blob> | null>(null);
-  const url = useRef<string | null>(null);
   const [frame, setFrame] = useState<{ url: string; mode: string } | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -35,6 +35,7 @@ function useExportPreview(props: Props, proof: string | null) {
   const latestMode = useRef(mode);
   latestMode.current = mode;
   useEffect(() => {
+    const frames = new PreviewFrames();
     const pending = new EditingPreviewQueue<PreviewInput, Blob>({
       render: (input, signal) =>
         api.preview(
@@ -47,11 +48,16 @@ function useExportPreview(props: Props, proof: string | null) {
           input.proof
         ),
       result: (blob, input) => {
-        if (input.mode !== latestMode.current) return;
-        if (url.current) URL.revokeObjectURL(url.current);
-        url.current = URL.createObjectURL(blob);
-        setFrame({ url: url.current, mode: input.mode });
-        setError('');
+        void frames.show(
+          blob,
+          (url) => {
+            if (input.mode !== latestMode.current) return false;
+            setFrame({ url, mode: input.mode });
+            setError('');
+            return true;
+          },
+          (reason) => setError(String(reason))
+        );
       },
       error: (reason) => setError(reason instanceof Error ? reason.message : String(reason)),
       busy: setBusy,
@@ -62,8 +68,7 @@ function useExportPreview(props: Props, proof: string | null) {
     queue.current = pending;
     return () => {
       pending.dispose();
-      if (url.current) URL.revokeObjectURL(url.current);
-      url.current = null;
+      frames.dispose();
       void api.close(session).catch(() => {});
     };
   }, [api, session]);
@@ -97,7 +102,7 @@ function ExportColorControls(props: Props) {
         {preview ? (
           <img src={preview} alt={profile?.enabled ? '软打样预览' : '调整预览'} />
         ) : (
-          <span>{error ? '预览不可用' : '正在生成预览'}</span>
+          <span>{error ? '预览不可用' : ''}</span>
         )}
         {preview && (
           <span className="export-preview-label">{profile?.enabled ? '软打样' : '调整预览'}</span>

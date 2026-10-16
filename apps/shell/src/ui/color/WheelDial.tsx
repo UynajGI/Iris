@@ -1,5 +1,6 @@
-import type { KeyboardEvent, PointerEvent } from 'react';
-import { wheelPoint, type WheelColor } from '../../editing-color-wheel.js';
+import type { KeyboardEvent } from 'react';
+import type { WheelColor } from '../../editing-color-wheel.js';
+import { useWheelGesture } from './useWheelGesture.js';
 
 export function WheelDial({
   label,
@@ -12,16 +13,7 @@ export function WheelDial({
   disabled: boolean;
   onChange(patch: Partial<WheelColor>): void;
 }) {
-  const drag = (event: PointerEvent<HTMLDivElement>, ring: boolean) => {
-    if (disabled) return;
-    const box = event.currentTarget.getBoundingClientRect();
-    const point = wheelPoint(
-      (event.clientX - box.left) / box.width,
-      (event.clientY - box.top) / box.height,
-      value.hue
-    );
-    onChange(ring ? { hue: point.hue } : point);
-  };
+  const gesture = useWheelGesture(value, disabled, onChange);
   const keys = (event: KeyboardEvent<HTMLDivElement>, ring: boolean) => {
     if (disabled) return;
     if (!['Home', 'End', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key))
@@ -44,24 +36,6 @@ export function WheelDial({
               : Math.max(0, Math.min(2, value.saturation + step / 50)),
       });
   };
-  const gesture = (ring: boolean) => ({
-    onPointerDown: (event: PointerEvent<HTMLDivElement>) => {
-      if (disabled || event.button !== 0) return;
-      event.preventDefault();
-      event.currentTarget.focus();
-      event.currentTarget.setPointerCapture(event.pointerId);
-      drag(event, ring);
-    },
-    onPointerMove: (event: PointerEvent<HTMLDivElement>) => {
-      if (event.currentTarget.hasPointerCapture(event.pointerId)) drag(event, ring);
-    },
-    onPointerUp: (event: PointerEvent<HTMLDivElement>) => {
-      if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
-      drag(event, ring);
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    },
-    onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => keys(event, ring),
-  });
   const angle = (value.hue * Math.PI) / 180;
   return (
     <div className="grade-color-wheels" role="group" aria-label={`${label}色轮`}>
@@ -78,10 +52,14 @@ export function WheelDial({
           tabIndex={disabled ? -1 : 0}
           title="沿外环调整色相"
           {...gesture(true)}
+          onKeyDown={(event) => keys(event, true)}
+          onDoubleClick={() => {
+            if (!disabled) onChange({ hue: 0 });
+          }}
         >
           <span
             className="grade-hue-marker"
-            style={{ transform: `rotate(${value.hue}deg)` }}
+            style={{ transform: `rotate(${-value.hue}deg)` }}
             aria-hidden="true"
           />
         </div>
@@ -95,16 +73,17 @@ export function WheelDial({
           aria-valuetext={`色相 ${Math.round(value.hue)} 度，饱和度 ${Math.round(value.saturation * 50)}`}
           aria-disabled={disabled}
           tabIndex={disabled ? -1 : 0}
-          title="从中心向边缘增加饱和度，双击归零"
+          title="Shift：锁定色相；Ctrl / ⌘：锁定饱和度；Alt：精细调整；双击归零"
           {...gesture(false)}
+          onKeyDown={(event) => keys(event, event.ctrlKey || event.metaKey)}
           onDoubleClick={() => {
-            if (!disabled) onChange({ saturation: 0 });
+            if (!disabled) onChange({ hue: 0, saturation: 0 });
           }}
         >
           <span
             className="grade-wheel-radius"
             aria-hidden="true"
-            style={{ width: `${value.saturation * 23}%`, transform: `rotate(${value.hue}deg)` }}
+            style={{ transform: `rotate(${-value.hue}deg)` }}
           />
           <span className="grade-wheel-center" aria-hidden="true" />
           <span
@@ -112,7 +91,7 @@ export function WheelDial({
             aria-hidden="true"
             style={{
               left: `${50 + Math.cos(angle) * value.saturation * 23}%`,
-              top: `${50 + Math.sin(angle) * value.saturation * 23}%`,
+              top: `${50 - Math.sin(angle) * value.saturation * 23}%`,
             }}
           />
         </div>

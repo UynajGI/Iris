@@ -207,8 +207,12 @@ export function ColorCanvas({
               });
             }}
           />
-          {loadedUrl === url && (clipping.shadows || clipping.highlights) && (
-            <ClippingOverlay url={url} clipping={clipping} />
+          {(clipping.shadows || clipping.highlights) && (
+            <ClippingOverlay
+              key={`${photo.id}:${natural.width}:${natural.height}`}
+              url={url}
+              clipping={clipping}
+            />
           )}
           {neutralPicker && preview && loadedUrl === preview && (
             <WhiteBalancePicker {...neutralPicker} />
@@ -232,7 +236,7 @@ export function ColorCanvas({
                 maskId={layer.id}
                 source={{
                   ...maskPreview,
-                  displayed: loadedUrl === preview ? maskPreview.displayed : null,
+                  displayed: maskPreview.displayed,
                 }}
               />
             ) : (
@@ -318,7 +322,7 @@ export function ColorCanvas({
           )}
         </div>
       ) : (
-        <span role="status">{original.error ? '照片预览未完成' : '正在读取照片'}</span>
+        <span role="status">{original.error ? '照片预览未完成' : ''}</span>
       )}
     </div>
   );

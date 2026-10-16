@@ -4,6 +4,7 @@ import { ApiError } from '../../api-error.js';
 import { sourceDocument, cropPreviewDocument } from '../../editing-document.js';
 import { preferredEdit, rememberEdit } from '../../editing-preferences.js';
 import { EditingPreviewQueue } from '../../editing-preview-queue.js';
+import { PreviewFrames } from '../../preview-frames.js';
 import {
   EditingClient,
   type EditDocument,
@@ -149,6 +150,7 @@ export function useColorEditor(
 
   useEffect(() => {
     previewKey.current = '';
+    const frames = new PreviewFrames();
     const queue = new EditingPreviewQueue<PreviewInput, Blob>({
       render: (input, signal) => {
         activePreviewEdge.current = input.edge;
@@ -164,22 +166,25 @@ export function useColorEditor(
         );
       },
       result: (blob, input) => {
-        const current = latest.current.record;
-        if (
-          current?.id !== input.record.id ||
-          current.revision !== input.record.revision ||
-          current.photo_id !== requestedPhoto.current ||
-          requestedMode.current !== JSON.stringify([input.crop, input.proof])
-        )
-          return;
-        setPreviewError(null);
-        setPreviewMode(JSON.stringify([input.crop, input.proof]));
-        setPreviewDocument(input.document);
-        const url = URL.createObjectURL(blob);
-        setPreview((previous) => {
-          if (previous) URL.revokeObjectURL(previous);
-          return url;
-        });
+        void frames.show(
+          blob,
+          (url) => {
+            const current = latest.current.record;
+            if (
+              current?.id !== input.record.id ||
+              current.revision !== input.record.revision ||
+              current.photo_id !== requestedPhoto.current ||
+              requestedMode.current !== JSON.stringify([input.crop, input.proof])
+            )
+              return false;
+            setPreviewError(null);
+            setPreviewMode(JSON.stringify([input.crop, input.proof]));
+            setPreviewDocument(input.document);
+            setPreview(url);
+            return true;
+          },
+          (reason) => setPreviewError(describe(reason))
+        );
       },
       error: (reason) => setPreviewError(describe(reason)),
       busy: setRendering,
@@ -190,6 +195,7 @@ export function useColorEditor(
     previewQueue.current = queue;
     return () => {
       queue.dispose();
+      frames.dispose();
       if (previewQueue.current === queue) previewQueue.current = null;
     };
   }, [api, session]);
@@ -271,12 +277,6 @@ export function useColorEditor(
       void api.close(`${session}-before`).catch(() => {});
     },
     [api, session]
-  );
-  useEffect(
-    () => () => {
-      if (preview) URL.revokeObjectURL(preview);
-    },
-    [preview]
   );
 
   const save = useCallback(async () => {

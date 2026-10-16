@@ -4,7 +4,7 @@ import { clippingPixels, readScopePixels, type Clipping } from '../scope-pixels.
 export function ClippingOverlay({ url, clipping }: { url: string; clipping: Clipping }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const [painted, setPainted] = useState('');
-  const key = `${url}:${clipping.shadows}:${clipping.highlights}`;
+  const key = `${clipping.shadows}:${clipping.highlights}`;
   useEffect(() => {
     let active = true;
     void readScopePixels(url)

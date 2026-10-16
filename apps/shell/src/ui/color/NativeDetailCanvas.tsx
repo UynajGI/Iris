@@ -139,7 +139,7 @@ export function NativeDetailCanvas({
                 top: region.y / size.ratio,
                 width: region.width / size.ratio,
                 height: region.height / size.ratio,
-                visibility: ready ? 'visible' : 'hidden',
+                visibility: error ? 'hidden' : 'visible',
               }}
               draggable={false}
               onLoad={(event) => {
@@ -213,9 +213,10 @@ function NativeDetailStatus({
   error: string | null;
   onRetry(): void;
 }) {
+  if (!ready && !error) return null;
   return (
     <div className="grade-native-state" role="status">
-      {error ?? (ready ? '1:1 · 原尺寸' : '预览 · 正在读取原尺寸')}
+      {error ?? (ready ? '1:1 · 原尺寸' : '')}
       {error && (
         <Button className="quiet" onClick={onRetry}>
           重试

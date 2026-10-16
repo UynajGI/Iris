@@ -20,7 +20,6 @@ export function WorkingMaskOverlay({
   maskId: string;
 }) {
   const overlay = useMaskPreview(client, source.record, source.document, maskId);
-  const [loaded, setLoaded] = useState<string | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
   const result = overlay.result;
   const url = result?.url;
@@ -30,23 +29,21 @@ export function WorkingMaskOverlay({
     <>
       {url && (
         <img
-          key={url}
           src={url}
           alt="红色范围蒙版覆盖"
           draggable={false}
           className="grade-mask-overlay"
-          style={{ visibility: aligned && loaded === url && !error ? 'visible' : 'hidden' }}
-          onLoad={() => setLoaded(url)}
+          style={{ visibility: aligned && !error ? 'visible' : 'hidden' }}
           onError={() => setFailed(url)}
         />
       )}
-      {(error || overlay.pending || loaded !== url || !aligned) && (
+      {error && (
         <div
           className="grade-mask-preview-status"
           role="status"
           onPointerDown={(event) => event.stopPropagation()}
         >
-          {error ?? '正在更新蒙版覆盖…'}
+          {error}
           {error && (
             <button type="button" onClick={overlay.retry}>
               重试

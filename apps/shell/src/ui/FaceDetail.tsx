@@ -151,7 +151,7 @@ function detailStatus(showOriginal: boolean, active: boolean, supported: boolean
   if (showOriginal) return '原图局部 · 按脸部大小对齐';
   if (!active) return '预览局部 · 选中照片可查看原图';
   if (!supported) return '预览局部 · 此格式或尺寸暂不读取原图细节';
-  return failed ? '原图暂不可用 · 当前为预览局部' : '预览局部 · 正在读取原图';
+  return failed ? '原图暂不可用 · 当前为预览局部' : '预览局部';
 }
 
 function FaceCrop({
@@ -198,7 +198,7 @@ function FaceCrop({
           />
         </svg>
       ) : (
-        <p role="status">{unavailable ? '图像暂不可用，请重新打开比较' : '正在读取人脸预览'}</p>
+        <p role="status">{unavailable ? '图像暂不可用，请重新打开比较' : ''}</p>
       )}
     </div>
   );

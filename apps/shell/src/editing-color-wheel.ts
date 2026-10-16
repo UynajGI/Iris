@@ -10,9 +10,12 @@ export function gainsToWheel(values: number[]): WheelColor {
     else if (high === g) hue = (b - r) / chroma + 2;
     else hue = (r - g) / chroma + 4;
   }
-  return { hue: (hue * 60 + 360) % 360, saturation: chroma / 2, luminance: (r + g + b) / 3 };
+  hue = (hue * 60 + 360) % 360;
+  const luminance = (r + g + b) / 3;
+  const limit = chromaLimit(hueVector(hue), luminance);
+  return { hue, saturation: limit > 1e-10 ? (chroma / limit) * 2 : 0, luminance };
 }
-export function wheelToGains({ hue, saturation, luminance }: WheelColor): number[] {
+function hueVector(hue: number): number[] {
   const position = (((hue % 360) + 360) % 360) / 60;
   const x = 1 - Math.abs((position % 2) - 1);
   const rgb = [
@@ -24,9 +27,20 @@ export function wheelToGains({ hue, saturation, luminance }: WheelColor): number
     [1, 0, x],
   ][Math.floor(position)]!;
   const average = rgb.reduce((sum, value) => sum + value, 0) / 3;
-  return rgb.map((value) =>
-    Math.max(-2, Math.min(2, luminance + 2 * saturation * (value - average)))
+  return rgb.map((value) => value - average);
+}
+function chromaLimit(vector: number[], luminance: number): number {
+  return Math.min(
+    ...vector
+      .filter((value) => Math.abs(value) > 1e-10)
+      .map((value) => (value > 0 ? (2 - luminance) / value : (-2 - luminance) / value))
   );
+}
+export function wheelToGains({ hue, saturation, luminance }: WheelColor): number[] {
+  const vector = hueVector(hue);
+  const chroma = (chromaLimit(vector, luminance) * Math.max(0, Math.min(2, saturation))) / 2;
+  // Scale the whole tint into range, never clip channels independently (which rotates hue).
+  return vector.map((value) => Math.max(-2, Math.min(2, luminance + chroma * value)));
 }
 /** Coordinates are normalized within the inner disk; the center retains the selected hue. */
 export function wheelPoint(x: number, y: number, hue: number) {
@@ -34,7 +48,7 @@ export function wheelPoint(x: number, y: number, hue: number) {
     dy = (y - 0.5) / 0.46;
   const radius = Math.hypot(dx, dy);
   return {
-    hue: radius < 0.01 ? hue : ((Math.atan2(dy, dx) * 180) / Math.PI + 360) % 360,
+    hue: radius < 0.01 ? hue : ((Math.atan2(-dy, dx) * 180) / Math.PI + 360) % 360,
     saturation: Math.min(1, radius) * 2,
   };
 }
