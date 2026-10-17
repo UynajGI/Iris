@@ -33,7 +33,7 @@ tokenizers = { version = "0.22", default-features = false, features = ["fancy-re
 nalgebra = "0.35"
 tempfile = "3"
 roxmltree = "0.21"
-base64 = "0.22"
+base64 = "0.23"
 url = "2"
 
 [dev-dependencies]
