@@ -19,6 +19,6 @@
     "openapi-typescript": "7.13.0",
     "prettier": "3.9.10",
     "prettier-plugin-toml": "3.0.2",
-    "typescript": "5.9.3"
+    "typescript": "7.0.2"
   }
 }
