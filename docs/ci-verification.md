@@ -4,6 +4,17 @@
 
 默认工作流不下载用户照片或可选研究权重。手动 DINO/DirectML 项须按模型许可明确选择；托管 runner 的 CPU 回退不代表真实 GPU 执行。
 
+## 调色前端全局分级与契约同步（2026-10-18）
+
+提交 `cd587bb` 推送后：
+
+- [Verify 39090450438](https://github.com/UynajGI/Iris/actions/runs/39090450438)：全部通过。`rust` 作业重新生成 API 并确认 `docs/openapi.json` 与 `apps/shell/src/generated/api.d.ts` 一致，同时运行完整 Rust 工作区回归、依赖/敏感信息审计与本地媒体检查；`application`、三平台 Make 工具均通过。
+- [Traditional render engine 39090450415](https://github.com/UynajGI/Iris/actions/runs/39090450415)：Windows、Linux、macOS CPU 渲染及 `backend-smoke` 全部通过。push 事件不构建 `review-daemon`；本次浏览器联调使用 `a050e34`（Rust 与 `cd587bb` 相同）的 `workflow_dispatch` [优化产物 38921970303](https://github.com/UynajGI/Iris/actions/runs/38921970303)。
+- 前一提交 `a050e34` 的推送 Verify 因未同步生成的 API 契约在“Check API schema”失败；本次提交只同步该产物与前端入口，失败原因已消除，没有放宽检查。
+- 本机前端 244 项通过、1 项原有跳过，类型检查、构建、格式检查以及提交钩子的暂存安全、公共树与复杂度检查通过。浏览器证据见[前端接入](color-frontend-implementation.md)。
+
+该记录只覆盖上述提交的 CI 和公开 JPEG 浏览器联调，不代表原生 WebView、全分辨率 RAW 性能、其他平台交互或发布验收。
+
 ## 传统调色独立开发分支（2026-10-14）
 
 分支 `codex/color-workflow` 通过 push 直接运行 Verify 与 [Traditional render engine](../.github/workflows/render.yml)，当前不创建 PR、不合并或发布。实现及限制见[传统调色后端](color-engine-implementation.md)。以下是代码提交 `a05a8a63dae805d9c4e825ab1cb510c9a11afbf8` 的证据，不沿用历史选片结果。

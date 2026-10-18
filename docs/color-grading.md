@@ -37,6 +37,6 @@
 
 新增 Rust 检查覆盖旧 JSON 往返、非中性参数往返、全局对负值/HDR/透明度的行为、独立算出的权重样例、平衡方向、全混合的明暗差异、黑白之后的全局着色、参数拒绝、权重连续性/归一化，以及选择性同步保持其他参数。原冻结渲染参考继续检验默认参数下的旧结果。尚未本地编译或运行 Rust；结果以分支 CI 为准。
 
-提交 `a050e34` 的三平台渲染和 `workflow_dispatch` 优化 daemon 产物运行通过；该提交的 Verify 仅在“Check API schema”失败，因为源码尚未包含同次生成的契约。同步 `docs/openapi.json` 与 `apps/shell/src/generated/api.d.ts` 后的 CI 结果另行记录。前端联调使用该次构建的优化 daemon，仍是 12 张公开 JPEG 临时副本，不代表全分辨率 RAW、原生 WebView 或所有操作符的实时帧率。
+提交 `a050e34` 的三平台渲染和 `workflow_dispatch` 优化 daemon 产物运行通过；该提交的 Verify 仅在“Check API schema”失败，因为源码尚未包含同次生成的契约。提交 `cd587bb` 已同步 `docs/openapi.json` 与 `apps/shell/src/generated/api.d.ts`，其 [Verify](https://github.com/UynajGI/Iris/actions/runs/39090450438) 与[三平台渲染](https://github.com/UynajGI/Iris/actions/runs/39090450415)全部通过。前端联调使用 `a050e34` 构建的优化 daemon（`cd587bb` 未改动 Rust），仍是 12 张公开 JPEG 临时副本，不代表全分辨率 RAW、原生 WebView 或所有操作符的实时帧率。
 
 交互语义依据 [Adobe 的颜色分级工程说明](https://blog.adobe.com/en/publish/2020/10/20/introducing-color-grading)，算法为上述 Iris 明确公式，不是 Adobe 私有处理的复刻或像素一致承诺。缺省及省略字段依据 [Serde container defaults](https://serde.rs/container-attrs.html) 与 [conditional serialization](https://serde.rs/attr-skip-serializing.html)。
