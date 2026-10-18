@@ -1,5 +1,5 @@
 // Generated from iris-daemon OpenAPI. Do not edit.
-// Contract SHA-256: 61af08c7b34b7f6d6ee8e9f38c599f5ebfacc762768fa74b77b1ff2674f27a4b
+// Contract SHA-256: f676a75d5d4c796d0bdc5c91eac8c8ef74b91d6074d42f35a7288e9fd7483867
 export interface paths {
     "/api/v1/bootstrap": {
         parameters: {
@@ -1702,6 +1702,27 @@ export interface components {
             sequence: number;
         };
         ColorBalance: {
+            /**
+             * Format: float
+             * @description Range shift [-1,1]; positive extends highlights, negative extends shadows.
+             * @default 0
+             */
+            balance: number;
+            /**
+             * Format: float
+             * @description Range overlap [0,1]. Missing/0.5 retains the legacy triangular weighting.
+             * @default 0.5
+             */
+            blending: number;
+            /**
+             * @description Additional whole-image per-channel log2 gains [-2,2].
+             * @default [
+             *       0,
+             *       0,
+             *       0
+             *     ]
+             */
+            global: number[];
             /**
              * @default [
              *       0,

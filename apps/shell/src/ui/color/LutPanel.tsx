@@ -5,7 +5,7 @@ import { EditingClient, type EditDocument } from '../../editing-client.js';
 import { applyLut, lutNode, removeLut, updateLut, type LutOperation } from '../../editing-lut.js';
 import { Panel } from '../Panel.js';
 import { Button } from '../components.js';
-import { AdjustmentSlider } from './AdjustmentPanels.js';
+import { AdjustmentSlider } from './AdjustmentSlider.js';
 import { ApiError } from '../../api-error.js';
 
 type Props = {

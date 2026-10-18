@@ -16,7 +16,7 @@ import {
 } from '../../editing-masks.js';
 import { Button } from '../components.js';
 import { Icon } from '../Icon.js';
-import { AdjustmentSlider } from './AdjustmentPanels.js';
+import { AdjustmentSlider } from './AdjustmentSlider.js';
 import { maskPartAt, replaceMaskPart } from '../../editing-mask-parts.js';
 import { MaskParts } from './MaskParts.js';
 

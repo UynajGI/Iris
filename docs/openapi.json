@@ -4445,6 +4445,31 @@
       "ColorBalance": {
         "type": "object",
         "properties": {
+          "balance": {
+            "type": "number",
+            "format": "float",
+            "description": "Range shift [-1,1]; positive extends highlights, negative extends shadows.",
+            "default": 0
+          },
+          "blending": {
+            "type": "number",
+            "format": "float",
+            "description": "Range overlap [0,1]. Missing/0.5 retains the legacy triangular weighting.",
+            "default": 0.5
+          },
+          "global": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "float"
+            },
+            "description": "Additional whole-image per-channel log2 gains [-2,2].",
+            "default": [
+              0,
+              0,
+              0
+            ]
+          },
           "highlights": {
             "type": "array",
             "items": {

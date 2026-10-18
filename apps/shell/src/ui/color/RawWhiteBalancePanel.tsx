@@ -1,7 +1,7 @@
 import { Select } from '../Select.js';
 import { Panel } from '../Panel.js';
 import { Button } from '../components.js';
-import { AdjustmentSlider } from './AdjustmentPanels.js';
+import { AdjustmentSlider } from './AdjustmentSlider.js';
 import type { RawWhiteBalanceModel } from './useRawWhiteBalance.js';
 
 export function RawWhiteBalancePanel({

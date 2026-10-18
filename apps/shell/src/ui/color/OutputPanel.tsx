@@ -1,7 +1,7 @@
 import { Select } from '../Select.js';
 import type { EditDocument } from '../../editing-client.js';
 import { outputSpaceNames } from '../../editing-document.js';
-import { AdjustmentSlider } from './AdjustmentPanels.js';
+import { AdjustmentSlider } from './AdjustmentSlider.js';
 
 export function OutputPanel({
   document,

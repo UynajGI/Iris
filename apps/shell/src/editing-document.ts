@@ -76,6 +76,29 @@ export function cropPreviewDocument(document: EditDocument): EditDocument {
     node_positions: {},
   };
 }
+export const defaultColorBalance = (): Adjustments['color_balance'] => ({
+  shadows: [0, 0, 0],
+  midtones: [0, 0, 0],
+  highlights: [0, 0, 0],
+  global: [0, 0, 0],
+  blending: 0.5,
+  balance: 0,
+});
+/**
+ * The daemon omits neutral grading extensions, so older documents and freshly read neutral
+ * documents carry no global wheel, blending or balance. Read them as the renderer defaults.
+ */
+export function colorBalance(
+  parameters: Adjustments['color_balance']
+): Adjustments['color_balance'] {
+  const legacy = parameters as Partial<Adjustments['color_balance']>;
+  return {
+    ...parameters,
+    global: legacy.global ?? [0, 0, 0],
+    blending: legacy.blending ?? 0.5,
+    balance: legacy.balance ?? 0,
+  };
+}
 export const defaultAdjustments = (): Adjustments => ({
   exposure: 0,
   contrast: 0,
@@ -94,7 +117,7 @@ export const defaultAdjustments = (): Adjustments => ({
   green_curve: { points: [], interpolation: 'linear' },
   blue_curve: { points: [], interpolation: 'linear' },
   hsl: [],
-  color_balance: { shadows: [0, 0, 0], midtones: [0, 0, 0], highlights: [0, 0, 0] },
+  color_balance: defaultColorBalance(),
   black_and_white: { enabled: false, mix: [0.2627, 0.678, 0.0593] },
   grain: { amount: 0, seed: 0 },
   vignette: { amount: 0, feather: 1, midpoint: 0.35 },

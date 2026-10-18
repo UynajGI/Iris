@@ -1285,7 +1285,7 @@
 }
 .grade-wheel-bands {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 4px;
   border-bottom: 1px solid var(--line-subtle);
 }
@@ -1297,10 +1297,22 @@
   border-bottom: 1px solid transparent;
   border-radius: 0;
   color: var(--muted);
+  font-size: var(--small);
+  white-space: nowrap;
 }
 .grade-wheel-bands button[aria-pressed='true'] {
   color: var(--text);
   border-bottom-color: var(--accent-line);
+}
+/* Five 3-character tabs still fit the 280px inspector when the type tightens slightly. */
+@media (max-width: 800px) {
+  .grade-wheel-bands {
+    gap: 2px;
+  }
+  .grade-wheel-bands button {
+    padding: 6px 2px;
+    font-size: calc(var(--small) - 2px);
+  }
 }
 .grade-color-wheels {
   width: min(100%, 200px);
@@ -1416,13 +1428,14 @@
 .grade-wheel-puck:active {
   cursor: grabbing;
 }
-.grade-wheels-three {
+.grade-wheels-overview {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   padding-top: 12px;
 }
-.grade-wheels-three > :first-child {
+.grade-wheels-overview > :first-child,
+.grade-wheels-overview > :last-child {
   grid-column: 1 / -1;
   width: calc(50% - 6px);
   justify-self: center;
@@ -1464,6 +1477,11 @@
 }
 .grade-wheel-controls {
   min-width: 0;
+}
+.grade-wheel-range {
+  margin-top: 10px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line-subtle);
 }
 .grade-draft-recovery {
   padding: 10px 12px;
