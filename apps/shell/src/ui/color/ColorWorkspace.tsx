@@ -28,6 +28,11 @@ import { neutralPatch } from '../../editing-white-balance.js';
 import './color-workspace.css';
 import type { EditHistoryEntry } from '../../editing-client.js';
 import { historySummary } from '../../editing-history.js';
+import { NodeGraph } from './NodeGraph.js';
+import { NodeInspector } from './NodeInspector.js';
+import { nodeEditingContext, nodeTarget } from '../../editing-node-actions.js';
+import { validateGraph } from '../../editing-graph.js';
+import { correctors } from '../../editing-correctors.js';
 import { focusEditingPhoto } from '../../editing-navigation.js';
 
 export type EditorBridge = {
@@ -48,6 +53,8 @@ export function ColorWorkspace({
   const [clipping, setClipping] = useState(noClipping);
   const [observation, setObservation] = useState<ObservationMode>('full');
   const [bypass, setBypass] = useState<AdjustmentGroup | null>(null);
+  const [nodeMode, setNodeMode] = useState(false);
+  const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const editor = useColorEditor(
     model.store.client,
     photo?.id,
@@ -55,7 +62,8 @@ export function ColorWorkspace({
     cropMode,
     null,
     observation,
-    bypass
+    bypass,
+    nodeTarget(nodeMode, selectedNode)
   );
   const whiteBalance = useRawWhiteBalance({
     client: model.store.client,
@@ -93,11 +101,32 @@ export function ColorWorkspace({
     erase: false,
   });
   const [drawError, setDrawError] = useState<string | null>(null);
+  const { activeNode, scopedGroup, scopedDocument } = nodeEditingContext(
+    editor.draft,
+    nodeMode,
+    selectedNode
+  );
   const layer =
     toolTab === 'masks'
-      ? maskLayers(editor.draft).find((item) => item.id === selectedMask)
+      ? maskLayers(editor.draft).find(
+          (item) => item.id === selectedMask && (!scopedGroup || item.id === scopedGroup.mask)
+        )
       : undefined;
   const strip = useRef<HTMLDivElement>(null);
+  const crop = parameters(scopedDocument, 'geometry').crop;
+  const changeCrop = (value: number[]) => {
+    if (!available || !editor.draft || !scopedDocument) return;
+    try {
+      const next = updatePanel(scopedDocument, {
+        type: 'geometry',
+        parameters: { ...parameters(scopedDocument, 'geometry'), crop: value },
+      });
+      editor.setDraft(validateGraph({ ...next, panel_bindings: editor.draft.panel_bindings }));
+      setDrawError(null);
+    } catch (reason) {
+      setDrawError(reason instanceof Error ? reason.message : '无法修改裁切');
+    }
+  };
   const available =
     !!editor.draft && !editor.loading && !editor.busy && !editor.recovery && !whiteBalance.pending;
   useEffect(() => {
@@ -348,17 +377,9 @@ export function ColorWorkspace({
                       }
                     : undefined
                 }
-                crop={cropMode ? parameters(editor.draft, 'geometry').crop : undefined}
+                crop={cropMode ? crop : undefined}
                 cropLocked={cropLocked}
-                onCrop={(crop) => {
-                  if (available && editor.draft)
-                    editor.setDraft(
-                      updatePanel(editor.draft, {
-                        type: 'geometry',
-                        parameters: { ...parameters(editor.draft, 'geometry'), crop },
-                      })
-                    );
-                }}
+                onCrop={changeCrop}
                 brush={brush}
                 onMask={(definition) => {
                   if (!editor.draft || !layer) return;
@@ -430,19 +451,11 @@ export function ColorWorkspace({
           {cropMode && photo && editor.draft && (
             <CropTools
               key={editor.record?.id}
-              crop={parameters(editor.draft, 'geometry').crop}
+              crop={crop}
               sourceAspect={photo.width / photo.height}
               locked={cropLocked}
               onLock={setCropLocked}
-              onChange={(crop) => {
-                if (available && editor.draft)
-                  editor.setDraft(
-                    updatePanel(editor.draft, {
-                      type: 'geometry',
-                      parameters: { ...parameters(editor.draft, 'geometry'), crop },
-                    })
-                  );
-              }}
+              onChange={changeCrop}
             />
           )}
           {layer && !cropMode && (
@@ -536,6 +549,21 @@ export function ColorWorkspace({
             </div>
           )}
         </div>
+        {nodeMode && editor.draft && activeNode && (
+          <NodeGraph
+            key={editor.record?.id}
+            document={editor.draft}
+            selected={activeNode.id}
+            onSelect={(id) => {
+              setSelectedNode(id);
+              setSelectedMask(correctors(editor.draft!).find((g) => g.id === id)?.mask ?? null);
+              setToolTab('adjustments');
+              setBypass(null);
+            }}
+            onChange={editor.setDraft}
+            disabled={!available}
+          />
+        )}
         <div ref={strip} className="grade-filmstrip" aria-label="调色胶片栏">
           {photos.map((item) => (
             <button
@@ -554,7 +582,22 @@ export function ColorWorkspace({
       </section>
       <aside className="grade-inspector" aria-label="调色工具">
         <header className="grade-inspector-heading">
-          <h1>调色</h1>
+          <h1 className="visually-hidden">调色</h1>
+          <div className="segmented" role="group" aria-label="调色界面">
+            <Button className="quiet" aria-pressed={!nodeMode} onClick={() => setNodeMode(false)}>
+              传统
+            </Button>
+            <Button
+              className="quiet"
+              aria-pressed={nodeMode}
+              onClick={() => {
+                setNodeMode(true);
+                setBypass(null);
+              }}
+            >
+              节点
+            </Button>
+          </div>
           <span className="spacer" />
           <Button
             className="quiet icon-only"
@@ -775,15 +818,17 @@ export function ColorWorkspace({
           <div id="grade-tool-page" role="tabpanel" aria-labelledby={`grade-tab-${toolTab}`}>
             {toolTab === 'adjustments' && (
               <AdjustmentClipboardShortcuts
-                document={editor.draft}
+                document={scopedDocument}
                 disabled={!available}
                 onChange={(document) => {
-                  editor.setDraft(document);
+                  editor.setDraft(
+                    validateGraph({ ...document, panel_bindings: editor.draft!.panel_bindings })
+                  );
                   setBefore(false);
                 }}
               />
             )}
-            {toolTab === 'adjustments' && (
+            {toolTab === 'adjustments' && !nodeMode && (
               <PresetPanel
                 client={model.store.client}
                 document={editor.draft}
@@ -809,6 +854,7 @@ export function ColorWorkspace({
             )}
             {toolTab === 'masks' && (
               <MaskPanel
+                scope={nodeMode ? activeNode?.id : undefined}
                 document={editor.draft}
                 disabled={!available}
                 selected={layer?.id ?? null}
@@ -832,7 +878,27 @@ export function ColorWorkspace({
               />
             )}
             {layer && <div className="grade-adjustment-target">正在调整：{layer.name}</div>}
-            {(toolTab === 'adjustments' || (toolTab === 'masks' && layer)) && (
+            {nodeMode && toolTab === 'adjustments' && editor.draft && activeNode && (
+              <NodeInspector
+                key={activeNode.id}
+                document={editor.draft}
+                node={activeNode}
+                disabled={!available}
+                onChange={editor.setDraft}
+                onCrop={() => {
+                  setComparison(false);
+                  setCropMode(true);
+                  setBefore(false);
+                  setZoom(1);
+                }}
+                onEditMask={(id) => {
+                  setSelectedMask(id);
+                  setToolTab('masks');
+                  setShowMask(true);
+                }}
+              />
+            )}
+            {((toolTab === 'adjustments' && !nodeMode) || (toolTab === 'masks' && layer)) && (
               <AdjustmentPanels
                 bypass={bypass}
                 onBypass={setBypass}

@@ -37,7 +37,7 @@ const color: SliderSpec[] = [
   { key: 'vibrance', label: '自然饱和度', min: -1, max: 1, scale: 100 },
   { key: 'saturation', label: '饱和度', min: -1, max: 1, scale: 100 },
 ];
-const detail: SliderSpec[] = [
+export const detail: SliderSpec[] = [
   { key: 'texture', label: '纹理', min: -1, max: 1, scale: 100 },
   { key: 'clarity', label: '清晰度', min: -1, max: 1, scale: 100 },
   { key: 'dehaze', label: '去雾', min: -1, max: 1, scale: 100 },
@@ -70,6 +70,7 @@ export function AdjustmentPanels({
   observation = 'full',
   bypass = null,
   onBypass,
+  nodeKind,
 }: {
   document: EditDocument | null;
   disabled: boolean;
@@ -80,6 +81,7 @@ export function AdjustmentPanels({
   observation?: ObservationMode;
   bypass?: AdjustmentGroup | null;
   onBypass?: (group: AdjustmentGroup | null) => void;
+  nodeKind?: string;
 }) {
   const localA =
     target && document?.nodes.find((node) => node.id === target.adjustmentId)?.operation;
@@ -185,15 +187,18 @@ export function AdjustmentPanels({
             />
           ))}
           {a.black_and_white.enabled && <BlackWhiteMixer adjustments={a} onChange={changeA} />}
-          <h3 className="grade-subheading">质感</h3>
-          {detail.slice(0, 3).map((spec) => (
-            <AdjustmentSlider
-              key={spec.key}
-              spec={spec}
-              value={d[spec.key as 'texture']}
-              onChange={(value) => changeD({ ...d, [spec.key]: value })}
-            />
-          ))}
+          {nodeKind !== 'adjustments' && <h3 className="grade-subheading">质感</h3>}
+          {nodeKind !== 'adjustments' &&
+            detail
+              .slice(0, 3)
+              .map((spec) => (
+                <AdjustmentSlider
+                  key={spec.key}
+                  spec={spec}
+                  value={d[spec.key as 'texture']}
+                  onChange={(value) => changeD({ ...d, [spec.key]: value })}
+                />
+              ))}
         </Panel>
         <Panel
           id="grade-curve"

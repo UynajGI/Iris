@@ -1,0 +1,208 @@
+.node-graph {
+  flex: 0 0 240px;
+  min-height: 160px;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--line-subtle);
+  background: #191919;
+  position: relative;
+}
+.node-graph-bar {
+  height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--line-subtle);
+  font-size: var(--small);
+}
+.node-graph-bar > input {
+  width: 80px;
+  accent-color: var(--muted);
+}
+.node-graph-canvas {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  touch-action: none;
+  background-image: radial-gradient(#353535 0.7px, transparent 0.7px);
+  background-size: 16px 16px;
+  cursor: grab;
+}
+.node-graph-world {
+  position: absolute;
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+.node-graph-wires {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: visible;
+  pointer-events: none;
+}
+.node-graph-wires path {
+  stroke: #7d9787;
+  stroke-width: 2;
+  fill: none;
+}
+.node-graph-wires .mask-wire {
+  stroke: #8399c5;
+  stroke-dasharray: 4 3;
+}
+.graph-node {
+  position: absolute;
+  width: 158px;
+  min-height: 78px;
+  background: #272727;
+  border: 1px solid #545454;
+  border-radius: 4px;
+  pointer-events: auto;
+  box-shadow: 0 2px 5px #0004;
+}
+.graph-node.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.graph-node.bypassed {
+  opacity: 0.55;
+}
+.graph-node-title {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  height: 38px;
+  padding: 8px 12px;
+  background: transparent;
+  border: 0;
+  color: var(--text);
+  cursor: move;
+  text-align: left;
+  font-size: 13px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.graph-node-title small {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.graph-node-kind {
+  display: block;
+  padding: 0 12px 10px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.graph-port {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid #191919;
+  background: #91ad9c;
+  cursor: crosshair;
+}
+.graph-port.input {
+  left: -6px;
+}
+.graph-port.output {
+  right: -6px;
+  top: 32px;
+}
+.graph-port.mask-port {
+  background: #8ba6d2;
+  border-radius: 0;
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+}
+.node-output-terminal {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.node-output-terminal button {
+  color: #91ad9c;
+  background: #202020;
+  border: 1px solid #424242;
+  font-size: 11px;
+  padding: 5px 8px;
+}
+.node-output-terminal .key-terminal {
+  color: #8ba6d2;
+}
+.graph-port:disabled {
+  opacity: 1;
+  cursor: default;
+}
+.graph-port.connecting {
+  outline: 2px solid var(--text);
+}
+.node-graph-message {
+  position: absolute;
+  bottom: 8px;
+  left: 12px;
+  background: var(--raised);
+  padding: 6px 10px;
+  border-radius: 3px;
+  font-size: var(--small);
+}
+.node-inspector-heading {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line-subtle);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.node-inspector fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.node-key-controls {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--line-subtle);
+}
+.node-key-controls > label {
+  font-size: 12px;
+  margin-left: 8px;
+  color: var(--muted);
+}
+.node-inspector[data-kind='detail'] .node-parameters,
+.node-inspector[data-kind='blend'] .node-parameters,
+.node-inspector[data-kind='lut'] .node-parameters {
+  padding: 12px 16px;
+}
+.node-inspector-heading input {
+  width: 100%;
+  min-width: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text);
+  padding: 5px 6px;
+}
+.node-inspector-heading input:focus {
+  border-color: var(--divider);
+}
+.node-inspector[data-kind='adjustments'] [data-panel-id='grade-detail'],
+.node-inspector[data-kind='adjustments'] [data-panel-id='grade-optics'],
+.node-inspector[data-kind='adjustments'] [data-panel-id='grade-transform'] {
+  display: none;
+}
+.node-inspector[data-kind='detail']
+  .panel:not([data-panel-id='grade-detail']):not([data-panel-id='grade-basic']) {
+  display: none;
+}
+.node-inspector[data-kind='detail'] [data-panel-id='grade-basic'] {
+  display: none;
+}
+.node-inspector[data-kind='geometry']
+  .panel:not([data-panel-id='grade-optics']):not([data-panel-id='grade-transform']) {
+  display: none;
+}

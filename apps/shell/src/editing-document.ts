@@ -215,11 +215,19 @@ export function updatePanel(
   operation: Extract<Operation, { type: EditableKind }>
 ): EditDocument {
   const existing = panelNode(document, operation.type);
+  const binding = document.panel_bindings.find(
+    (b) =>
+      b.node_id === existing?.id && b.role.startsWith('corrector:') && b.role.endsWith(':geometry')
+  );
+  const anchor =
+    binding &&
+    document.panel_bindings.find((b) => b.role === binding.role.replace(/:geometry$/, ':anchor'))
+      ?.node_id;
   if (existing)
     return {
       ...document,
       nodes: document.nodes.map((node) =>
-        node.id === existing.id ? { ...node, operation } : node
+        node.id === existing.id || node.id === anchor ? { ...node, operation } : node
       ),
     };
   const id = `traditional-${operation.type}`;

@@ -151,6 +151,7 @@ pub fn render_with_executor(
 
 mod compositing;
 mod evaluate;
+mod simplify;
 
 fn render_internal(
     document: &EditDocument,
@@ -168,6 +169,8 @@ fn render_internal(
     context.check_cancelled()?;
     context.track_frame(&source)?;
     let plan = compile(document)?;
+    let executable = simplify::executable(document, &plan);
+    let document = &executable;
     let (needed, mut uses) = evaluate::live_inputs(document, &plan);
     let mut evaluator = evaluate::Evaluation {
         source: Some(source),

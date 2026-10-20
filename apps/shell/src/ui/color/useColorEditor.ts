@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { IrisClient } from '../../client.js';
 import { ApiError } from '../../api-error.js';
 import { sourceDocument, cropPreviewDocument } from '../../editing-document.js';
+import { nodePanelDocument } from '../../editing-node-actions.js';
 import { preferredEdit, rememberEdit } from '../../editing-preferences.js';
 import { EditingPreviewQueue } from '../../editing-preview-queue.js';
 import { EditingSaveQueue } from '../../editing-save-queue.js';
@@ -90,7 +91,8 @@ export function useColorEditor(
   cropMode = false,
   proofResource: string | null = null,
   observation: ObservationMode = 'full',
-  bypass: AdjustmentGroup | null = null
+  bypass: AdjustmentGroup | null = null,
+  cropTarget: string | null = null
 ) {
   const api = useMemo(() => new EditingClient(client), [client]);
   const [record, setRecord] = useState<EditRecord | null>(null);
@@ -280,7 +282,9 @@ export function useColorEditor(
   useEffect(() => {
     if (!record || !draft || record.photo_id !== photoId) return;
     const projected = bypassAdjustmentGroup(draft, bypass);
-    const document = cropMode ? cropPreviewDocument(projected) : projected;
+    const document = cropMode
+      ? cropPreviewDocument(nodePanelDocument(projected, cropTarget))
+      : projected;
     const key = JSON.stringify({
       document,
       id: record.id,
@@ -321,7 +325,7 @@ export function useColorEditor(
       });
     }, 300);
     return () => clearTimeout(timer);
-  }, [api, record, draft, session, photoId, previewAttempt, mode]);
+  }, [api, record, draft, session, photoId, previewAttempt, mode, cropTarget]);
   const beforeKey = JSON.stringify({ source: draft?.source, output: draft?.output, observation });
   useEffect(() => {
     if (!showBefore || !record || !draft || beforeImage?.key === beforeKey) {

@@ -13,7 +13,10 @@ import {
   workingToSwatch,
   type MaskDefinition,
   type MaskKind,
+  createMaskDefinition,
 } from '../../editing-masks.js';
+import { correctors } from '../../editing-correctors.js';
+import { editCorrectorMask } from '../../editing-node-actions.js';
 import { Button } from '../components.js';
 import { Icon } from '../Icon.js';
 import { AdjustmentSlider } from './AdjustmentSlider.js';
@@ -31,6 +34,7 @@ export function MaskPanel({
   onBrush,
   selectedPart,
   onPartSelect,
+  scope,
 }: {
   document: EditDocument | null;
   disabled: boolean;
@@ -41,9 +45,11 @@ export function MaskPanel({
   onBrush(value: BrushSettings): void;
   selectedPart: number;
   onPartSelect(index: number): void;
+  scope?: string | undefined;
 }) {
   const [error, setError] = useState<string | null>(null);
-  const layers = maskLayers(document);
+  const group = document && correctors(document).find((g) => g.id === scope);
+  const layers = maskLayers(document).filter((layer) => !group || layer.id === group.mask);
   const layer = layers.find((item) => item.id === selected);
   const part = layer && maskPartAt(layer.definition, selectedPart);
   const primary = part?.definition;
@@ -96,28 +102,49 @@ export function MaskPanel({
                 </div>
               ))}
             </div>
-            <Select
-              aria-label="新建蒙版"
-              value=""
-              onValueChange={(nextValue) => {
-                if (!document || !nextValue) return;
-                try {
-                  const result = addMask(document, nextValue as MaskKind);
-                  onChange(result.document);
-                  onSelect(result.id);
-                  setError(null);
-                } catch (reason) {
-                  setError(String(reason));
-                }
-              }}
-            >
-              <option value="">新建蒙版</option>
-              {Object.entries(maskNames).map(([kind, name]) => (
-                <option key={kind} value={kind}>
-                  {name}
-                </option>
-              ))}
-            </Select>
+            {(!group || !layers.length) && (
+              <Select
+                aria-label="新建蒙版"
+                value=""
+                onValueChange={(nextValue) => {
+                  if (!document || !nextValue) return;
+                  try {
+                    const ready = group && editCorrectorMask(document, group);
+                    const result = ready
+                      ? {
+                          id: ready.mask,
+                          document: {
+                            ...ready.document,
+                            nodes: ready.document.nodes.map((n) =>
+                              n.id === ready.mask
+                                ? {
+                                    ...n,
+                                    operation: {
+                                      type: 'mask' as const,
+                                      parameters: createMaskDefinition(nextValue as MaskKind),
+                                    },
+                                  }
+                                : n
+                            ),
+                          },
+                        }
+                      : addMask(document, nextValue as MaskKind);
+                    onChange(result.document);
+                    onSelect(result.id);
+                    setError(null);
+                  } catch (reason) {
+                    setError(String(reason));
+                  }
+                }}
+              >
+                <option value="">新建蒙版</option>
+                {Object.entries(maskNames).map(([kind, name]) => (
+                  <option key={kind} value={kind}>
+                    {name}
+                  </option>
+                ))}
+              </Select>
+            )}
           </>
         )}
         {layer && document && (

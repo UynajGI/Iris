@@ -2,6 +2,7 @@ import type { components } from './generated/api.js';
 import type { EditDocument } from './editing-client.js';
 import { defaultAdjustments, defaultDetail } from './editing-document.js';
 import { outputLut } from './editing-lut.js';
+import { correctors, fullKey } from './editing-correctors.js';
 
 export type MaskDefinition = components['schemas']['MaskDefinition'];
 export type BrushStroke = components['schemas']['BrushStroke'];
@@ -57,8 +58,10 @@ export function maskLayers(document: EditDocument | null): MaskLayer[] {
       const id = binding.role.slice('local-adjustments:'.length);
       const mask = document.nodes.find((node) => node.id === id);
       const detail = document.panel_bindings.find((item) => item.role === `local-detail:${id}`);
+      const group = correctors(document).find((g) => g.mask === id);
       const blend = document.nodes.find(
-        (node) => node.operation.type === 'blend' && node.inputs[2] === id
+        (node) =>
+          node.operation.type === 'blend' && (node.inputs[2] === id || node.id === group?.output)
       );
       if (mask?.operation.type !== 'mask' || !blend || blend.operation.type !== 'blend' || !detail)
         return [];
@@ -169,6 +172,13 @@ export function setMaskBlend(
   };
 }
 export function removeMask(document: EditDocument, layer: MaskLayer): EditDocument {
+  if (correctors(document).some((g) => g.mask === layer.id))
+    return {
+      ...setMask(document, layer, fullKey()),
+      panel_bindings: document.panel_bindings.filter(
+        (b) => !['local-adjustments:' + layer.id, 'local-detail:' + layer.id].includes(b.role)
+      ),
+    };
   const blend = document.nodes.find((node) => node.id === layer.blendId)!;
   const removed = new Set([layer.id, layer.adjustmentId, layer.detailId, layer.blendId]);
   for (const node of document.nodes)

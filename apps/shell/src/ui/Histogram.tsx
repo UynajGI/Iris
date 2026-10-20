@@ -218,11 +218,9 @@ export function Histogram({
       </div>
       {mode === 'histogram' || mode === 'waveform' ? (
         <ScopeChannels selected={selected} onChange={setSettings} data={data} />
-      ) : (
-        <div className="scope-legend">
-          {mode === 'parade' ? 'RGB · 0–100%' : 'Cb/Cr · 75% / 100%'}
-        </div>
-      )}
+      ) : mode === 'vectorscope' ? (
+        <div className="scope-legend">Cb/Cr · 75% / 100%</div>
+      ) : null}
       <ScopeClipping data={data} clipping={clipping} onChange={onClipping} />
     </section>
   );

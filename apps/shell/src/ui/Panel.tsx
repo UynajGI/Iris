@@ -45,7 +45,10 @@ export function Panel({
       return !value;
     });
   return (
-    <section className={`panel ${expanded ? 'open' : ''} ${bypassed ? 'grade-bypassed' : ''}`}>
+    <section
+      data-panel-id={id}
+      className={`panel ${expanded ? 'open' : ''} ${bypassed ? 'grade-bypassed' : ''}`}
+    >
       <header className="panel-bar">
         <button
           type="button"

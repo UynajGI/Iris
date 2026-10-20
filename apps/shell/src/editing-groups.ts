@@ -8,6 +8,7 @@ import {
   updatePanel,
 } from './editing-document.js';
 import { lensProfileNode } from './editing-lens.js';
+import { canonicalJson } from './editing-equality.js';
 
 export type AdjustmentGroup =
   'basic' | 'curve' | 'mixer' | 'grading' | 'detail' | 'optics' | 'transform' | 'effects';
@@ -110,5 +111,5 @@ export function adjustmentGroupModified(
   group: AdjustmentGroup
 ): boolean {
   if (!document) return false;
-  return JSON.stringify(document) !== JSON.stringify(resetAdjustmentGroup(document, group));
+  return canonicalJson(document) !== canonicalJson(resetAdjustmentGroup(document, group));
 }
