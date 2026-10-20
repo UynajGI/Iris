@@ -3,6 +3,7 @@ import type { EditDocument } from './editing-client.js';
 import { defaultAdjustments, defaultDetail } from './editing-document.js';
 import { outputLut } from './editing-lut.js';
 import { correctors, fullKey } from './editing-correctors.js';
+import { setCorrectorEnabled } from './editing-node-actions.js';
 
 export type MaskDefinition = components['schemas']['MaskDefinition'];
 export type BrushStroke = components['schemas']['BrushStroke'];
@@ -65,6 +66,7 @@ export function maskLayers(document: EditDocument | null): MaskLayer[] {
       );
       if (mask?.operation.type !== 'mask' || !blend || blend.operation.type !== 'blend' || !detail)
         return [];
+      const key = document.nodes.find((n) => n.id === group?.key);
       return [
         {
           id,
@@ -74,7 +76,9 @@ export function maskLayers(document: EditDocument | null): MaskLayer[] {
           detailId: detail.node_id,
           blendId: blend.id,
           visible: blend.enabled,
-          opacity: blend.operation.parameters.opacity,
+          opacity:
+            blend.operation.parameters.opacity *
+            (key?.operation.type === 'key_mix' ? key.operation.parameters.gain : 1),
         },
       ];
     });
@@ -162,6 +166,26 @@ export function setMaskBlend(
   enabled: boolean,
   opacity: number
 ): EditDocument {
+  const group = correctors(document).find((g) => g.mask === layer.id);
+  if (group?.key) {
+    const next = setCorrectorEnabled(document, group, enabled);
+    return {
+      ...next,
+      nodes: next.nodes.map((node) => {
+        if (node.id === group.key && node.operation.type === 'key_mix')
+          return {
+            ...node,
+            operation: {
+              ...node.operation,
+              parameters: { ...node.operation.parameters, gain: opacity },
+            },
+          };
+        if (node.id === group.output && node.operation.type === 'blend')
+          return { ...node, operation: { type: 'blend', parameters: { opacity: 1 } } };
+        return node;
+      }),
+    };
+  }
   return {
     ...document,
     nodes: document.nodes.map((node) =>

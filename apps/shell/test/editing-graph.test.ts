@@ -15,6 +15,7 @@ import {
   disconnectKey,
 } from '../src/editing-correctors.js';
 import { nodeView } from '../src/editing-node-view.js';
+import { maskLayers, setMaskBlend } from '../src/editing-masks.js';
 import {
   connectVisiblePort,
   selectedCorrectorNode,
@@ -242,4 +243,40 @@ test('node crop projection edits the selected geometry and keeps traditional bin
     saved.nodes.find((n) => n.id === 'geometry'),
     base.nodes.find((n) => n.id === 'geometry')
   );
+});
+
+test('bypass reaches unmasked mixer inputs and restores preexisting disabled operations', () => {
+  const doc = addCorrector(fixture(), 'geometry', 'branch-bypass'),
+    group = correctors(doc).at(-1)!;
+  const branch = addMixerBranch(doc, group, false);
+  const original = {
+    ...branch,
+    nodes: branch.nodes.map((n) => (n.id === group.detail ? { ...n, enabled: false } : n)),
+  };
+  const bypassed = setCorrectorEnabled(original, group, false);
+  assert.equal(bypassed.nodes.find((n) => n.id === group.adjustment)!.enabled, false);
+  assert.equal(bypassed.nodes.find((n) => n.id === group.detail)!.enabled, false);
+  assert.equal(bypassed.nodes.find((n) => n.id === group.geometry)!.enabled, true);
+  assert.deepEqual(
+    setCorrectorEnabled(
+      bypassed,
+      correctors(bypassed).find((g) => g.id === group.id)!,
+      true
+    ),
+    original
+  );
+  assert.deepEqual(setCorrectorEnabled(bypassed, group, false), bypassed);
+});
+
+test('node mask opacity and visibility reach both serial output and parallel Key inputs', () => {
+  const doc = addCorrector(fixture(), 'geometry', 'mask-mix'),
+    group = correctors(doc).at(-1)!;
+  const masked = editCorrectorMask(doc, group).document;
+  const layer = maskLayers(masked)[0]!;
+  const faded = setMaskBlend(masked, layer, true, 0.25);
+  const key = faded.nodes.find((n) => n.id === group.key)!;
+  assert.equal(key.operation.type === 'key_mix' && key.operation.parameters.gain, 0.25);
+  assert.equal(maskLayers(faded)[0]!.opacity, 0.25);
+  const disabled = setCorrectorEnabled(faded, group, false);
+  assert.deepEqual(setMaskBlend(disabled, maskLayers(disabled)[0]!, true, 0.25), faded);
 });

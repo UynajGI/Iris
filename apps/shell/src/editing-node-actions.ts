@@ -94,10 +94,34 @@ export function connectVisiblePort(
 
 export function setCorrectorEnabled(document: EditDocument, group: Corrector, enabled: boolean) {
   const ready = completeCorrector(document, group);
+  const doc = ready.document,
+    g = ready.group;
+  const output = doc.nodes.find((n) => n.id === g.output)!;
+  if (output.enabled === enabled) return doc;
+  const binding = doc.panel_bindings.find(
+    (b) => b.node_id === g.adjustment && b.role.endsWith(':adjustments')
+  )!;
+  const prefix = binding.role.replace(/:adjustments$/, ':off-');
+  const muted = [
+    { id: g.adjustment, role: prefix + 'a' },
+    { id: g.detail, role: prefix + 'd' },
+  ];
+  const remembered = doc.panel_bindings.filter((b) => b.role.startsWith(prefix));
+  const bindings = doc.panel_bindings.filter((b) => !b.role.startsWith(prefix));
+  if (!enabled)
+    for (const part of muted)
+      if (!doc.nodes.find((n) => n.id === part.id)!.enabled)
+        bindings.push({ role: part.role, node_id: part.id });
   // Keep sizing and the matte coordinate grid stable; bypass the correction at the group output.
   return validateGraph({
-    ...ready.document,
-    nodes: ready.document.nodes.map((n) => (n.id === ready.group.output ? { ...n, enabled } : n)),
+    ...doc,
+    panel_bindings: bindings,
+    nodes: doc.nodes.map((n) => {
+      if (n.id === g.output) return { ...n, enabled };
+      if (muted.some((p) => p.id === n.id))
+        return { ...n, enabled: enabled && !remembered.some((b) => b.node_id === n.id) };
+      return n;
+    }),
   });
 }
 
