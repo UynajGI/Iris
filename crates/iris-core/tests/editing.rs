@@ -49,6 +49,46 @@ fn command(revision: u64, id: &str) -> EditCommand {
 }
 
 #[test]
+fn history_snapshots_are_read_only_and_restore_without_losing_revisions() {
+    let (_temp, mut services, ids) = fixture();
+    let initial = create(&mut services, ids[0]);
+    let mut changed = initial.document.clone();
+    changed.nodes[1].name = "Renamed".into();
+    let saved = services
+        .save_edit_document(
+            &initial.id,
+            SaveEdit {
+                expected_revision: 0,
+                request_id: "change-name".into(),
+                document: changed,
+            },
+        )
+        .unwrap();
+    let snapshot = services.edit_snapshot(&initial.id, 0).unwrap();
+    assert_eq!(services.edit_document(&initial.id).unwrap().revision, 1);
+    assert_eq!(snapshot.document, initial.document);
+    let history = services.edit_history(&initial.id, 20, 0).unwrap();
+    assert!(history[0].changes.keys().any(|key| key.ends_with("/name")));
+    let restored = services
+        .save_edit_document(
+            &initial.id,
+            SaveEdit {
+                expected_revision: saved.revision,
+                request_id: "restore-zero".into(),
+                document: snapshot.document,
+            },
+        )
+        .unwrap();
+    assert_eq!(restored.document, initial.document);
+    assert_eq!(services.edit_history(&initial.id, 20, 0).unwrap().len(), 3);
+    assert_eq!(
+        services.edit_snapshot(&initial.id, 1).unwrap().document,
+        saved.document
+    );
+    assert!(services.edit_snapshot(&initial.id, 999).is_err());
+}
+
+#[test]
 fn save_receipts_conflicts_undo_redo_and_restart() {
     let (temp, mut services, ids) = fixture();
     let initial = create(&mut services, ids[0]);

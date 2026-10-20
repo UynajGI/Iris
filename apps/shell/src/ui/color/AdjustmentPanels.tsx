@@ -6,7 +6,7 @@ import type {
   Geometry,
 } from '../../editing-client.js';
 import { defaultAdjustments, parameters, updatePanel } from '../../editing-document.js';
-import { Panel, PanelGroup } from '../Panel.js';
+import { Panel } from '../Panel.js';
 import {
   adjustmentGroupModified,
   resetAdjustmentGroup,
@@ -138,7 +138,7 @@ export function AdjustmentPanels({
   return (
     <fieldset className="grade-adjustments" disabled={disabled}>
       <legend className="visually-hidden">传统调色工具</legend>
-      <PanelGroup>
+      <>
         <SeparatedPanel mode={observation} adjustments={a} onChange={changeA} />
         <Panel
           id="grade-basic"
@@ -418,7 +418,7 @@ export function AdjustmentPanels({
             onChange={(value) => changeA({ ...a, vignette: { ...a.vignette, feather: value } })}
           />
         </Panel>
-      </PanelGroup>
+      </>
     </fieldset>
   );
 }

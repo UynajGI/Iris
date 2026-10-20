@@ -175,24 +175,6 @@
 .grade-library .panel-body {
   padding: 10px 14px 16px;
 }
-.grade-panel-options {
-  display: flex;
-  justify-content: flex-end;
-  padding: 4px 12px;
-}
-.grade-panel-options button {
-  border: 0;
-  background: transparent;
-  color: var(--muted);
-  min-height: 28px;
-  font-size: var(--small);
-  cursor: pointer;
-}
-.grade-panel-options button[aria-pressed='true'] {
-  color: var(--text);
-  text-decoration: underline;
-  text-underline-offset: 5px;
-}
 .grade-subheading {
   margin: 16px 0 6px;
   color: var(--muted);
@@ -258,8 +240,36 @@
   display: flex;
   justify-content: space-between;
   gap: 8px;
-  padding: 6px 0;
+  padding: 0;
   color: var(--muted);
+}
+.grade-history li button {
+  width: 100%;
+  text-align: left;
+  border: 0;
+  border-radius: 3px;
+  padding: 8px 10px;
+  color: var(--text);
+  background: transparent;
+  cursor: pointer;
+}
+.grade-history li button:hover,
+.grade-history li button[aria-current='step'] {
+  background: var(--raised);
+}
+.grade-history li button:disabled {
+  cursor: default;
+}
+.grade-history li button span {
+  display: block;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.grade-history li small {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }
 .grade-center {
   display: flex;
@@ -455,6 +465,43 @@
 .grade-zoom {
   display: flex;
   align-items: center;
+}
+.grade-zoom-track {
+  appearance: none;
+  width: clamp(80px, 10vw, 140px);
+  min-width: 80px;
+  height: 28px;
+  padding: 0;
+  margin: 0 4px;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  cursor: pointer;
+}
+.grade-zoom-track::-webkit-slider-runnable-track {
+  height: 2px;
+  background: var(--muted);
+  border-radius: 1px;
+}
+.grade-zoom-track::-webkit-slider-thumb {
+  appearance: none;
+  width: 8px;
+  height: 8px;
+  margin-top: -3px;
+  border-radius: 50%;
+  border: 0;
+  background: var(--text);
+}
+.grade-zoom-track::-moz-range-track {
+  height: 2px;
+  background: var(--muted);
+}
+.grade-zoom-track::-moz-range-thumb {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 0;
+  background: var(--text);
 }
 .grade-filmstrip {
   display: flex;

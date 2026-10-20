@@ -527,6 +527,25 @@ export function useColorEditor(
       if (current === epoch.current) setBusy(false);
     }
   };
+  const restoreHistory = async (revision: number) => {
+    if (recoveryRef.current || mutation.current || !(await save())) return;
+    const base = latest.current.record;
+    if (!base || mutation.current) return;
+    mutation.current = true;
+    setBusy(true);
+    const current = epoch.current;
+    try {
+      const snapshot = await api.get(base.id, revision);
+      if (current !== epoch.current || latest.current.record?.id !== base.id) return;
+      if (snapshot.revision !== revision) throw new Error('当前服务尚不支持历史快照，请更新后端');
+      changeDraft(snapshot.document);
+    } catch (reason) {
+      if (current === epoch.current) setError(describe(reason));
+    } finally {
+      mutation.current = false;
+      if (current === epoch.current) setBusy(false);
+    }
+  };
   const belongs = record?.photo_id === photoId;
   return {
     record: belongs ? record : null,
@@ -537,6 +556,7 @@ export function useColorEditor(
     previewError,
     loading: loading || (photoId !== undefined && !belongs && !error),
     busy,
+    saving,
     recovery,
     draftStorageFailed,
     recoverCopy,
@@ -549,6 +569,7 @@ export function useColorEditor(
     save,
     command,
     selectVersion,
+    restoreHistory,
     // Keep the decoded comparison frame while a new observation view is rendering.
     beforePreview: belongs ? (beforeImage?.url ?? null) : null,
     beforeLoading,

@@ -1,27 +1,7 @@
-import { createContext, useContext, useId, useState, type ReactNode } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import { Icon } from './Icon.js';
 
 const storageKey = (id: string) => `iris:panel:${id}:v1`;
-const PanelGroupContext = createContext<{
-  solo: boolean;
-  active: string | null;
-  select(id: string | null): void;
-} | null>(null);
-
-export function PanelGroup({ children }: { children: ReactNode }) {
-  const [solo, setSolo] = useState(false);
-  const [active, select] = useState<string | null>('grade-basic');
-  return (
-    <PanelGroupContext.Provider value={{ solo, active, select }}>
-      <div className="grade-panel-options">
-        <button type="button" aria-pressed={solo} onClick={() => setSolo(!solo)}>
-          单组展开
-        </button>
-      </div>
-      {children}
-    </PanelGroupContext.Provider>
-  );
-}
 
 /** Collapsible inspector section; open state survives restarts. */
 export function Panel({
@@ -45,7 +25,6 @@ export function Panel({
   bypassed?: boolean;
   onBypass?: (() => void) | undefined;
 }) {
-  const group = useContext(PanelGroupContext);
   const [open, setOpen] = useState(() => {
     try {
       const saved = localStorage.getItem(storageKey(id));
@@ -55,7 +34,7 @@ export function Panel({
     }
   });
   const bodyId = useId();
-  const expanded = group?.solo ? group.active === id : open;
+  const expanded = open;
   const toggle = () =>
     setOpen((value) => {
       try {
@@ -73,7 +52,7 @@ export function Panel({
           className="panel-toggle"
           aria-expanded={expanded}
           aria-controls={bodyId}
-          onClick={() => (group?.solo ? group.select(expanded ? null : id) : toggle())}
+          onClick={toggle}
         >
           <Icon name="expand" className="panel-caret" />
           <span>{title}</span>

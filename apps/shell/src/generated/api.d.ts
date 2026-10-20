@@ -1,5 +1,5 @@
 // Generated from iris-daemon OpenAPI. Do not edit.
-// Contract SHA-256: 6777375007288127ffcf81ce745451b939be297fcabfe454fe72d7f6593fa56f
+// Contract SHA-256: e12df11397f44218d4815b684d5f7133a2606df0d3f532a2a97eec7f56dd19af
 export interface paths {
     "/api/v1/bootstrap": {
         parameters: {
@@ -1972,6 +1972,9 @@ export interface components {
         };
         EditHistoryEntry: {
             action: string;
+            changes: {
+                [key: string]: string;
+            };
             created_at: string;
             /** Format: int64 */
             revision: number;
@@ -3575,7 +3578,9 @@ export interface operations {
     };
     editing_get_edit: {
         parameters: {
-            query?: never;
+            query?: {
+                revision?: number | null;
+            };
             header?: never;
             path: {
                 id: string;

@@ -55,8 +55,11 @@ export class EditingClient {
       name,
     });
   }
-  get(id: string) {
-    return this.client.transport.request<EditRecord>('GET', path(id));
+  get(id: string, revision?: number) {
+    return this.client.transport.request<EditRecord>(
+      'GET',
+      path(id) + (revision === undefined ? '' : `?revision=${revision}`)
+    );
   }
   sync(id: string, request: SelectiveEditSync) {
     return this.client.transport.request<EditRecord[]>('POST', `${path(id)}/sync`, request);
@@ -64,7 +67,7 @@ export class EditingClient {
   history(id: string, signal?: AbortSignal) {
     return this.client.transport.request<EditHistoryEntry[]>(
       'GET',
-      `${path(id)}/history`,
+      `${path(id)}/history?limit=100`,
       undefined,
       signal
     );

@@ -41,6 +41,11 @@ impl Default for EditPage {
 pub struct EditRevision {
     pub expected_revision: u64,
 }
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SnapshotQuery {
+    pub revision: Option<u64>,
+}
 #[derive(Deserialize, ToSchema)]
 #[serde(default, deny_unknown_fields)]
 pub struct RecipeQuery {
@@ -246,9 +251,19 @@ pub async fn list_edits(
         run(s, move |s| s.edit_documents(id, page.limit, page.offset)).await?,
     ))
 }
-#[utoipa::path(operation_id="editing_get_edit",get,path="/api/v1/edits/{id}",params(("id"=String,Path)),responses((status=200,body=EditRecord)))]
-pub async fn get_edit(State(s): State<AppState>, Path(id): Path<String>) -> ApiResult<EditRecord> {
-    Ok(Json(run(s, move |s| s.edit_document(&id)).await?))
+#[utoipa::path(operation_id="editing_get_edit",get,path="/api/v1/edits/{id}",params(("id"=String,Path),("revision"=Option<u64>,Query)),responses((status=200,body=EditRecord)))]
+pub async fn get_edit(
+    State(s): State<AppState>,
+    Path(id): Path<String>,
+    Query(query): Query<SnapshotQuery>,
+) -> ApiResult<EditRecord> {
+    Ok(Json(
+        run(s, move |s| match query.revision {
+            Some(revision) => s.edit_snapshot(&id, revision),
+            None => s.edit_document(&id),
+        })
+        .await?,
+    ))
 }
 #[utoipa::path(operation_id="editing_save_edit",put,path="/api/v1/edits/{id}",params(("id"=String,Path)),request_body=SaveEdit,responses((status=200,body=EditRecord)))]
 pub async fn save_edit(

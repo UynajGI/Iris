@@ -27,6 +27,7 @@ import { useRawWhiteBalance } from './useRawWhiteBalance.js';
 import { neutralPatch } from '../../editing-white-balance.js';
 import './color-workspace.css';
 import type { EditHistoryEntry } from '../../editing-client.js';
+import { historySummary } from '../../editing-history.js';
 import { focusEditingPhoto } from '../../editing-navigation.js';
 
 export type EditorBridge = {
@@ -473,24 +474,13 @@ export function ColorWorkspace({
           {editor.preview && !before && (
             <div className="grade-zoom">
               <Button
-                className="quiet icon-only"
-                aria-label="缩小"
-                disabled={!nativeActive && zoom <= 1}
-                onClick={() => {
-                  setNativeMode(false);
-                  setZoom((value) => Math.max(1, value / 1.25));
-                }}
-              >
-                <Icon name="zoom-out" />
-              </Button>
-              <Button
                 className="quiet"
                 onClick={() => {
                   setNativeMode(false);
                   setZoom(1);
                 }}
               >
-                {zoom === 1 || nativeActive ? '适合窗口' : `放大 ${Number(zoom.toFixed(2))}×`}
+                适合窗口
               </Button>
               <Button
                 className="quiet"
@@ -506,6 +496,32 @@ export function ColorWorkspace({
               >
                 1:1
               </Button>
+              <Button
+                className="quiet icon-only"
+                aria-label="缩小"
+                disabled={!nativeActive && zoom <= 1}
+                onClick={() => {
+                  setNativeMode(false);
+                  setZoom((value) => Math.max(1, value / 1.25));
+                }}
+              >
+                <Icon name="zoom-out" />
+              </Button>
+              <input
+                className="grade-zoom-track"
+                type="range"
+                aria-label="预览缩放"
+                aria-valuetext={`相对适合窗口 ${Number(zoom.toFixed(2))} 倍`}
+                title="预览缩放（相对适合窗口）"
+                min={0}
+                max={2}
+                step={0.01}
+                value={Math.log2(zoom)}
+                onChange={(event) => {
+                  setNativeMode(false);
+                  setZoom(2 ** Number(event.currentTarget.value));
+                }}
+              />
               <Button
                 className="quiet icon-only"
                 aria-label="放大"
@@ -589,7 +605,15 @@ export function ColorWorkspace({
                 aria-label="调色历史记录"
               >
                 <h2>历史</h2>
-                <EditHistoryList history={editor.history} />
+                <EditHistoryList
+                  history={editor.history}
+                  revision={editor.record?.revision}
+                  disabled={editor.busy || editor.saving || editor.loading}
+                  onRestore={(revision) => {
+                    setBypass(null);
+                    void editor.restoreHistory(revision);
+                  }}
+                />
                 {editor.record && (
                   <details className="grade-version-actions">
                     <summary>版本</summary>
@@ -859,26 +883,44 @@ export function ColorWorkspace({
     </main>
   );
 }
-function EditHistoryList({ history }: { history: EditHistoryEntry[] }) {
+function EditHistoryList({
+  history,
+  revision,
+  disabled,
+  onRestore,
+}: {
+  history: EditHistoryEntry[];
+  revision: number | undefined;
+  disabled: boolean;
+  onRestore(revision: number): void;
+}) {
   if (!history.length) return <span className="muted">暂无历史</span>;
-  const labels: Record<string, string> = {
-    create: '原始调整',
-    save: '调整',
-    undo: '撤销',
-    redo: '重做',
-    duplicate: '创建副本',
-    import_recipe: '应用调整',
-    batch: '批量同步',
-  };
   return (
     <ol className="grade-history">
       {history
         .slice()
-        .reverse()
+        .sort((a, b) => b.revision - a.revision)
         .map((entry) => (
           <li key={entry.revision}>
-            <span>{labels[entry.action] ?? entry.action}</span>
-            <span className="tabular">{entry.revision}</span>
+            <button
+              type="button"
+              disabled={disabled || entry.revision === revision}
+              aria-current={entry.revision === revision ? 'step' : undefined}
+              onClick={() => onRestore(entry.revision)}
+              title={`恢复到此步：${historySummary(entry)}`}
+            >
+              <span>{historySummary(entry)}</span>
+              <small>
+                <time dateTime={entry.created_at}>
+                  {new Date(entry.created_at).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                  })}
+                </time>
+                {entry.revision === revision ? ' · 当前' : ''}
+              </small>
+            </button>
           </li>
         ))}
     </ol>

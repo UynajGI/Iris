@@ -8,6 +8,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+mod history;
 mod recipes;
 mod resources;
 mod state;
@@ -50,6 +51,7 @@ pub struct EditHistoryEntry {
     pub revision: u64,
     pub action: String,
     pub created_at: String,
+    pub changes: std::collections::BTreeMap<String, String>,
 }
 
 fn validate_label(value: &str) -> Result<()> {
@@ -204,6 +206,10 @@ impl Services {
         self.photo_path(result.photo_id)?;
         Ok(result)
     }
+    pub fn edit_snapshot(&self, id: &str, revision: u64) -> Result<EditRecord> {
+        self.edit_document(id)?;
+        record(&self.store.conn, id, Some(i64::try_from(revision)?))
+    }
     pub fn edit_documents(
         &self,
         photo_id: i64,
@@ -239,6 +245,7 @@ impl Services {
                     revision: u64::try_from(revision)?,
                     action,
                     created_at,
+                    changes: history::changes(&self.store.conn, id, revision)?,
                 })
             })
             .collect()

@@ -388,6 +388,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "revision",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": ["integer", "null"],
+              "format": "int64",
+              "minimum": 0
+            }
           }
         ],
         "responses": {
@@ -5089,11 +5099,16 @@
         "required": [
           "revision",
           "action",
-          "created_at"
+          "created_at",
+          "changes"
         ],
         "properties": {
           "action": {
             "type": "string"
+          },
+          "changes": {
+            "type": "object",
+            "additionalProperties": { "type": "string" }
           },
           "created_at": {
             "type": "string"
