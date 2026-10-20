@@ -83,12 +83,12 @@ export function Panel({
           <button
             type="button"
             className="grade-group-compare"
-            aria-label={`${bypassed ? '恢复' : '暂时关闭'}${title}效果`}
+            aria-label={`${title}：${bypassed ? '恢复效果' : '暂时关闭效果'}`}
             aria-pressed={bypassed}
-            title={`${bypassed ? '恢复' : '暂时关闭'}${title}效果`}
+            title={`${title}：${bypassed ? '恢复效果' : '暂时关闭效果'}`}
             onClick={onBypass}
           >
-            <Icon name="compare" />
+            <Icon name="visibility" />
           </button>
         )}
         {aside && <span className="panel-aside">{aside}</span>}

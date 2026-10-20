@@ -36,4 +36,10 @@
 - [PCHIP 的 Fritsch–Butland 插值与单调性](https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.PchipInterpolator.html)
 - [darktable：影调均衡器的引导蒙版与细节保护](https://docs.darktable.org/usermanual/4.6/en/module-reference/processing-modules/tone-equalizer/)
 
-验证记录以 CI 和实际前端检查为准；本地不运行 Cargo 编译。
+## 验证记录（2026-10-20）
+
+- `3224102` 的传统渲染 CI 在 Windows、macOS、Ubuntu 全部通过，后端 smoke 检查通过；Windows 优化构建已用于本地公开素材预览。
+- 前端测试 266 项通过、1 项既有跳过；类型检查和资源构建通过。分组投影、局部重置及裁切保留有专项测试覆盖。
+- 中性轴正向和逆向转换已配对校正，普通与仅影调调整在灰阶上的结果通过一致性测试；中间锚点切线固定为 1，避免单侧影调调整影响另一侧。
+- `3224102` 的完整 Verify 工作流通过（运行 `39391405448`）。本地未运行 Cargo 编译。
+- 公开 PPR10K 预览中，分组关闭/恢复效果前后的 11 份调整记录指纹一致，未写入持久化修改。
