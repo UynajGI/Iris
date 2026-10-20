@@ -22,6 +22,7 @@ pub enum CurveInterpolation {
     #[default]
     Linear,
     MonotoneCubic,
+    NaturalCubic,
 }
 impl CurveInterpolation {
     fn is_linear(&self) -> bool {
@@ -42,7 +43,8 @@ pub struct Curve {
     /// Empty means identity. Otherwise 2..=64 points, strictly increasing x,
     /// nondecreasing y, all coordinates in [0,1]. Endpoints must have x=0 and x=1.
     pub points: Vec<CurvePoint>,
-    /// Missing means legacy linear interpolation. Cubic preserves monotonicity.
+    /// Missing means legacy linear interpolation. Natural cubic is C2 continuous;
+    /// only monotone cubic guarantees no overshoot between knots.
     #[serde(skip_serializing_if = "CurveInterpolation::is_linear")]
     pub interpolation: CurveInterpolation,
 }

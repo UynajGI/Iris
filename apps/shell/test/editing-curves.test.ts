@@ -62,3 +62,31 @@ test('uneven knot spacing and plateaus do not overshoot or reverse', () => {
     }
   }
 });
+
+test('natural spline SVG has continuous curvature at uneven control points', () => {
+  const curve: CurveData = {
+    interpolation: 'natural_cubic',
+    points: [
+      { x: 0, y: 0 },
+      { x: 0.2, y: 0.35 },
+      { x: 0.6, y: 0.7 },
+      { x: 1, y: 1 },
+    ],
+  };
+  const pieces = curvePath(curve, 1)
+    .split(' C')
+    .slice(1)
+    .map((s) => s.split(' ').map(Number));
+  for (let i = 0; i < pieces.length - 1; i++) {
+    const a = pieces[i]!,
+      b = pieces[i + 1]!;
+    const widthA = a[4]! - Math.fround(curve.points[i]!.x);
+    const widthB = b[4]! - a[4]!;
+    const slopeA = (3 * (a[5]! - a[3]!)) / widthA;
+    const slopeB = (3 * (b[1]! - a[5]!)) / widthB;
+    const curvatureA = (6 * (a[5]! - 2 * a[3]! + a[1]!)) / widthA ** 2;
+    const curvatureB = (6 * (a[5]! - 2 * b[1]! + b[3]!)) / widthB ** 2;
+    assert.ok(Math.abs(slopeA - slopeB) < 1e-9, 'no tangent discontinuity');
+    assert.ok(Math.abs(curvatureA - curvatureB) < 1e-9, 'no curvature discontinuity');
+  }
+});

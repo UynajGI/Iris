@@ -22,11 +22,13 @@ function prepare(curve: CurveData): Prepared {
           { x: 1, y: 1 },
         ]
   ).map(({ x, y }) => ({ x: Math.fround(x), y: Math.fround(y) }));
-  const cubic = curve.interpolation === 'monotone_cubic';
+  const cubic = curve.interpolation === 'monotone_cubic' || curve.interpolation === 'natural_cubic';
   if (!cubic) return { points, tangents: [], cubic };
   const widths = points.slice(1).map((point, i) => point.x - points[i]!.x);
   const slopes = points.slice(1).map((point, i) => (point.y - points[i]!.y) / widths[i]!);
   const n = slopes.length;
+  if (curve.interpolation === 'natural_cubic')
+    return { points, tangents: naturalTangents(widths, slopes), cubic };
   if (n === 1) return { points, tangents: [slopes[0]!, slopes[0]!], cubic };
   const tangents = Array<number>(n + 1).fill(0);
   tangents[0] = endpoint(widths[0]!, widths[1]!, slopes[0]!, slopes[1]!);
@@ -39,6 +41,24 @@ function prepare(curve: CurveData): Prepared {
     }
   }
   return { points, tangents, cubic };
+}
+
+// Natural boundary conditions: second derivative is zero at both endpoints.
+// Solve the tridiagonal system once; SVG and numeric evaluation use the same tangents.
+function naturalTangents(widths: number[], slopes: number[]): number[] {
+  const n = slopes.length;
+  const upper = Array<number>(n + 1).fill(0);
+  const second = Array<number>(n + 1).fill(0);
+  for (let i = 1; i < n; i++) {
+    const diagonal = 2 * (widths[i - 1]! + widths[i]!) - widths[i - 1]! * upper[i - 1]!;
+    upper[i] = widths[i]! / diagonal;
+    second[i] = (6 * (slopes[i]! - slopes[i - 1]!) - widths[i - 1]! * second[i - 1]!) / diagonal;
+  }
+  for (let i = n - 1; i > 0; i--) second[i]! -= upper[i]! * second[i + 1]!;
+  return [
+    ...slopes.map((slope, i) => slope - (widths[i]! * (2 * second[i]! + second[i + 1]!)) / 6),
+    slopes[n - 1]! + (widths[n - 1]! * (second[n - 1]! + 2 * second[n]!)) / 6,
+  ];
 }
 
 export function curveValue(curve: CurveData, x: number): number {

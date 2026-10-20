@@ -75,6 +75,15 @@ fn legacy_serialization_remains_unchanged_and_unknown_interpolation_is_rejected(
         serde_json::from_value::<Curve>(serde_json::to_value(&cubic).unwrap()).unwrap(),
         cubic
     );
+    let natural = Curve {
+        interpolation: CurveInterpolation::NaturalCubic,
+        ..cubic
+    };
+    natural.validate().unwrap();
+    assert_eq!(
+        serde_json::from_value::<Curve>(serde_json::to_value(&natural).unwrap()).unwrap(),
+        natural
+    );
     assert!(serde_json::from_value::<Curve>(
         serde_json::json!({"points":[],"interpolation":"spline"})
     )

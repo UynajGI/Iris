@@ -4667,7 +4667,7 @@
         "properties": {
           "interpolation": {
             "$ref": "#/components/schemas/CurveInterpolation",
-            "description": "Missing means legacy linear interpolation. Cubic preserves monotonicity.",
+            "description": "Missing means legacy linear interpolation. Natural cubic is C2 continuous;\nonly monotone cubic guarantees no overshoot between knots.",
             "default": "linear"
           },
           "points": {
@@ -4685,7 +4685,8 @@
         "type": "string",
         "enum": [
           "linear",
-          "monotone_cubic"
+          "monotone_cubic",
+          "natural_cubic"
         ]
       },
       "CurvePoint": {

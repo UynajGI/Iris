@@ -57,6 +57,54 @@
     ]
   },
   {
+    "name": "natural cubic analytic three-point solution",
+    "curve": {
+      "points": [
+        { "x": 0, "y": 0 },
+        { "x": 0.5, "y": 0.375 },
+        { "x": 1, "y": 1 }
+      ],
+      "interpolation": "natural_cubic"
+    },
+    "samples": [
+      [-1, -0.625],
+      [0, 0],
+      [0.25, 0.1640625],
+      [0.5, 0.375],
+      [0.75, 0.6640625],
+      [1, 1],
+      [2, 2.375]
+    ]
+  },
+  {
+    "name": "two-point natural spline is affine",
+    "curve": {
+      "points": [
+        { "x": 0, "y": 0.125 },
+        { "x": 1, "y": 0.875 }
+      ],
+      "interpolation": "natural_cubic"
+    },
+    "samples": [
+      [-1, -0.625],
+      [0, 0.125],
+      [0.5, 0.5],
+      [1, 0.875],
+      [2, 1.625]
+    ]
+  },
+  {
+    "name": "empty natural spline is identity",
+    "curve": { "points": [], "interpolation": "natural_cubic" },
+    "samples": [
+      [-2, -2],
+      [0, 0],
+      [0.5, 0.5],
+      [1, 1],
+      [4, 4]
+    ]
+  },
+  {
     "name": "empty cubic is identity",
     "curve": { "points": [], "interpolation": "monotone_cubic" },
     "samples": [

@@ -1,5 +1,5 @@
 // Generated from iris-daemon OpenAPI. Do not edit.
-// Contract SHA-256: f676a75d5d4c796d0bdc5c91eac8c8ef74b91d6074d42f35a7288e9fd7483867
+// Contract SHA-256: d5901a0c1feac56461233a781f5bca3265d913135d75eaf7d3d4db60d16d9947
 export interface paths {
     "/api/v1/bootstrap": {
         parameters: {
@@ -1790,7 +1790,8 @@ export interface components {
         };
         Curve: {
             /**
-             * @description Missing means legacy linear interpolation. Cubic preserves monotonicity.
+             * @description Missing means legacy linear interpolation. Natural cubic is C2 continuous;
+             *     only monotone cubic guarantees no overshoot between knots.
              * @default linear
              */
             interpolation: components["schemas"]["CurveInterpolation"];
@@ -1802,7 +1803,7 @@ export interface components {
             points: components["schemas"]["CurvePoint"][];
         };
         /** @enum {string} */
-        CurveInterpolation: "linear" | "monotone_cubic";
+        CurveInterpolation: "linear" | "monotone_cubic" | "natural_cubic";
         CurvePoint: {
             /**
              * Format: float
