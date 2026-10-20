@@ -1,5 +1,6 @@
 import type { Adjustments, DetailAdjustments, EditDocument, Geometry } from './editing-client.js';
 import type { components } from './generated/api.js';
+import { defaultSeparated } from './editing-observation.js';
 
 type Operation = components['schemas']['Operation'];
 export const outputSpaceNames: Record<components['schemas']['OutputSpace'], string> = {
@@ -100,6 +101,7 @@ export function colorBalance(
   };
 }
 export const defaultAdjustments = (): Adjustments => ({
+  separated: defaultSeparated(),
   exposure: 0,
   contrast: 0,
   contrast_pivot: 0.18,

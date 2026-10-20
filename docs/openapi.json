@@ -3949,6 +3949,26 @@
             "format": "float",
             "default": 0
           },
+          "separated": {
+            "$ref": "#/components/schemas/SeparatedAdjustments",
+            "default": {
+              "color": {
+                "hue": 0,
+                "saturation": 0,
+                "temperature": 0,
+                "tint": 0
+              },
+              "observation": "full",
+              "tone": {
+                "blacks": 0,
+                "contrast": 0,
+                "exposure": 0,
+                "highlights": 0,
+                "shadows": 0,
+                "whites": 0
+              }
+            }
+          },
           "shadows": {
             "type": "number",
             "format": "float",
@@ -6503,6 +6523,68 @@
         },
         "additionalProperties": false
       },
+      "IsolatedColor": {
+        "type": "object",
+        "properties": {
+          "hue": {
+            "type": "number",
+            "format": "float",
+            "default": 0
+          },
+          "saturation": {
+            "type": "number",
+            "format": "float",
+            "default": 0
+          },
+          "temperature": {
+            "type": "number",
+            "format": "float",
+            "default": 0
+          },
+          "tint": {
+            "type": "number",
+            "format": "float",
+            "default": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "IsolatedTone": {
+        "type": "object",
+        "properties": {
+          "blacks": {
+            "type": "number",
+            "format": "float",
+            "default": 0
+          },
+          "contrast": {
+            "type": "number",
+            "format": "float",
+            "default": 0
+          },
+          "exposure": {
+            "type": "number",
+            "format": "float",
+            "default": 0
+          },
+          "highlights": {
+            "type": "number",
+            "format": "float",
+            "default": 0
+          },
+          "shadows": {
+            "type": "number",
+            "format": "float",
+            "default": 0
+          },
+          "whites": {
+            "type": "number",
+            "format": "float",
+            "default": 0
+          }
+        },
+        "additionalProperties": false
+      },
       "JobProgress": {
         "type": "object",
         "required": [
@@ -7221,6 +7303,14 @@
           }
         },
         "additionalProperties": false
+      },
+      "ObservationMode": {
+        "type": "string",
+        "enum": [
+          "full",
+          "tone",
+          "color"
+        ]
       },
       "OcclusionModelStatus": {
         "type": "object",
@@ -9120,6 +9210,37 @@
             }
           }
         }
+      },
+      "SeparatedAdjustments": {
+        "type": "object",
+        "properties": {
+          "color": {
+            "$ref": "#/components/schemas/IsolatedColor",
+            "default": {
+              "hue": 0,
+              "saturation": 0,
+              "temperature": 0,
+              "tint": 0
+            }
+          },
+          "observation": {
+            "$ref": "#/components/schemas/ObservationMode",
+            "description": "The UI inserts observation only in a disposable preview node, never in its saved edit.",
+            "default": "full"
+          },
+          "tone": {
+            "$ref": "#/components/schemas/IsolatedTone",
+            "default": {
+              "blacks": 0,
+              "contrast": 0,
+              "exposure": 0,
+              "highlights": 0,
+              "shadows": 0,
+              "whites": 0
+            }
+          }
+        },
+        "additionalProperties": false
       },
       "SourceBinding": {
         "type": "object",

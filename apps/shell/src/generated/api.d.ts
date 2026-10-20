@@ -1,5 +1,5 @@
 // Generated from iris-daemon OpenAPI. Do not edit.
-// Contract SHA-256: d5901a0c1feac56461233a781f5bca3265d913135d75eaf7d3d4db60d16d9947
+// Contract SHA-256: 5089a3476618e2c5706425845701c81db9678693455a0318144dfc9d5c66c467
 export interface paths {
     "/api/v1/bootstrap": {
         parameters: {
@@ -1476,6 +1476,26 @@ export interface components {
              */
             saturation: number;
             /**
+             * @default {
+             *       "color": {
+             *         "hue": 0,
+             *         "saturation": 0,
+             *         "temperature": 0,
+             *         "tint": 0
+             *       },
+             *       "observation": "full",
+             *       "tone": {
+             *         "blacks": 0,
+             *         "contrast": 0,
+             *         "exposure": 0,
+             *         "highlights": 0,
+             *         "shadows": 0,
+             *         "whites": 0
+             *       }
+             *     }
+             */
+            separated: components["schemas"]["SeparatedAdjustments"];
+            /**
              * Format: float
              * @default 0
              */
@@ -2399,6 +2419,60 @@ export interface components {
             /** @description Omitted selects the pinned public download; otherwise read this local folder. */
             source_folder?: string | null;
         };
+        IsolatedColor: {
+            /**
+             * Format: float
+             * @default 0
+             */
+            hue: number;
+            /**
+             * Format: float
+             * @default 0
+             */
+            saturation: number;
+            /**
+             * Format: float
+             * @default 0
+             */
+            temperature: number;
+            /**
+             * Format: float
+             * @default 0
+             */
+            tint: number;
+        };
+        IsolatedTone: {
+            /**
+             * Format: float
+             * @default 0
+             */
+            blacks: number;
+            /**
+             * Format: float
+             * @default 0
+             */
+            contrast: number;
+            /**
+             * Format: float
+             * @default 0
+             */
+            exposure: number;
+            /**
+             * Format: float
+             * @default 0
+             */
+            highlights: number;
+            /**
+             * Format: float
+             * @default 0
+             */
+            shadows: number;
+            /**
+             * Format: float
+             * @default 0
+             */
+            whites: number;
+        };
         JobProgress: {
             completed: number;
             errors: string[];
@@ -2570,6 +2644,8 @@ export interface components {
             /** Format: int32 */
             version: number;
         };
+        /** @enum {string} */
+        ObservationMode: "full" | "tone" | "color";
         OcclusionModelStatus: {
             provider: components["schemas"]["OcclusionProvider"];
             reason?: string | null;
@@ -3063,6 +3139,33 @@ export interface components {
             model_sha256: string;
             preprocessing: string;
             vector: number[];
+        };
+        SeparatedAdjustments: {
+            /**
+             * @default {
+             *       "hue": 0,
+             *       "saturation": 0,
+             *       "temperature": 0,
+             *       "tint": 0
+             *     }
+             */
+            color: components["schemas"]["IsolatedColor"];
+            /**
+             * @description The UI inserts observation only in a disposable preview node, never in its saved edit.
+             * @default full
+             */
+            observation: components["schemas"]["ObservationMode"];
+            /**
+             * @default {
+             *       "blacks": 0,
+             *       "contrast": 0,
+             *       "exposure": 0,
+             *       "highlights": 0,
+             *       "shadows": 0,
+             *       "whites": 0
+             *     }
+             */
+            tone: components["schemas"]["IsolatedTone"];
         };
         SourceBinding: {
             fingerprint: string;

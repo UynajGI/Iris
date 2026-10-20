@@ -239,3 +239,28 @@ fn point_operations_preserve_hidden_rgb_and_enforce_memory_limit() {
     assert_eq!(out.pixels, input.pixels);
     assert!(adjustments::apply(&input, &p, &RenderContext::new(15)).is_err());
 }
+
+#[test]
+fn separated_controls_persist_validate_and_keep_transparent_pixels() {
+    let old: Adjustments = serde_json::from_str("{}").unwrap();
+    assert!(old.separated.is_default());
+    assert!(serde_json::to_value(&old)
+        .unwrap()
+        .get("separated")
+        .is_none());
+    let mut p = old;
+    p.separated.tone.exposure = 1.0;
+    p.separated.color.hue = 30.0;
+    let json = serde_json::to_string(&p).unwrap();
+    let loaded: Adjustments = serde_json::from_str(&json).unwrap();
+    assert_eq!(p, loaded);
+    let source = vec![[0.4, 0.2, 0.1, 0.7], [-0.3, 2.0, 4.0, 0.0]];
+    let out = run(source.clone(), p.clone());
+    assert_ne!(source[0], out.pixels[0]);
+    assert_eq!(source[0][3], out.pixels[0][3]);
+    assert_eq!(source[1], out.pixels[1]);
+    p.separated.color.hue = f32::NAN;
+    assert!(p.validate().is_err());
+    p.separated.color.hue = 181.0;
+    assert!(p.validate().is_err());
+}

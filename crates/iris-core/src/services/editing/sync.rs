@@ -240,6 +240,7 @@ fn copy_panel(
 fn copy_adjustments(from: &Adjustments, to: &mut Adjustments, group: EditSyncGroup) {
     match group {
         EditSyncGroup::Tone => {
+            to.separated.tone = from.separated.tone;
             to.exposure = from.exposure;
             to.contrast = from.contrast;
             to.contrast_pivot = from.contrast_pivot;
@@ -255,6 +256,7 @@ fn copy_adjustments(from: &Adjustments, to: &mut Adjustments, group: EditSyncGro
             to.vibrance = from.vibrance;
             to.hsl = from.hsl.clone();
             to.black_and_white = from.black_and_white.clone();
+            to.separated.color = from.separated.color;
         }
         EditSyncGroup::Curves => {
             to.tone_curve = from.tone_curve.clone();

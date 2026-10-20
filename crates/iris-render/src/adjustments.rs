@@ -15,6 +15,9 @@ mod curve;
 use curve::PreparedCurve;
 mod balance;
 use balance::PreparedBalance;
+mod separated;
+use separated::PreparedSeparated;
+pub use separated::{IsolatedColor, IsolatedTone, ObservationMode, SeparatedAdjustments};
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, ToSchema)]
 #[serde(rename_all = "snake_case")]
@@ -207,6 +210,8 @@ pub struct Grain {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, ToSchema)]
 #[serde(default, deny_unknown_fields)]
 pub struct Adjustments {
+    #[serde(skip_serializing_if = "SeparatedAdjustments::is_default")]
+    pub separated: SeparatedAdjustments,
     pub exposure: f32,
     /// Contrast exponent multiplier 2^contrast around pivot; signed power keeps negatives.
     pub contrast: f32,
@@ -235,6 +240,7 @@ pub struct Adjustments {
 impl Default for Adjustments {
     fn default() -> Self {
         Self {
+            separated: SeparatedAdjustments::default(),
             exposure: 0.0,
             contrast: 0.0,
             contrast_pivot: 0.18,
@@ -268,6 +274,7 @@ pub(crate) fn range(value: f32, min: f32, max: f32, name: &str) -> Result<()> {
 }
 impl Adjustments {
     pub fn validate(&self) -> Result<()> {
+        self.separated.validate()?;
         range(self.exposure, -16.0, 16.0, "exposure")?;
         range(self.contrast, -2.0, 2.0, "contrast")?;
         range(self.contrast_pivot, 0.001, 1.0, "contrast pivot")?;
@@ -288,6 +295,9 @@ impl Adjustments {
             range(v, -1.0, 1.0, n)?;
         }
         self.validate_curves_and_color()?;
+        self.validate_finishing()
+    }
+    fn validate_finishing(&self) -> Result<()> {
         for v in self.black_and_white.mix {
             range(v, -2.0, 2.0, "black and white mix")?;
         }
@@ -488,6 +498,7 @@ fn exposure_pixels(
 /// Constants and effect switches are computed once per request. Disabled effects
 /// skip their nonlinear math; operator order and full-image coordinates are fixed.
 struct Prepared<'a> {
+    separated: PreparedSeparated,
     p: &'a Adjustments,
     gains: [f64; 3],
     contrast_power: f64,
@@ -501,6 +512,7 @@ struct Prepared<'a> {
 impl<'a> Prepared<'a> {
     fn new(p: &'a Adjustments) -> Self {
         Self {
+            separated: PreparedSeparated::new(p.separated),
             p,
             gains: [
                 (p.exposure as f64 + p.temperature as f64).exp2(),
@@ -643,9 +655,10 @@ impl<'a> Prepared<'a> {
         } else {
             0.0
         };
+        p = self.separated.apply(p.map(|v| v * vignette + grain));
         let mut out = src;
         for c in 0..3 {
-            let value = p[c] * vignette + grain;
+            let value = p[c];
             ensure!(
                 value.is_finite() && value.abs() <= f32::MAX as f64,
                 "adjustment exceeds finite f32 range"
