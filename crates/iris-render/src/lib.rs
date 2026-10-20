@@ -26,4 +26,4 @@ pub mod white_balance;
 pub use budget::{MemoryReservation, RenderContext};
 pub use frame::Frame;
 
-pub const ENGINE_VERSION: &str = "iris-render-1";
+pub const ENGINE_VERSION: &str = "iris-render-2-tone";

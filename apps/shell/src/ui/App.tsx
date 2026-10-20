@@ -305,7 +305,7 @@ export function App({ store, commands }: { store: IrisStore; commands: CommandSy
             {running ? (
               <span className="activity-ring" aria-hidden="true" />
             ) : (
-              <Icon name="schedule" />
+              <Icon name="tasks" />
             )}
           </button>
           <button

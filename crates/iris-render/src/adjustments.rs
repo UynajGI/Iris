@@ -1,7 +1,7 @@
 //! Iris linear adjustments v1, in straight-alpha linear Rec.2020.
 //! These deliberately simple, documented creative operators are not camera white balance
 //! or a reproduction of another editor. Rec.2020 Y uses ITU-R BT.2020 coefficients.
-//! Tone selection uses clamped Y only for masks; RGB is never clipped to [0,1].
+//! Tone controls use ordered Oklab lightness anchors; signed/HDR data is retained.
 //! Curves preserve legacy linear interpolation or use monotone cubic interpolation.
 //! Both extrapolate endpoint slopes without clipping negative or HDR input.
 //! HSL is an artistic cylindrical transform of linear RGB, not perceptual HSL:
@@ -17,7 +17,9 @@ mod balance;
 use balance::PreparedBalance;
 mod separated;
 use separated::PreparedSeparated;
+mod tone;
 pub use separated::{IsolatedColor, IsolatedTone, ObservationMode, SeparatedAdjustments};
+use tone::ToneMap;
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, ToSchema)]
 #[serde(rename_all = "snake_case")]
@@ -216,7 +218,7 @@ pub struct Adjustments {
     /// Contrast exponent multiplier 2^contrast around pivot; signed power keeps negatives.
     pub contrast: f32,
     pub contrast_pivot: f32,
-    /// Smooth masked log2 gains [-2,2], with separate broad/endpoint masks.
+    /// Bounded monotone lightness controls [-2,2], with broad and endpoint anchors.
     pub highlights: f32,
     pub shadows: f32,
     pub whites: f32,
@@ -507,7 +509,8 @@ struct Prepared<'a> {
     prepared_curves: [PreparedCurve<'a>; 4],
     chroma: bool,
     prepared_balance: PreparedBalance<'a>,
-    tone_stops: [f64; 4],
+    tone_map: ToneMap,
+    parametric_map: ToneMap,
 }
 impl<'a> Prepared<'a> {
     fn new(p: &'a Adjustments) -> Self {
@@ -532,30 +535,27 @@ impl<'a> Prepared<'a> {
                 .map(PreparedCurve::new),
             chroma: p.saturation != 0.0 || p.vibrance != 0.0,
             prepared_balance: PreparedBalance::new(&p.color_balance),
-            tone_stops: [
-                p.tone_curve.shadows as f64,
-                p.tone_curve.darks as f64,
-                p.tone_curve.lights as f64,
-                p.tone_curve.highlights as f64,
-            ],
+            tone_map: ToneMap::new(p.blacks, p.shadows, p.highlights, p.whites),
+            parametric_map: ToneMap::new(
+                p.tone_curve.shadows,
+                p.tone_curve.darks,
+                p.tone_curve.lights,
+                p.tone_curve.highlights,
+            ),
         }
     }
     fn tone_and_curves(&self, mut p: [f64; 3]) -> [f64; 3] {
-        let params = self.p;
         if self.tone {
-            let t = luma(p).clamp(0.0, 1.0);
-            let s = 1.0 - smooth(t * 2.0);
-            let h = smooth((t - 0.5) * 2.0);
-            let v = params.shadows as f64 * s
-                + params.highlights as f64 * h
-                + params.blacks as f64 * (1.0 - smooth(t * 5.0))
-                + params.whites as f64 * smooth((t - 0.8) * 5.0);
-            let q = t * 3.0;
-            let j = (q.floor() as usize).min(2);
-            let k = q - j as f64;
-            let gain = (v + self.tone_stops[j] * (1.0 - k) + self.tone_stops[j + 1] * k).exp2();
-            for v in &mut p {
-                *v *= gain;
+            let mut lab = separated::to_lab(p);
+            let mapped = self.parametric_map.map(self.tone_map.map(lab[0]));
+            // Ordinary tone retains chromaticity when the lightness sign agrees.
+            // Near/crossing black, use a neutral lightness offset, not division by zero.
+            if lab[0].abs() > 1e-6 && mapped * lab[0] > 0.0 {
+                let gain = (mapped / lab[0]).powi(3);
+                p = p.map(|v| v * gain);
+            } else {
+                lab[0] = mapped;
+                p = separated::from_lab(lab);
             }
         }
         if self.curves {
@@ -695,10 +695,6 @@ mod optimized_tests {
         let mut all = Adjustments {
             exposure: 0.73,
             contrast: -0.1,
-            shadows: 0.2,
-            highlights: -0.1,
-            whites: 0.1,
-            blacks: 0.05,
             temperature: 0.1,
             tint: -0.2,
             saturation: 0.2,
@@ -712,7 +708,8 @@ mod optimized_tests {
             luminance: 0.03,
             ..Default::default()
         });
-        all.tone_curve.darks = 0.1;
+        // Tone v2 intentionally differs from the frozen v1 reference. Its range,
+        // monotonicity and isolated/full agreement are covered in tone tests.
         all.color_balance.midtones = [0.01, -0.02, 0.03];
         all.vignette.amount = -0.2;
         all.grain.amount = 0.01;

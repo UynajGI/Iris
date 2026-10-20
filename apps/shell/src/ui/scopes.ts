@@ -1,11 +1,19 @@
 import { isShadowClipped, isHighlightClipped } from './scope-pixels.js';
+import { vectorIndex, vectorSize } from './scope-chroma.js';
 export const channels = ['l', 'r', 'g', 'b'] as const;
 export type Channel = (typeof channels)[number];
-export type ScopeMode = 'histogram' | 'waveform';
+export const scopeNames = {
+  histogram: '直方图',
+  waveform: '波形图',
+  parade: '分量图',
+  vectorscope: '矢量图',
+};
+export type ScopeMode = keyof typeof scopeNames;
 export type ChannelBins = Record<Channel, Uint32Array>;
 export type ScopeData = {
   histogram: ChannelBins;
   waveform: ChannelBins;
+  vectorscope: Uint32Array;
   width: number;
   clipLow: number;
   clipHigh: number;
@@ -18,12 +26,13 @@ const allocate = (size: number): ChannelBins => ({
   b: new Uint32Array(size),
 });
 
-/** Both scopes use oriented, downsampled preview pixels, not RAW data. */
+/** Scopes use oriented, downsampled preview pixels, not RAW data. */
 export function sampleScopes(pixels: Uint8ClampedArray, width: number, height: number): ScopeData {
   if (width < 1 || height < 1 || pixels.length !== width * height * 4)
     throw new Error('Invalid scope image');
   const histogram = allocate(256),
     waveform = allocate(width * 256);
+  const vectorscope = new Uint32Array(vectorSize * vectorSize);
   let clipLow = 0,
     clipHigh = 0;
   let visible = 0;
@@ -38,6 +47,7 @@ export function sampleScopes(pixels: Uint8ClampedArray, width: number, height: n
     const red = pixels[p * 4]!,
       green = pixels[p * 4 + 1]!,
       blue = pixels[p * 4 + 2]!;
+    vectorscope[vectorIndex(red / 255, green / 255, blue / 255)]!++;
     const values = {
       r: red,
       g: green,
@@ -62,6 +72,7 @@ export function sampleScopes(pixels: Uint8ClampedArray, width: number, height: n
   return {
     histogram,
     waveform,
+    vectorscope,
     width,
     clipLow: clipLow / Math.max(1, visible),
     clipHigh: clipHigh / Math.max(1, visible),

@@ -1,12 +1,14 @@
 import { readScopePixels, noClipping, type Clipping } from './scope-pixels.js';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { IrisClient } from '../client.js';
 import type { Photo } from '../types.js';
 import { usePhotoUrl } from '../react.js';
 import { mediaRevision } from '../media-cache.js';
+import { ScopeTrace } from './ScopeTrace.js';
 import { histogramPath } from './histogram-path.js';
 import {
   channels,
+  scopeNames,
   histogramPeak,
   sampleScopes,
   type Channel,
@@ -19,7 +21,7 @@ const channelNames = { l: 'Y 亮度通道', r: '红色通道', g: '绿色通道'
 function preferences(): { mode: ScopeMode; selected: Channel[] } {
   try {
     const saved = JSON.parse(localStorage.getItem(preferenceKey) ?? 'null');
-    if (saved && ['histogram', 'waveform'].includes(saved.mode)) {
+    if (saved && Object.hasOwn(scopeNames, saved.mode)) {
       return { mode: saved.mode, selected: [...channels] };
     }
   } catch {
@@ -31,46 +33,6 @@ function preferences(): { mode: ScopeMode; selected: Channel[] } {
 async function computeScopes(url: string): Promise<ScopeData> {
   const pixels = await readScopePixels(url);
   return sampleScopes(pixels.data, pixels.width, pixels.height);
-}
-
-function Waveform({ data, selected }: { data: ScopeData; selected: Channel[] }) {
-  const canvas = useRef<HTMLCanvasElement>(null);
-  useEffect(() => {
-    const context = canvas.current?.getContext('2d');
-    if (!context) return;
-    const pixels = context.createImageData(data.width, 256);
-    const colors = { l: [235, 235, 235], r: [255, 82, 82], g: [85, 235, 129], b: [104, 154, 255] };
-    let peak = 1;
-    for (const channel of selected)
-      for (const value of data.waveform[channel]) peak = Math.max(peak, value);
-    for (let x = 0; x < data.width; x++)
-      for (let level = 0; level < 256; level++) {
-        const index = ((255 - level) * data.width + x) * 4;
-        for (const channel of selected) {
-          const count = data.waveform[channel][x * 256 + level]!;
-          if (!count) continue;
-          const intensity =
-            (0.1 + (0.8 * Math.log1p(count)) / Math.log1p(peak)) *
-            (channel === 'l' && selected.length > 1 ? 0.45 : 1);
-          for (let component = 0; component < 3; component++) {
-            const previous = pixels.data[index + component]!;
-            pixels.data[index + component] =
-              255 - (255 - previous) * (1 - (colors[channel][component]! * intensity) / 255);
-          }
-          pixels.data[index + 3] = 255;
-        }
-      }
-    context.putImageData(pixels, 0, 0);
-  }, [data, selected]);
-  return (
-    <canvas
-      ref={canvas}
-      width={data.width}
-      height={256}
-      className="scope-waveform"
-      aria-hidden="true"
-    />
-  );
 }
 
 function ScopePlot({
@@ -88,23 +50,13 @@ function ScopePlot({
   photo: Photo | undefined;
   failed: boolean;
 }) {
-  if (!data || !selected.length)
+  if (!data || (!selected.length && (mode === 'histogram' || mode === 'waveform')))
     return (
       <div className="histogram-empty">
         {!photo ? '未选择照片' : failed ? '示波图暂不可用' : !selected.length ? '选择下方通道' : ''}
       </div>
     );
-  if (mode !== 'histogram')
-    return (
-      <>
-        <Waveform data={data} selected={selected} />
-        <div className="waveform-scale" aria-hidden="true">
-          {[100, 75, 50, 25, 0].map((level) => (
-            <span key={level}>{level}</span>
-          ))}
-        </div>
-      </>
-    );
+  if (mode !== 'histogram') return <ScopeTrace data={data} selected={selected} mode={mode} />;
   return (
     <svg viewBox="0 0 255 100" preserveAspectRatio="none" aria-hidden="true">
       <g className="histogram-grid">
@@ -233,30 +185,27 @@ export function Histogram({
     () => (data ? histogramPeak(data.histogram, selected) : 1),
     [data, selected]
   );
-  const title = mode === 'histogram' ? '直方图' : '波形图';
+  const title = scopeNames[mode];
   return (
     <section className="histogram" aria-label="色彩示波器">
       <div className="scope-toolbar">
         <div className="scope-modes" role="group" aria-label="示波器类型">
-          {(['histogram', 'waveform'] as const).map((item) => (
+          {(Object.keys(scopeNames) as ScopeMode[]).map((item) => (
             <button
               type="button"
               key={item}
               aria-pressed={mode === item}
               onClick={() => setSettings((current) => ({ ...current, mode: item }))}
             >
-              {item === 'histogram' ? '直方图' : '波形图'}
+              {scopeNames[item]}
             </button>
           ))}
         </div>
-        <span className="scope-source" title="基于缩小预览图估算，不代表 RAW 原始曝光数据">
-          预览
-        </span>
       </div>
       <div
         className={`scope-plot scope-mode-${mode}`}
         role="img"
-        aria-label={`预览图${title}，${selected.map((channel) => channelNames[channel]).join('、') || '未选择通道'}，非 RAW 测量`}
+        aria-label={`预览图${title}，${mode === 'vectorscope' ? 'Cb/Cr 色度，75% 与 100% 色标' : mode === 'parade' ? 'RGB 并列，0–100% 信号刻度' : selected.map((channel) => channelNames[channel]).join('、') || '未选择通道'}，非 RAW 测量`}
       >
         <ScopePlot
           data={data}
@@ -267,7 +216,13 @@ export function Histogram({
           failed={failed}
         />
       </div>
-      <ScopeChannels selected={selected} onChange={setSettings} data={data} />
+      {mode === 'histogram' || mode === 'waveform' ? (
+        <ScopeChannels selected={selected} onChange={setSettings} data={data} />
+      ) : (
+        <div className="scope-legend">
+          {mode === 'parade' ? 'RGB · 0–100%' : 'Cb/Cr · 75% / 100%'}
+        </div>
+      )}
       <ScopeClipping data={data} clipping={clipping} onChange={onClipping} />
     </section>
   );

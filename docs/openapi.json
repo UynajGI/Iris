@@ -3922,7 +3922,7 @@
           "highlights": {
             "type": "number",
             "format": "float",
-            "description": "Smooth masked log2 gains [-2,2], with separate broad/endpoint masks.",
+            "description": "Bounded monotone lightness controls [-2,2], with broad and endpoint anchors.",
             "default": 0
           },
           "hsl": {

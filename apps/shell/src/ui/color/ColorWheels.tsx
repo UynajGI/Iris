@@ -4,6 +4,7 @@ import { gainsToWheel, wheelToGains, type WheelColor } from '../../editing-color
 import { colorBalance } from '../../editing-document.js';
 import { AdjustmentSlider } from './AdjustmentSlider.js';
 import { WheelDial } from './WheelDial.js';
+import { WheelReadout } from './WheelReadout.js';
 
 const bands = [
   ['shadows', '阴影'],
@@ -12,8 +13,8 @@ const bands = [
   ['global', '全局'],
 ] as const;
 type Band = (typeof bands)[number][0];
-// The three tonal ranges keep the centred overview; the global wheel sits below them.
-const overview = ['midtones', 'shadows', 'highlights', 'global'] as const;
+// Lightroom's 3-way overview contains tonal ranges only; Global has its own page.
+const overview = ['midtones', 'shadows', 'highlights'] as const;
 function WheelControls({
   label,
   value,
@@ -53,7 +54,6 @@ export function ColorWheels({
   disabled: boolean;
 }) {
   const [band, setBand] = useState<Band | 'all'>('all');
-  const [activeBand, setActiveBand] = useState<Band>('midtones');
   // Neutral RGB has no hue. Retain the chosen angle until saturation is raised.
   const [hues, setHues] = useState<Record<Band, number>>({
     shadows: 0,
@@ -80,14 +80,19 @@ export function ColorWheels({
     if (disabled) return;
     onChange({ ...adjustments, color_balance: { ...adjustments.color_balance, ...patch } });
   };
-  const selectedBand = band === 'all' ? activeBand : band;
+  const selectedBand = band === 'all' ? 'midtones' : band;
   const selectedName = bands.find(([key]) => key === selectedBand)![1];
   const selected = valueFor(selectedBand);
   return (
     <>
       <div className="grade-wheel-bands" role="group" aria-label="颜色分级色轮">
-        <button type="button" aria-pressed={band === 'all'} onClick={() => setBand('all')}>
-          全部
+        <button
+          type="button"
+          disabled={disabled}
+          aria-pressed={band === 'all'}
+          onClick={() => setBand('all')}
+        >
+          三轮
         </button>
         {bands.map(([key, name]) => (
           <button
@@ -107,16 +112,15 @@ export function ColorWheels({
             const name = bands.find(([item]) => item === key)![1];
             return (
               <div
-                className="grade-wheel-mini"
+                className="grade-wheel-mini grade-wheel-editor"
                 key={key}
-                onPointerDownCapture={() => setActiveBand(key)}
-                onFocusCapture={() => setActiveBand(key)}
+                role="group"
+                aria-label={`${name}分级`}
               >
                 <button
                   type="button"
-                  aria-pressed={activeBand === key}
-                  onClick={() => setActiveBand(key)}
-                  title={`调整${name}`}
+                  onClick={() => setBand(key)}
+                  title={`打开${name}单轮调整`}
                   disabled={disabled}
                 >
                   {name}
@@ -127,39 +131,78 @@ export function ColorWheels({
                   disabled={disabled}
                   onChange={(patch) => change(key, patch)}
                 />
+                <WheelReadout
+                  value={valueFor(key)}
+                  label={name}
+                  disabled={disabled}
+                  onChange={(patch) => change(key, patch)}
+                />
+                <fieldset
+                  className="grade-wheel-luminance"
+                  disabled={disabled}
+                  aria-label={`${name}亮度调整`}
+                  title="亮度 · 双击 L 重置"
+                >
+                  <AdjustmentSlider
+                    spec={{
+                      key: 'wheel-luminance',
+                      label: 'L',
+                      min: -2,
+                      max: 2,
+                      step: 0.02,
+                      scale: 50,
+                    }}
+                    value={valueFor(key).luminance}
+                    onChange={(luminance) => change(key, { luminance })}
+                  />
+                </fieldset>
               </div>
             );
           })}
         </div>
       ) : (
-        <>
+        <fieldset className="grade-wheel-detail grade-wheel-editor" disabled={disabled}>
           <WheelDial
             key={band}
-            label={bands.find(([key]) => key === band)![1]}
+            label={selectedName}
             value={selected}
             disabled={disabled}
             onChange={(patch) => change(band, patch)}
           />
-        </>
+          <WheelReadout
+            value={selected}
+            label={selectedName}
+            disabled={disabled}
+            onChange={(patch) => change(band, patch)}
+          />
+          <WheelControls
+            label={selectedName}
+            value={selected}
+            onChange={(patch) => change(band, patch)}
+          />
+        </fieldset>
       )}
-      {band === 'all' && <div className="grade-wheel-control-label">{selectedName}</div>}
-      <WheelControls
-        label={selectedName}
-        value={selected}
-        onChange={(patch) => change(selectedBand, patch)}
-      />
-      <div className="grade-wheel-range" role="group" aria-label="颜色分级范围混合与平衡">
-        <AdjustmentSlider
-          spec={{ key: 'grading-blending', label: '混合', min: 0, max: 1, scale: 100, reset: 0.5 }}
-          value={value.blending}
-          onChange={(blending) => changeRange({ blending })}
-        />
-        <AdjustmentSlider
-          spec={{ key: 'grading-balance', label: '平衡', min: -1, max: 1, scale: 100 }}
-          value={value.balance}
-          onChange={(balance) => changeRange({ balance })}
-        />
-      </div>
+      {band !== 'global' && (
+        <div className="grade-wheel-range" role="group" aria-label="颜色分级范围混合与平衡">
+          <AdjustmentSlider
+            spec={{
+              key: 'grading-blending',
+              label: '混合',
+              min: 0,
+              max: 1,
+              scale: 100,
+              reset: 0.5,
+            }}
+            value={value.blending}
+            onChange={(blending) => changeRange({ blending })}
+          />
+          <AdjustmentSlider
+            spec={{ key: 'grading-balance', label: '平衡', min: -1, max: 1, scale: 100 }}
+            value={value.balance}
+            onChange={(balance) => changeRange({ balance })}
+          />
+        </div>
+      )}
     </>
   );
 }

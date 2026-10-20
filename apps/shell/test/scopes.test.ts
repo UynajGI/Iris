@@ -56,4 +56,8 @@ test('scope controls display YRGB with all channels selected by default', async 
   );
   for (const [button] of buttons) assert.match(button, /aria-pressed="true"/);
   assert.match(buttons[0]![0], /aria-label="Y 亮度通道"/);
+  for (const name of ['直方图', '波形图', '分量图', '矢量图']) {
+    assert.ok(markup.includes(`>${name}</button>`));
+  }
+  assert.ok(!markup.includes('scope-source'), 'no visible preview source label');
 });

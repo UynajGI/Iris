@@ -45,7 +45,10 @@ fn contrast_has_fixed_pivot_and_retains_negative_values() {
 }
 #[test]
 fn endpoint_and_broad_tone_masks_are_distinct() {
-    let input = vec![[0.3, 0.3, 0.3, 1.0], [0.7, 0.7, 0.7, 1.0]];
+    let input = vec![
+        [0.015625, 0.015625, 0.015625, 1.0],
+        [0.551368, 0.551368, 0.551368, 1.0],
+    ];
     let shadows = run(
         input.clone(),
         Adjustments {
@@ -75,9 +78,79 @@ fn endpoint_and_broad_tone_masks_are_distinct() {
         },
     );
     assert!(shadows.pixels[0][0] > blacks.pixels[0][0]);
-    near(blacks.pixels[0][0], 0.3);
     assert!(highlights.pixels[1][0] > whites.pixels[1][0]);
-    near(whites.pixels[1][0], 0.7);
+}
+
+#[test]
+fn tone_extremes_do_not_reverse_a_grayscale_ramp_and_preserve_alpha() {
+    let input: Vec<_> = (0..=4096)
+        .map(|i| {
+            let y = i as f32 / 2048.0;
+            [y, y, y, 0.75]
+        })
+        .collect();
+    for parameters in [
+        Adjustments {
+            highlights: -2.0,
+            ..Default::default()
+        },
+        Adjustments {
+            whites: -2.0,
+            ..Default::default()
+        },
+        Adjustments {
+            shadows: 2.0,
+            ..Default::default()
+        },
+        Adjustments {
+            blacks: 2.0,
+            shadows: -2.0,
+            highlights: 2.0,
+            whites: -2.0,
+            ..Default::default()
+        },
+    ] {
+        let output = run(input.clone(), parameters);
+        for pair in output.pixels.windows(2) {
+            assert!(pair[1][0] > pair[0][0]);
+            near(pair[0][0], pair[0][1]);
+            near(pair[0][0], pair[0][2]);
+            assert_eq!(pair[0][3], 0.75);
+        }
+    }
+}
+
+#[test]
+fn ordinary_and_isolated_tone_agree_on_neutral_lightness() {
+    use iris_render::adjustments::IsolatedTone;
+    let input = vec![
+        [0.0, 0.0, 0.0, 1.0],
+        [0.01, 0.01, 0.01, 1.0],
+        [0.5, 0.5, 0.5, 1.0],
+        [3.0, 3.0, 3.0, 1.0],
+    ];
+    let ordinary = Adjustments {
+        shadows: 1.0,
+        highlights: -1.5,
+        whites: -0.5,
+        blacks: 0.3,
+        ..Default::default()
+    };
+    let mut isolated = Adjustments::default();
+    isolated.separated.tone = IsolatedTone {
+        shadows: 1.0,
+        highlights: -1.5,
+        whites: -0.5,
+        blacks: 0.3,
+        ..Default::default()
+    };
+    let a = run(input.clone(), ordinary);
+    let b = run(input, isolated);
+    for (a, b) in a.pixels.iter().zip(b.pixels) {
+        for c in 0..4 {
+            near(a[c], b[c]);
+        }
+    }
 }
 #[test]
 fn curves_are_monotone_and_extrapolate_hdr() {

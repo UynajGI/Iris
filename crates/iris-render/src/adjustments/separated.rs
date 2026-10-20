@@ -2,7 +2,7 @@
 //! Independent perceptual lightness/chroma controls in linear Rec.2020 D65.
 //! Oklab equations: https://bottosson.github.io/posts/oklab/ (public domain).
 //! Separation is before output gamut mapping; display clipping can alter chroma.
-use super::{range, smooth};
+use super::{range, tone::ToneMap};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -107,10 +107,10 @@ const fn inverse(m: Matrix) -> Matrix {
 fn mul(m: Matrix, p: [f64; 3]) -> [f64; 3] {
     m.map(|row| row[0] * p[0] + row[1] * p[1] + row[2] * p[2])
 }
-fn to_lab(p: [f64; 3]) -> [f64; 3] {
+pub(super) fn to_lab(p: [f64; 3]) -> [f64; 3] {
     mul(LMS_LAB, mul(XYZ_LMS, mul(RGB_XYZ, p)).map(f64::cbrt))
 }
-fn from_lab(p: [f64; 3]) -> [f64; 3] {
+pub(super) fn from_lab(p: [f64; 3]) -> [f64; 3] {
     mul(
         inverse(RGB_XYZ),
         mul(
@@ -128,6 +128,7 @@ pub(super) struct PreparedSeparated {
     exposure: f64,
     contrast: f64,
     rotation: (f64, f64),
+    tone_map: ToneMap,
 }
 impl PreparedSeparated {
     pub fn new(params: SeparatedAdjustments) -> Self {
@@ -138,6 +139,12 @@ impl PreparedSeparated {
             exposure: (params.tone.exposure as f64 / 3.0).exp2(),
             contrast: (params.tone.contrast as f64).exp2(),
             rotation: (params.color.hue as f64).to_radians().sin_cos(),
+            tone_map: ToneMap::new(
+                params.tone.blacks,
+                params.tone.shadows,
+                params.tone.highlights,
+                params.tone.whites,
+            ),
             params,
         }
     }
@@ -156,12 +163,7 @@ impl PreparedSeparated {
                 let pivot = 0.18_f64.cbrt();
                 l = l.signum() * pivot * (l.abs() / pivot).powf(self.contrast);
             }
-            let x = original_l.clamp(0.0, 1.0);
-            let gain = t.shadows as f64 * (1.0 - smooth(x * 2.0))
-                + t.highlights as f64 * smooth((x - 0.5) * 2.0)
-                + t.blacks as f64 * (1.0 - smooth(x * 5.0))
-                + t.whites as f64 * smooth((x - 0.8) * 5.0);
-            lab[0] = l * (gain / 3.0).exp2();
+            lab[0] = self.tone_map.map(l);
         }
         if self.color_active {
             let c = &self.params.color;

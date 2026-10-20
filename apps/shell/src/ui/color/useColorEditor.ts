@@ -7,6 +7,7 @@ import { EditingPreviewQueue } from '../../editing-preview-queue.js';
 import { EditingSaveQueue } from '../../editing-save-queue.js';
 import { PreviewFrames } from '../../preview-frames.js';
 import { observationDocument, type ObservationMode } from '../../editing-observation.js';
+import { bypassAdjustmentGroup, type AdjustmentGroup } from '../../editing-groups.js';
 import {
   EditingDrafts,
   sameDocument,
@@ -35,7 +36,11 @@ type PreviewInput = {
   crop: boolean;
   proof: string | null;
   observation: ObservationMode;
+  bypass: AdjustmentGroup | null;
 };
+function modeKey(input: Pick<PreviewInput, 'crop' | 'proof' | 'observation' | 'bypass'>) {
+  return JSON.stringify([input.crop, input.proof, input.observation, input.bypass]);
+}
 function openEdit(client: EditingClient, photo: number): Promise<EditRecord> {
   let map = opening.get(client.client);
   if (!map) {
@@ -84,7 +89,8 @@ export function useColorEditor(
   showBefore = false,
   cropMode = false,
   proofResource: string | null = null,
-  observation: ObservationMode = 'full'
+  observation: ObservationMode = 'full',
+  bypass: AdjustmentGroup | null = null
 ) {
   const api = useMemo(() => new EditingClient(client), [client]);
   const [record, setRecord] = useState<EditRecord | null>(null);
@@ -129,7 +135,7 @@ export function useColorEditor(
   const [rendering, setRendering] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [previewDocument, setPreviewDocument] = useState<EditDocument | null>(null);
-  const mode = JSON.stringify([cropMode, proofResource, observation]);
+  const mode = JSON.stringify([cropMode, proofResource, observation, bypass]);
   const [previewMode, setPreviewMode] = useState('');
   const requestedMode = useRef(mode);
   requestedMode.current = mode;
@@ -246,11 +252,11 @@ export function useColorEditor(
               current?.id !== input.record.id ||
               current.revision !== input.record.revision ||
               current.photo_id !== requestedPhoto.current ||
-              requestedMode.current !== JSON.stringify([input.crop, input.proof, input.observation])
+              requestedMode.current !== modeKey(input)
             )
               return false;
             setPreviewError(null);
-            setPreviewMode(JSON.stringify([input.crop, input.proof, input.observation]));
+            setPreviewMode(modeKey(input));
             setPreviewDocument(input.document);
             setPreview(url);
             return true;
@@ -273,7 +279,8 @@ export function useColorEditor(
   }, [api, session]);
   useEffect(() => {
     if (!record || !draft || record.photo_id !== photoId) return;
-    const document = cropMode ? cropPreviewDocument(draft) : draft;
+    const projected = bypassAdjustmentGroup(draft, bypass);
+    const document = cropMode ? cropPreviewDocument(projected) : projected;
     const key = JSON.stringify({
       document,
       id: record.id,
@@ -283,6 +290,7 @@ export function useColorEditor(
       cropMode,
       proofResource,
       observation,
+      bypass,
     });
     if (previewKey.current === key) return;
     previewKey.current = key;
@@ -296,6 +304,7 @@ export function useColorEditor(
         crop: cropMode,
         proof: proofResource,
         observation,
+        bypass,
       },
       activePreviewEdge.current > 384 || activeProof.current !== proofResource
     );
@@ -308,10 +317,11 @@ export function useColorEditor(
         crop: cropMode,
         proof: proofResource,
         observation,
+        bypass,
       });
     }, 300);
     return () => clearTimeout(timer);
-  }, [api, record, draft, session, photoId, previewAttempt, cropMode, proofResource, observation]);
+  }, [api, record, draft, session, photoId, previewAttempt, mode]);
   const beforeKey = JSON.stringify({ source: draft?.source, output: draft?.output, observation });
   useEffect(() => {
     if (!showBefore || !record || !draft || beforeImage?.key === beforeKey) {

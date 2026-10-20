@@ -1,5 +1,5 @@
 // Generated from iris-daemon OpenAPI. Do not edit.
-// Contract SHA-256: 5089a3476618e2c5706425845701c81db9678693455a0318144dfc9d5c66c467
+// Contract SHA-256: 6777375007288127ffcf81ce745451b939be297fcabfe454fe72d7f6593fa56f
 export interface paths {
     "/api/v1/bootstrap": {
         parameters: {
@@ -1452,7 +1452,7 @@ export interface components {
             green_curve: components["schemas"]["Curve"];
             /**
              * Format: float
-             * @description Smooth masked log2 gains [-2,2], with separate broad/endpoint masks.
+             * @description Bounded monotone lightness controls [-2,2], with broad and endpoint anchors.
              * @default 0
              */
             highlights: number;

@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import type { Adjustments } from '../src/editing-client.js';
 import { colorBalance, defaultAdjustments, defaultColorBalance } from '../src/editing-document.js';
 import { ColorWheels } from '../src/ui/color/ColorWheels.js';
+import { WheelReadout } from '../src/ui/color/WheelReadout.js';
 
 /** A document saved before the global wheel and range blending/balance existed. */
 function legacyAdjustments(): Adjustments {
@@ -66,12 +67,36 @@ test('saved grading extensions survive returning to the panel', () => {
 
 test('grading panel offers the global wheel, blending and balance for legacy drafts', () => {
   const html = markup(legacyAdjustments());
-  for (const name of ['全部', '阴影', '中间调', '高光', '全局'])
+  for (const name of ['三轮', '阴影', '中间调', '高光', '全局'])
     assert.ok(html.includes(name), name);
-  assert.equal(html.match(/class="grade-wheel-mini"/g)?.length, 4);
-  assert.ok(html.includes('aria-label="全局色轮"'));
+  assert.equal(html.match(/class="grade-wheel-mini grade-wheel-editor"/g)?.length, 3);
+  assert.ok(!html.includes('aria-label="全局色轮"'), 'Global has its own page');
+  for (const name of ['阴影', '中间调', '高光']) {
+    assert.ok(html.includes(`aria-label="${name}亮度调整"`));
+    assert.ok(html.includes(`aria-label="${name} HSL 数值"`));
+  }
   assert.equal(inputValue(html, '混合数值'), '50');
   assert.equal(inputValue(html, '平衡数值'), '0');
+});
+
+test('wheel readout matches numeric controls and uses compact H S L values', () => {
+  const html = renderToStaticMarkup(
+    createElement(WheelReadout, {
+      label: '中间调',
+      value: { hue: 248.6, saturation: 0.64, luminance: -0.26 },
+      disabled: false,
+      onChange: () => {},
+    })
+  );
+  for (const [name, value] of [
+    ['H', '249'],
+    ['S', '32'],
+    ['L', '-13'],
+  ]) {
+    assert.match(html, new RegExp(`aria-label="中间调 ${name}，点击输入"[^>]*>${value}</button>`));
+  }
+  assert.ok(!html.includes('<input'), 'readout stays text until the user starts editing');
+  assert.ok(!html.includes('°'));
 });
 
 test('grading panel shows the saved blending and balance instead of neutral defaults', () => {

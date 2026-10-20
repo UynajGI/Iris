@@ -1,6 +1,6 @@
-import { Select } from '../Select.js';
 import { noClipping } from '../scope-pixels.js';
 import { observationDocument, type ObservationMode } from '../../editing-observation.js';
+import { bypassAdjustmentGroup, type AdjustmentGroup } from '../../editing-groups.js';
 import { useEffect, useRef, useState } from 'react';
 import type { PhotoWorkspaceModel } from '../usePhotoWorkspace.js';
 import { Icon } from '../Icon.js';
@@ -46,13 +46,15 @@ export function ColorWorkspace({
   const [showMask, setShowMask] = useState(true);
   const [clipping, setClipping] = useState(noClipping);
   const [observation, setObservation] = useState<ObservationMode>('full');
+  const [bypass, setBypass] = useState<AdjustmentGroup | null>(null);
   const editor = useColorEditor(
     model.store.client,
     photo?.id,
     before || comparison,
     cropMode,
     null,
-    observation
+    observation,
+    bypass
   );
   const whiteBalance = useRawWhiteBalance({
     client: model.store.client,
@@ -99,6 +101,7 @@ export function ColorWorkspace({
     !!editor.draft && !editor.loading && !editor.busy && !editor.recovery && !whiteBalance.pending;
   useEffect(() => {
     setSelectedMaskPart(0);
+    setBypass(null);
   }, [selectedMask, editor.record?.id]);
   useEffect(() => {
     try {
@@ -146,6 +149,7 @@ export function ColorWorkspace({
   }, [editor.record?.id]);
   useEffect(() => {
     setBefore(false);
+    setBypass(null);
     setCropMode(false);
     setZoom(1);
     setSelectedMask(null);
@@ -241,30 +245,6 @@ export function ColorWorkspace({
             {photo?.filename ?? '未选择照片'}
           </span>
           <span className="spacer" />
-          {editor.record && (
-            <div className="grade-compact-versions">
-              <Select
-                aria-label="当前调色版本"
-                value={editor.record.id}
-                disabled={!available}
-                onValueChange={(nextValue) => void editor.selectVersion(nextValue)}
-              >
-                {editor.versions.map((version) => (
-                  <option key={version.id} value={version.id}>
-                    {version.name}
-                  </option>
-                ))}
-              </Select>
-              <Button
-                className="quiet"
-                aria-label="创建虚拟副本"
-                disabled={!available}
-                onClick={() => void editor.command('duplicate')}
-              >
-                副本
-              </Button>
-            </div>
-          )}
           <Button
             className="quiet icon-only"
             aria-label="上一张"
@@ -316,7 +296,10 @@ export function ColorWorkspace({
                 key={editor.record.id}
                 client={model.store.client}
                 record={editor.record}
-                document={observationDocument(editor.draft, observation)}
+                document={observationDocument(
+                  bypassAdjustmentGroup(editor.draft, bypass),
+                  observation
+                )}
                 preview={editor.preview}
                 filename={photo.filename}
               />
@@ -359,7 +342,7 @@ export function ColorWorkspace({
                   editor.record && editor.draft
                     ? {
                         record: editor.record,
-                        document: editor.draft,
+                        document: bypassAdjustmentGroup(editor.draft, bypass),
                         displayed: editor.previewDocument,
                       }
                     : undefined
@@ -607,6 +590,32 @@ export function ColorWorkspace({
               >
                 <h2>历史</h2>
                 <EditHistoryList history={editor.history} />
+                {editor.record && (
+                  <details className="grade-version-actions">
+                    <summary>版本</summary>
+                    <Button
+                      className="quiet block"
+                      disabled={!available}
+                      onClick={() => void editor.command('duplicate')}
+                    >
+                      创建虚拟副本
+                    </Button>
+                    {editor.versions.length > 1 &&
+                      editor.versions.map((version) => (
+                        <button
+                          key={version.id}
+                          className="grade-version"
+                          type="button"
+                          aria-current={version.id === editor.record?.id ? 'true' : undefined}
+                          disabled={!available}
+                          onClick={() => void editor.selectVersion(version.id)}
+                        >
+                          <Icon name={version.id === editor.record?.id ? 'done' : 'image'} />
+                          <span>{version.name}</span>
+                        </button>
+                      ))}
+                  </details>
+                )}
               </div>
             )}
           </div>
@@ -801,10 +810,15 @@ export function ColorWorkspace({
             {layer && <div className="grade-adjustment-target">正在调整：{layer.name}</div>}
             {(toolTab === 'adjustments' || (toolTab === 'masks' && layer)) && (
               <AdjustmentPanels
+                bypass={bypass}
+                onBypass={setBypass}
                 observation={observation}
                 document={editor.draft}
                 disabled={!available}
-                onChange={editor.setDraft}
+                onChange={(document) => {
+                  setBypass(null);
+                  editor.setDraft(document);
+                }}
                 target={
                   layer ? { adjustmentId: layer.adjustmentId, detailId: layer.detailId } : undefined
                 }

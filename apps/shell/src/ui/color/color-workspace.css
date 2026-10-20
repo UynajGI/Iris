@@ -61,6 +61,15 @@
   font-size: var(--font);
   margin: 0 0 8px;
 }
+.grade-version-actions {
+  margin-top: 12px;
+  border-top: 1px solid var(--line-subtle);
+}
+.grade-version-actions summary {
+  padding: 10px 0;
+  color: var(--muted);
+  cursor: pointer;
+}
 .grade-tool-tabs {
   display: flex;
   border-bottom: 1px solid var(--line-subtle);
@@ -165,6 +174,56 @@
 }
 .grade-library .panel-body {
   padding: 10px 14px 16px;
+}
+.grade-panel-options {
+  display: flex;
+  justify-content: flex-end;
+  padding: 4px 12px;
+}
+.grade-panel-options button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  min-height: 28px;
+  font-size: var(--small);
+  cursor: pointer;
+}
+.grade-panel-options button[aria-pressed='true'] {
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 5px;
+}
+.grade-subheading {
+  margin: 16px 0 6px;
+  color: var(--muted);
+  font-size: var(--small);
+  font-weight: 400;
+}
+.grade-modified {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--muted);
+  flex: 0 0 auto;
+}
+.grade-group-compare {
+  display: grid;
+  place-items: center;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 4px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.grade-group-compare:hover,
+.grade-group-compare[aria-pressed='true'] {
+  color: var(--text);
+  background: var(--raised);
+}
+.grade-bypassed > .panel-bar .panel-toggle span:not(.icon) {
+  opacity: 0.65;
 }
 .grade-version {
   display: flex;
@@ -1229,27 +1288,10 @@
   margin-top: 14px;
   border-top: 1px solid var(--line-subtle);
 }
-.grade-compact-versions,
 .grade-compact-history {
   display: none;
 }
 @media (max-width: 1140px) {
-  .grade-compact-versions {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
-  .grade-compact-versions .iris-select {
-    max-width: 136px;
-    min-width: 112px;
-    min-height: 28px;
-    padding: 3px 24px 3px 6px;
-    font-size: var(--small);
-  }
-  .grade-compact-versions .button {
-    min-height: 28px;
-    padding: 3px 6px;
-  }
   .grade-compact-history {
     display: block;
   }
@@ -1464,8 +1506,7 @@
   gap: 12px;
   padding-top: 12px;
 }
-.grade-wheels-overview > :first-child,
-.grade-wheels-overview > :last-child {
+.grade-wheels-overview > :first-child {
   grid-column: 1 / -1;
   width: calc(50% - 6px);
   justify-self: center;
@@ -1484,7 +1525,8 @@
   color: var(--muted);
   font-size: var(--small);
 }
-.grade-wheel-mini > button[aria-pressed='true'] {
+.grade-wheel-mini > button:hover,
+.grade-wheel-mini > button:focus-visible {
   color: var(--text);
   text-decoration: underline;
   text-decoration-color: var(--accent-line);
@@ -1507,6 +1549,88 @@
 }
 .grade-wheel-controls {
   min-width: 0;
+}
+.grade-wheel-readout {
+  display: flex;
+  justify-content: center;
+  gap: 7px;
+  min-height: 18px;
+  line-height: 18px;
+  margin-top: 4px;
+  color: var(--text);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  visibility: hidden;
+}
+.grade-wheel-editor:hover .grade-wheel-readout,
+.grade-wheel-editor:focus-within .grade-wheel-readout {
+  visibility: visible;
+}
+.grade-wheel-number {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 1px;
+}
+.grade-wheel-readout .grade-wheel-number > button,
+.grade-wheel-readout .grade-wheel-number input[type='number'] {
+  min-width: 0;
+  min-height: 18px;
+  height: 18px;
+  padding: 1px 0;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  appearance: textfield;
+  text-align: left;
+}
+.grade-wheel-readout .grade-wheel-number > button:hover {
+  border-bottom-color: var(--muted);
+  cursor: text;
+}
+.grade-wheel-readout .grade-wheel-number > button:focus-visible,
+.grade-wheel-readout .grade-wheel-number input[type='number']:focus {
+  outline: none;
+  border-bottom-color: var(--accent-line);
+  background: var(--raised);
+}
+.grade-wheel-readout .grade-wheel-number input::-webkit-inner-spin-button,
+.grade-wheel-readout .grade-wheel-number input::-webkit-outer-spin-button {
+  appearance: none;
+  margin: 0;
+}
+.grade-wheel-luminance,
+.grade-wheel-detail {
+  min-width: 0;
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+.grade-wheel-luminance .grade-slider {
+  grid-template-columns: 12px minmax(0, 1fr) 32px;
+  gap: 5px;
+  min-height: 26px;
+}
+.grade-wheel-luminance .grade-value {
+  width: 32px;
+  grid-template-columns: minmax(0, 1fr);
+}
+.grade-wheel-luminance .grade-slider label,
+.grade-wheel-luminance .grade-value input {
+  font-size: 11px;
+}
+.grade-wheel-luminance input[type='range'] {
+  min-width: 0;
+}
+.grade-wheel-detail {
+  margin-top: 12px;
+}
+.grade-wheel-detail .grade-color-wheels {
+  margin-top: 6px;
 }
 .grade-wheel-range {
   margin-top: 10px;

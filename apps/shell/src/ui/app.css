@@ -1813,13 +1813,11 @@ img.loaded {
   font-size: var(--small);
   background: var(--sunken);
 }
-.scope-source {
-  color: var(--muted);
-  font-size: 11px;
-}
 .scope-modes {
   display: flex;
-  gap: 16px;
+  width: 100%;
+  justify-content: space-between;
+  gap: 8px;
 }
 .scope-modes button {
   padding: 4px 0 7px;
@@ -1875,37 +1873,92 @@ img.loaded {
   overflow: hidden;
   background: #121212;
 }
-.scope-plot > svg,
-.scope-waveform {
+.scope-plot > svg {
   display: block;
   width: 100%;
   height: 100%;
 }
-.scope-waveform {
-  padding-left: 24px;
+.scope-mode-waveform,
+.scope-mode-parade,
+.scope-mode-vectorscope {
+  height: 180px;
+}
+.scope-signal {
+  position: absolute;
+  inset: 8px 4px 18px 28px;
+}
+.scope-signal canvas,
+.scope-signal-grid,
+.scope-vector canvas,
+.scope-vector-grid {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.scope-signal-grid i {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px solid #ffffff18;
 }
 .waveform-scale {
   position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
+  inset: 8px auto 18px 0;
+  width: 23px;
   pointer-events: none;
 }
 .waveform-scale span {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  color: #ababab;
+  position: absolute;
+  right: 0;
+  transform: translateY(-50%);
+  color: var(--muted);
   font-size: 9px;
-  line-height: 1;
   font-variant-numeric: tabular-nums;
 }
-.waveform-scale span::after {
-  content: '';
-  height: 1px;
-  background: #ffffff18;
-  flex: 1;
+.scope-parade-labels {
+  position: absolute;
+  inset: auto 4px 2px 28px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  color: var(--muted);
+  text-align: center;
+  font-size: 10px;
+}
+.scope-vector {
+  position: relative;
+  height: 100%;
+  aspect-ratio: 1;
+  margin: auto;
+}
+.scope-graticule {
+  stroke: #ffffff24;
+  stroke-width: 1;
+  fill: none;
+}
+.scope-vector-grid text {
+  fill: currentColor;
+  font-size: 13px;
+}
+.scope-target {
+  stroke: currentColor;
+  stroke-width: 1;
+  fill: none;
+  opacity: 0.8;
+}
+.scope-target.outer {
+  opacity: 0.45;
+}
+.scope-legend {
+  height: 26px;
+  margin-top: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
 }
 .scope-channels {
   display: flex;
@@ -3114,6 +3167,11 @@ details p {
   }
   .scope-plot {
     height: 72px;
+  }
+  .scope-mode-waveform,
+  .scope-mode-parade,
+  .scope-mode-vectorscope {
+    height: 144px;
   }
   .film {
     flex-basis: 60px;

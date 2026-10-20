@@ -33,8 +33,9 @@ import schedule from './icons/schedule.svg';
 import storage from './icons/storage.svg';
 import autoAwesome from './icons/auto-awesome.svg';
 import sort from './icons/sort.svg';
+import tasks from './icons/tasks.svg';
 
-// Only repository-owned, pinned Material assets enter this markup; no user SVG.
+// Only bundled repository-owned or pinned Material assets enter this markup; no user SVG.
 const sources = {
   folder,
   grid,
@@ -71,6 +72,7 @@ const sources = {
   storage,
   'auto-awesome': autoAwesome,
   sort,
+  tasks,
 };
 export type IconName = keyof typeof sources;
 export function Icon({ name, className = '' }: { name: IconName; className?: string }) {
