@@ -26,7 +26,7 @@ export function adjustmentClipboardShortcut(event: KeyboardEvent): 'copy' | 'pas
     event.repeat ||
     event.isComposing ||
     event.altKey ||
-    !event.shiftKey ||
+    event.shiftKey ||
     !(event.ctrlKey || event.metaKey) ||
     target?.isContentEditable ||
     /^(INPUT|TEXTAREA|SELECT)$/.test(target?.tagName ?? '') ||

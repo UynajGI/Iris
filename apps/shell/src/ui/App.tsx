@@ -156,11 +156,26 @@ export function App({ store, commands }: { store: IrisStore; commands: CommandSy
   const registerSave = useCallback((save: (() => Promise<boolean>) | null) => {
     saveSettings.current = save;
   }, []);
-  const navigate = (target: AppPage) => {
-    if ((settingsDirty && target !== 'settings') || (colorDirty && target !== 'color'))
-      setLeaveTarget(target);
-    else setPage(target);
-  };
+  const navigationRequest = useRef(0);
+  const navigate = useCallback(
+    (target: AppPage) => {
+      const request = ++navigationRequest.current;
+      if (settingsDirty && target !== 'settings') setLeaveTarget(target);
+      else if (
+        page === 'color' &&
+        target !== 'color' &&
+        (colorDirty || document.documentElement.dataset.irisEditingDirty === 'true')
+      ) {
+        void saveColor
+          .current?.()
+          .then((saved) => {
+            if (saved && request === navigationRequest.current) setPage(target);
+          })
+          .catch((reason) => setError(String(reason)));
+      } else setPage(target);
+    },
+    [settingsDirty, colorDirty, page]
+  );
   const attempt = (operation: () => Promise<unknown>) => {
     setError(null);
     store.clearError();
@@ -175,12 +190,11 @@ export function App({ store, commands }: { store: IrisStore; commands: CommandSy
     const help = (event: KeyboardEvent) => {
       if (event.key !== 'F1' || document.querySelector('dialog[open]')) return;
       event.preventDefault();
-      if (dirty) setLeaveTarget('help');
-      else setPage('help');
+      navigate('help');
     };
     window.addEventListener('keydown', help);
     return () => window.removeEventListener('keydown', help);
-  }, [dirty]);
+  }, [navigate]);
   useEffect(() => {
     if (error || state.error) recordDiagnostic('frontend_failed');
   }, [error, state.error]);

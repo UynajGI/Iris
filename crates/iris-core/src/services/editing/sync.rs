@@ -376,4 +376,17 @@ mod tests {
         source.output_node = "source".into();
         assert!(merge_selected(&source, document("2"), &[EditSyncGroup::Tone]).is_err());
     }
+
+    #[test]
+    fn isolated_controls_follow_their_selected_sync_group() {
+        let mut from = Adjustments::default();
+        from.separated.tone.exposure = 1.0;
+        from.separated.color.temperature = 0.5;
+        let mut to = Adjustments::default();
+        copy_adjustments(&from, &mut to, EditSyncGroup::Tone);
+        assert_eq!(to.separated.tone, from.separated.tone);
+        assert_eq!(to.separated.color, Default::default());
+        copy_adjustments(&from, &mut to, EditSyncGroup::Color);
+        assert_eq!(to.separated, from.separated);
+    }
 }

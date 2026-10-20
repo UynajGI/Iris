@@ -1,6 +1,6 @@
 import { useRef, useState, type PointerEvent } from 'react';
 import type { Adjustments } from '../../editing-client.js';
-import { curvePath } from '../../editing-curves.js';
+import { curvePath, editedCurve } from '../../editing-curves.js';
 
 type Channel = 'master_curve' | 'red_curve' | 'green_curve' | 'blue_curve';
 type Point = { x: number; y: number };
@@ -41,7 +41,7 @@ export function CurveEditor({
     )
       return;
     current.current = next;
-    onChange({ ...adjustments, [channel]: { points: next, interpolation: 'monotone_cubic' } });
+    onChange({ ...adjustments, [channel]: editedCurve(next) });
   };
   const position = (event: PointerEvent<SVGSVGElement>) => {
     const bounds = event.currentTarget.getBoundingClientRect();
@@ -139,7 +139,10 @@ export function CurveEditor({
           />
         ))}
         <path className="grade-curve-identity" d="M0 200L200 0" />
-        <path className="grade-curve-line" d={curvePath(adjustments[channel])} />
+        {/* Keep the complete stroke at 0/1 while clipping excursions of legacy splines. */}
+        <svg x="-1" y="-1" width="202" height="202" viewBox="-1 -1 202 202" overflow="hidden">
+          <path className="grade-curve-line" d={curvePath(adjustments[channel])} />
+        </svg>
         {points.map((point, index) => (
           <circle
             key={index}

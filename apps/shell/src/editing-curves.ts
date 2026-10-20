@@ -7,6 +7,11 @@ export type CurveData = Pick<CurveContract, 'points'> &
   Partial<Pick<CurveContract, 'interpolation'>>;
 type Prepared = { points: CurvePoint[]; tangents: number[]; cubic: boolean };
 
+/** Interactive tone curves must preserve ordered tones, including near-edge edits. */
+export function editedCurve(points: CurvePoint[]): CurveContract {
+  return { points, interpolation: 'monotone_cubic' };
+}
+
 function endpoint(h0: number, h1: number, d0: number, d1: number) {
   return Math.max(0, Math.min(3 * d0, ((2 * h0 + h1) * d0 - h0 * d1) / (h0 + h1)));
 }

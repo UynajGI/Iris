@@ -6,7 +6,7 @@ import { wheelPoint } from '../src/editing-color-wheel.js';
 
 test('clipping overlays use the same boundary samples as the percentage readout', () => {
   const pixels = new Uint8ClampedArray([
-    2, 2, 2, 255, 3, 2, 2, 255, 253, 20, 20, 255, 252, 252, 252, 255,
+    2, 2, 2, 255, 3, 2, 2, 255, 253, 253, 253, 255, 252, 252, 252, 255,
   ]);
   const mask = clippingPixels(pixels, { shadows: true, highlights: true });
   assert.deepEqual([...mask], [35, 100, 255, 230, 0, 0, 0, 0, 255, 40, 40, 230, 0, 0, 0, 0]);
@@ -21,6 +21,33 @@ test('clipping overlays use the same boundary samples as the percentage readout'
     }).some(Boolean),
     false
   );
+});
+
+test('warm skin and saturated colors are channel warnings, not white clipping', () => {
+  const pixels = new Uint8ClampedArray([
+    255, 180, 145, 255, 255, 0, 0, 255, 0, 255, 0, 255, 255, 255, 0, 255, 255, 254, 253, 255,
+  ]);
+  const overlay = clippingPixels(pixels, { shadows: true, highlights: true });
+  assert.equal(overlay.slice(0, 16).some(Boolean), false);
+  assert.deepEqual([...overlay.slice(16)], [255, 40, 40, 230]);
+  const scopes = sampleScopes(pixels, 5, 1);
+  assert.equal(scopes.clipHigh, 1 / 5);
+  assert.equal(scopes.clipLow, 0);
+  assert.equal(scopes.channelClipping.r.high, 4 / 5);
+});
+
+test('transparent pixels do not contribute to overlay percentages or channel counts', () => {
+  const data = sampleScopes(
+    new Uint8ClampedArray([0, 0, 0, 0, 255, 255, 255, 0, 255, 254, 253, 255]),
+    3,
+    1
+  );
+  assert.equal(data.clipLow, 0);
+  assert.equal(data.clipHigh, 1);
+  assert.equal(data.channelClipping.r.high, 1);
+  const empty = sampleScopes(new Uint8ClampedArray(4), 1, 1);
+  assert.equal(empty.clipHigh, 0);
+  assert.equal(empty.clipLow, 0);
 });
 
 test('wheel disk maps angle and radial distance, retaining hue at neutral and clamping outside', () => {

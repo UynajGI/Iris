@@ -4,6 +4,7 @@ import type { IrisClient } from '../client.js';
 import type { Photo } from '../types.js';
 import { usePhotoUrl } from '../react.js';
 import { mediaRevision } from '../media-cache.js';
+import { histogramPath } from './histogram-path.js';
 import {
   channels,
   histogramPeak,
@@ -30,12 +31,6 @@ function preferences(): { mode: ScopeMode; selected: Channel[] } {
 async function computeScopes(url: string): Promise<ScopeData> {
   const pixels = await readScopePixels(url);
   return sampleScopes(pixels.data, pixels.width, pixels.height);
-}
-
-function path(bins: Uint32Array, peak: number) {
-  let d = 'M0 100';
-  for (let i = 0; i < 256; i++) d += `L${i} ${100 - Math.min(1, bins[i]! / peak) * 100}`;
-  return `${d}L255 100Z`;
 }
 
 function Waveform({ data, selected }: { data: ScopeData; selected: Channel[] }) {
@@ -122,7 +117,7 @@ function ScopePlot({
           <path
             key={channel}
             className={`hist-${channel}`}
-            d={path(data.histogram[channel], peak)}
+            d={histogramPath(data.histogram[channel], peak)}
             vectorEffect="non-scaling-stroke"
           />
         ))}
@@ -134,8 +129,10 @@ function ScopePlot({
 function ScopeChannels({
   selected,
   onChange,
+  data,
 }: {
   selected: Channel[];
+  data: ScopeData | null;
   onChange: (
     update: (current: { mode: ScopeMode; selected: Channel[] }) => {
       mode: ScopeMode;
@@ -152,7 +149,11 @@ function ScopeChannels({
           className={`scope-channel channel-${channel}`}
           aria-label={channelNames[channel]}
           aria-pressed={selected.includes(channel)}
-          title={channelNames[channel]}
+          title={
+            data && channel !== 'l'
+              ? `${channelNames[channel]} · 高端触顶 ${(data.channelClipping[channel].high * 100).toFixed(1)}% · 低端触底 ${(data.channelClipping[channel].low * 100).toFixed(1)}%（单通道，不等同于整块过曝或死黑）`
+              : channelNames[channel]
+          }
           onClick={() =>
             onChange((current) => ({
               ...current,
@@ -266,7 +267,7 @@ export function Histogram({
           failed={failed}
         />
       </div>
-      <ScopeChannels selected={selected} onChange={setSettings} />
+      <ScopeChannels selected={selected} onChange={setSettings} data={data} />
       <ScopeClipping data={data} clipping={clipping} onChange={onClipping} />
     </section>
   );
@@ -302,7 +303,7 @@ function ScopeClipping({
             title={
               kind === 'shadows'
                 ? '蓝色标出 RGB 均接近 0 的预览像素；数字为面积占比'
-                : '红色标出任一 RGB 通道接近满值的预览像素；数字为面积占比，不代表 RAW 不可恢复'
+                : '红色标出 RGB 均接近满值的近白区域；数字为面积占比。单通道触顶见 R/G/B 提示，不代表 RAW 不可恢复'
             }
             onClick={() => onChange({ ...clipping, [kind]: !clipping[kind] })}
           >

@@ -1,6 +1,6 @@
 import type { Adjustments, DetailAdjustments, EditDocument, Geometry } from './editing-client.js';
 import type { components } from './generated/api.js';
-import { defaultSeparated } from './editing-observation.js';
+import { defaultSeparated } from './editing-separated.js';
 
 type Operation = components['schemas']['Operation'];
 export const outputSpaceNames: Record<components['schemas']['OutputSpace'], string> = {

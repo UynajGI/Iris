@@ -1,5 +1,6 @@
 import { Select } from '../Select.js';
 import { noClipping } from '../scope-pixels.js';
+import { observationDocument, type ObservationMode } from '../../editing-observation.js';
 import { useEffect, useRef, useState } from 'react';
 import type { PhotoWorkspaceModel } from '../usePhotoWorkspace.js';
 import { Icon } from '../Icon.js';
@@ -10,22 +11,16 @@ import { Panel } from '../Panel.js';
 import { useColorEditor } from './useColorEditor.js';
 import { AdjustmentPanels } from './AdjustmentPanels.js';
 import { LensProfilePanel } from './LensProfilePanel.js';
-import {
-  defaultAdjustments,
-  defaultDetail,
-  defaultGeometry,
-  updatePanel,
-  resetDocument,
-  parameters,
-} from '../../editing-document.js';
+import { updatePanel, resetDocument, parameters } from '../../editing-document.js';
 import { maskLayers, setMask, validateMaskBudget } from '../../editing-masks.js';
 import { maskPartAt } from '../../editing-mask-parts.js';
 import { MaskPanel, type BrushSettings } from './MaskPanel.js';
 import { ColorCanvas } from './ColorCanvas.js';
+import { ComparisonLayout } from './ComparisonLayout.js';
 import { NativeDetailCanvas } from './NativeDetailCanvas.js';
 import { CropTools } from './CropTools.js';
 import { PresetPanel } from './PresetPanel.js';
-import { AdjustmentClipboardControls } from './AdjustmentClipboard.js';
+import { AdjustmentClipboardShortcuts } from './AdjustmentClipboard.js';
 import { RawWhiteBalancePanel } from './RawWhiteBalancePanel.js';
 import { SyncAdjustmentsDialog } from './SyncAdjustmentsDialog.js';
 import { useRawWhiteBalance } from './useRawWhiteBalance.js';
@@ -45,11 +40,20 @@ export function ColorWorkspace({
 }: { model: PhotoWorkspaceModel } & EditorBridge) {
   const photo = model.current;
   const [before, setBefore] = useState(false);
+  const [comparison, setComparison] = useState(false);
   const [cropMode, setCropMode] = useState(false);
   const [cropLocked, setCropLocked] = useState(false);
   const [showMask, setShowMask] = useState(true);
   const [clipping, setClipping] = useState(noClipping);
-  const editor = useColorEditor(model.store.client, photo?.id, before, cropMode);
+  const [observation, setObservation] = useState<ObservationMode>('full');
+  const editor = useColorEditor(
+    model.store.client,
+    photo?.id,
+    before || comparison,
+    cropMode,
+    null,
+    observation
+  );
   const whiteBalance = useRawWhiteBalance({
     client: model.store.client,
     record: editor.record,
@@ -175,30 +179,8 @@ export function ColorWorkspace({
     }
   }, [selectedMask, editor.record?.id]);
   const focus = async (id: number) => {
-    if (editor.busy || whiteBalance.pending || (editor.dirty && !(await editor.save()))) return;
+    if (editor.busy || whiteBalance.pending || !(await editor.save())) return;
     if (!focusEditingPhoto(model.store, id)) setDrawError('照片列表已更新，请重新选择');
-  };
-  const reset = () => {
-    if (!editor.draft) return;
-    if (layer) {
-      editor.setDraft({
-        ...editor.draft,
-        nodes: editor.draft.nodes.map((node) =>
-          node.id === layer.adjustmentId
-            ? { ...node, operation: { type: 'adjustments', parameters: defaultAdjustments() } }
-            : node.id === layer.detailId
-              ? { ...node, operation: { type: 'detail', parameters: defaultDetail() } }
-              : node
-        ),
-      });
-      return;
-    }
-    let next = updatePanel(
-      { ...editor.draft, source: { ...editor.draft.source, raw_white_balance: null } },
-      { type: 'adjustments', parameters: defaultAdjustments() }
-    );
-    next = updatePanel(next, { type: 'detail', parameters: defaultDetail() });
-    editor.setDraft(updatePanel(next, { type: 'geometry', parameters: defaultGeometry() }));
   };
   const photos = model.group?.photos ?? model.state.photos;
   const position = photos.findIndex((item) => item.id === photo?.id);
@@ -237,6 +219,13 @@ export function ColorWorkspace({
                 onClick={() => void editor.command('duplicate')}
               >
                 创建虚拟副本
+              </Button>
+              <Button
+                className="quiet block"
+                disabled={!available || photos.length < 2}
+                onClick={() => setSyncOpen(true)}
+              >
+                批量同步…
               </Button>
             </>
           ) : (
@@ -300,91 +289,111 @@ export function ColorWorkspace({
         </header>
         <section
           className="grade-photo"
-          aria-label={before ? '原图预览' : '调整后预览'}
-          aria-busy={editor.rendering || (before && editor.beforeLoading)}
+          aria-label={comparison ? '原图与调整后对照' : before ? '原图预览' : '调整后预览'}
+          aria-busy={editor.rendering || ((before || comparison) && editor.beforeLoading)}
         >
-          {photo && nativeActive && editor.record && editor.draft ? (
-            <NativeDetailCanvas
-              key={editor.record.id}
-              client={model.store.client}
-              record={editor.record}
-              document={editor.draft}
-              preview={editor.preview}
-              filename={photo.filename}
-            />
-          ) : photo ? (
-            <ColorCanvas
-              key={photo.id}
-              client={model.store.client}
-              photo={photo}
-              preview={before ? editor.beforePreview : editor.preview}
-              previewReady={before ? !!editor.beforePreview : editor.previewReady}
-              before={before}
-              neutralPicker={
-                pickingWhite && before && !whiteBalance.pending && editor.draft
-                  ? {
-                      width: editor.draft.source.width,
-                      height: editor.draft.source.height,
-                      onCancel: () => {
-                        setPickingWhite(false);
-                        setBefore(false);
-                      },
-                      onPick: (point) => {
-                        if (!editor.draft) return;
-                        whiteBalance.request({
-                          kind: 'neutral',
-                          rect: neutralPatch(point, editor.draft.source),
-                        });
-                        setPickingWhite(false);
-                        setBefore(false);
-                      },
-                    }
-                  : undefined
-              }
-              zoom={zoom}
-              layer={layer}
-              selectedPart={selectedMaskPart}
-              painting={painting && !before && !cropMode && available}
-              showMask={showMask}
-              clipping={clipping}
-              maskPreview={
-                editor.record && editor.draft
-                  ? {
-                      record: editor.record,
-                      document: editor.draft,
-                      displayed: editor.previewDocument,
-                    }
-                  : undefined
-              }
-              crop={cropMode ? parameters(editor.draft, 'geometry').crop : undefined}
-              cropLocked={cropLocked}
-              onCrop={(crop) => {
-                if (available && editor.draft)
-                  editor.setDraft(
-                    updatePanel(editor.draft, {
-                      type: 'geometry',
-                      parameters: { ...parameters(editor.draft, 'geometry'), crop },
-                    })
-                  );
-              }}
-              brush={brush}
-              onMask={(definition) => {
-                if (!editor.draft || !layer) return;
-                try {
-                  validateMaskBudget(definition);
-                  editor.setDraft(setMask(editor.draft, layer, definition));
-                  setDrawError(null);
-                } catch (reason) {
-                  setDrawError(reason instanceof Error ? reason.message : String(reason));
+          <ComparisonLayout
+            active={comparison && !before && !cropMode && !nativeActive}
+            original={
+              photo && editor.beforePreview ? (
+                <ColorCanvas
+                  key={photo.id}
+                  client={model.store.client}
+                  photo={photo}
+                  preview={editor.beforePreview}
+                  before
+                  zoom={zoom}
+                  layer={undefined}
+                  painting={false}
+                  brush={brush}
+                  onMask={() => {}}
+                />
+              ) : null
+            }
+          >
+            {photo && nativeActive && editor.record && editor.draft ? (
+              <NativeDetailCanvas
+                key={editor.record.id}
+                client={model.store.client}
+                record={editor.record}
+                document={observationDocument(editor.draft, observation)}
+                preview={editor.preview}
+                filename={photo.filename}
+              />
+            ) : photo ? (
+              <ColorCanvas
+                key={photo.id}
+                client={model.store.client}
+                photo={photo}
+                preview={before ? editor.beforePreview : editor.preview}
+                previewReady={before ? !!editor.beforePreview : editor.previewReady}
+                before={before}
+                neutralPicker={
+                  pickingWhite && before && !whiteBalance.pending && editor.draft
+                    ? {
+                        width: editor.draft.source.width,
+                        height: editor.draft.source.height,
+                        onCancel: () => {
+                          setPickingWhite(false);
+                          setBefore(false);
+                        },
+                        onPick: (point) => {
+                          if (!editor.draft) return;
+                          whiteBalance.request({
+                            kind: 'neutral',
+                            rect: neutralPatch(point, editor.draft.source),
+                          });
+                          setPickingWhite(false);
+                          setBefore(false);
+                        },
+                      }
+                    : undefined
                 }
-              }}
-            />
-          ) : (
-            <div className="grade-empty">
-              <Icon name="image" />
-              <span>选择一张照片</span>
-            </div>
-          )}
+                zoom={zoom}
+                layer={layer}
+                selectedPart={selectedMaskPart}
+                painting={painting && !before && !cropMode && available}
+                showMask={showMask}
+                clipping={clipping}
+                maskPreview={
+                  editor.record && editor.draft
+                    ? {
+                        record: editor.record,
+                        document: editor.draft,
+                        displayed: editor.previewDocument,
+                      }
+                    : undefined
+                }
+                crop={cropMode ? parameters(editor.draft, 'geometry').crop : undefined}
+                cropLocked={cropLocked}
+                onCrop={(crop) => {
+                  if (available && editor.draft)
+                    editor.setDraft(
+                      updatePanel(editor.draft, {
+                        type: 'geometry',
+                        parameters: { ...parameters(editor.draft, 'geometry'), crop },
+                      })
+                    );
+                }}
+                brush={brush}
+                onMask={(definition) => {
+                  if (!editor.draft || !layer) return;
+                  try {
+                    validateMaskBudget(definition);
+                    editor.setDraft(setMask(editor.draft, layer, definition));
+                    setDrawError(null);
+                  } catch (reason) {
+                    setDrawError(reason instanceof Error ? reason.message : String(reason));
+                  }
+                }}
+              />
+            ) : (
+              <div className="grade-empty">
+                <Icon name="image" />
+                <span>选择一张照片</span>
+              </div>
+            )}
+          </ComparisonLayout>
           {before && (
             <span className="grade-before-tag">
               {pickingWhite ? '点击中性灰或白色区域' : '原图'}
@@ -396,10 +405,27 @@ export function ColorWorkspace({
             className="quiet"
             aria-pressed={before}
             disabled={!photo || cropMode}
-            onClick={() => setBefore((value) => !value)}
+            onClick={() => {
+              setComparison(false);
+              setBefore((value) => !value);
+            }}
           >
             <Icon name="compare" />
             原图
+          </Button>
+          <Button
+            className="quiet"
+            aria-pressed={comparison && !before && !cropMode && !nativeActive}
+            disabled={!available || cropMode || pickingWhite}
+            title="并排查看原图与当前调整"
+            onClick={() => {
+              setComparison((value) => !value);
+              setBefore(false);
+              setNativeMode(false);
+              setZoom(1);
+            }}
+          >
+            对照
           </Button>
           <Button
             className="quiet"
@@ -407,6 +433,7 @@ export function ColorWorkspace({
             disabled={!available}
             onClick={() => {
               setCropMode((value) => !value);
+              setComparison(false);
               setBefore(false);
               setSelectedMask(null);
               setToolTab('adjustments');
@@ -490,6 +517,7 @@ export function ColorWorkspace({
                 disabled={!available || cropMode || toolTab === 'masks'}
                 onClick={() => {
                   setClipping(noClipping);
+                  setComparison(false);
                   setNativeMode((value) => !value);
                 }}
               >
@@ -508,19 +536,6 @@ export function ColorWorkspace({
               </Button>
             </div>
           )}
-          <span className="grade-save-state" role="status">
-            {editor.loading
-              ? ''
-              : whiteBalance.pending
-                ? '正在调整白平衡'
-                : editor.busy
-                  ? '正在保存'
-                  : editor.dirty
-                    ? '未保存'
-                    : editor.record
-                      ? '已保存'
-                      : ''}
-          </span>
         </div>
         <div ref={strip} className="grade-filmstrip" aria-label="调色胶片栏">
           {photos.map((item) => (
@@ -596,6 +611,35 @@ export function ColorWorkspace({
             )}
           </div>
         </header>
+        <div className="grade-observation" role="group" aria-label="观察视图">
+          {(
+            [
+              ['full', '全图'],
+              ['tone', '黑白'],
+              ['color', '颜色'],
+            ] as const
+          ).map(([mode, label]) => (
+            <button
+              type="button"
+              key={mode}
+              aria-pressed={observation === mode}
+              title={
+                mode === 'full'
+                  ? '完整调整结果'
+                  : mode === 'tone'
+                    ? '只观察明暗；仅影调参数会保留在全图中'
+                    : '统一明度观察颜色；仅颜色参数会保留在全图中'
+              }
+              onClick={() => {
+                setObservation(mode);
+                setClipping(noClipping);
+                setPickingWhite(false);
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
         <div className="grade-tool-tabs" role="tablist" aria-label="调色工具分页">
           {(
             [
@@ -636,20 +680,20 @@ export function ColorWorkspace({
             </button>
           ))}
         </div>
+        {toolTab !== 'metadata' && (
+          <Histogram
+            client={model.store.client}
+            photo={photo}
+            previewUrl={before ? editor.beforePreview : editor.preview}
+            clipping={clipping}
+            onClipping={(value) => {
+              setClipping(value);
+              setShowMask(false);
+              setNativeMode(false);
+            }}
+          />
+        )}
         <div className="grade-inspector-scroll">
-          {toolTab !== 'metadata' && (
-            <Histogram
-              client={model.store.client}
-              photo={photo}
-              previewUrl={before ? editor.beforePreview : editor.preview}
-              clipping={clipping}
-              onClipping={(value) => {
-                setClipping(value);
-                setShowMask(false);
-                setNativeMode(false);
-              }}
-            />
-          )}
           {editor.recovery && (
             <div className="grade-draft-recovery" role="alert">
               <p>{editor.recovery.message}</p>
@@ -671,7 +715,7 @@ export function ColorWorkspace({
           )}
           {editor.draftStorageFailed && (
             <p className="grade-error" role="alert">
-              此窗口暂时无法暂存草稿，请及时保存调整。
+              恢复副本暂时不可用。若出现自动保存错误，请重试后再关闭窗口。
             </p>
           )}
           {(editor.error || editor.previewError || editor.beforeError) && (
@@ -697,7 +741,7 @@ export function ColorWorkspace({
           )}
           <div id="grade-tool-page" role="tabpanel" aria-labelledby={`grade-tab-${toolTab}`}>
             {toolTab === 'adjustments' && (
-              <AdjustmentClipboardControls
+              <AdjustmentClipboardShortcuts
                 document={editor.draft}
                 disabled={!available}
                 onChange={(document) => {
@@ -721,6 +765,8 @@ export function ColorWorkspace({
                 asShot={!editor.draft.source.raw_white_balance}
                 picking={pickingWhite}
                 onPick={() => {
+                  setObservation('full');
+                  setComparison(false);
                   setPickingWhite(!pickingWhite);
                   setBefore(!pickingWhite);
                   setCropMode(false);
@@ -755,6 +801,7 @@ export function ColorWorkspace({
             {layer && <div className="grade-adjustment-target">正在调整：{layer.name}</div>}
             {(toolTab === 'adjustments' || (toolTab === 'masks' && layer)) && (
               <AdjustmentPanels
+                observation={observation}
                 document={editor.draft}
                 disabled={!available}
                 onChange={editor.setDraft}
@@ -771,6 +818,7 @@ export function ColorWorkspace({
                   />
                 }
                 onCrop={() => {
+                  setComparison(false);
                   setCropMode(true);
                   setBefore(false);
                   setZoom(1);
@@ -784,23 +832,6 @@ export function ColorWorkspace({
             )}
           </div>
         </div>
-        <footer className="grade-inspector-footer">
-          {(toolTab === 'adjustments' || layer) && (
-            <Button className="ghost" disabled={!available} onClick={reset}>
-              {layer ? '重置局部' : '重置全局'}
-            </Button>
-          )}
-          <Button primary disabled={!available || !editor.dirty} onClick={() => void editor.save()}>
-            保存调整
-          </Button>
-          <Button
-            className="quiet"
-            disabled={!available || photos.length < 2}
-            onClick={() => setSyncOpen(true)}
-          >
-            同步…
-          </Button>
-        </footer>
       </aside>
       {syncOpen && editor.record && (
         <SyncAdjustmentsDialog
@@ -818,7 +849,7 @@ function EditHistoryList({ history }: { history: EditHistoryEntry[] }) {
   if (!history.length) return <span className="muted">暂无历史</span>;
   const labels: Record<string, string> = {
     create: '原始调整',
-    save: '保存调整',
+    save: '调整',
     undo: '撤销',
     redo: '重做',
     duplicate: '创建副本',

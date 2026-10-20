@@ -14,7 +14,10 @@ test('scope channels preserve totals, clipping and horizontal waveform position'
       4
     );
   assert.equal(data.clipLow, 0.25);
-  assert.equal(data.clipHigh, 0.75, 'any clipped RGB channel counts as a highlight');
+  assert.equal(data.clipHigh, 0.25, 'only near-white pixels count as highlight clipping');
+  assert.equal(data.channelClipping.r.high, 0.5);
+  assert.equal(data.channelClipping.g.high, 0.5);
+  assert.equal(data.channelClipping.b.high, 0.25);
   assert.equal(data.histogram.l[54], 1);
   assert.equal(data.histogram.l[182], 1);
   assert.equal(data.waveform.l[54], 1, 'red pixel stays in the left image column');

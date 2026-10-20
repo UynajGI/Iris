@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { curveValue, curvePath, type CurveData } from '../src/editing-curves.js';
+import { curveValue, curvePath, editedCurve, type CurveData } from '../src/editing-curves.js';
 
 const fixtures = JSON.parse(
   readFileSync(
@@ -88,5 +88,70 @@ test('natural spline SVG has continuous curvature at uneven control points', () 
     const curvatureB = (6 * (a[5]! - 2 * b[1]! + b[3]!)) / widthB ** 2;
     assert.ok(Math.abs(slopeA - slopeB) < 1e-9, 'no tangent discontinuity');
     assert.ok(Math.abs(curvatureA - curvatureB) < 1e-9, 'no curvature discontinuity');
+  }
+});
+
+test('interactive curves preserve tones for extreme toe, shoulder, S and crowded points', () => {
+  const cases = [
+    [
+      [0, 0],
+      [0.075, 0.7],
+      [1, 1],
+    ],
+    [
+      [0, 0],
+      [0.925, 0.3],
+      [1, 1],
+    ],
+    [
+      [0, 0],
+      [0.25, 0.1],
+      [0.75, 0.9],
+      [1, 1],
+    ],
+    [
+      [0, 0.05],
+      [0.2, 0.4],
+      [0.201, 0.4],
+      [0.8, 0.9],
+      [1, 0.95],
+    ],
+  ];
+  for (const coordinates of cases) {
+    const curve = editedCurve(coordinates.map(([x, y]) => ({ x: x!, y: y! })));
+    const pieces = curvePath(curve, 1)
+      .split(' C')
+      .slice(1)
+      .map((s) => s.split(' ').map(Number));
+    for (let i = 0; i < pieces.length; i++) {
+      const a = curve.points[i]!,
+        b = curve.points[i + 1]!,
+        piece = pieces[i]!;
+      const x0 = Math.fround(a.x),
+        x1 = Math.fround(b.x),
+        y0 = Math.fround(a.y);
+      let previous = y0;
+      for (let step = 0; step <= 128; step++) {
+        const t = step / 128,
+          u = 1 - t;
+        const value = curveValue(curve, x0 + (x1 - x0) * t);
+        const svgValue =
+          1 -
+          (u ** 3 * (1 - y0) +
+            3 * u ** 2 * t * piece[1]! +
+            3 * u * t ** 2 * piece[3]! +
+            t ** 3 * piece[5]!);
+        assert.ok(value >= y0 - 1e-10 && value <= Math.fround(b.y) + 1e-10, 'no overshoot');
+        assert.ok(value >= previous - 1e-10, 'no reversed tones');
+        assert.ok(Math.abs(svgValue - value) < 1e-10, 'display matches pixel mapping');
+        previous = value;
+      }
+      if (i + 1 < pieces.length) {
+        const next = pieces[i + 1]!;
+        const leftSlope = (piece[5]! - piece[3]!) / (piece[4]! - piece[2]!);
+        const rightSlope = (next[1]! - piece[5]!) / (next[0]! - piece[4]!);
+        assert.ok(Math.abs(leftSlope - rightSlope) < 1e-9, 'no tangent corner at control point');
+      }
+    }
   }
 });

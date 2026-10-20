@@ -4,7 +4,9 @@ import { ApiError } from '../../api-error.js';
 import { sourceDocument, cropPreviewDocument } from '../../editing-document.js';
 import { preferredEdit, rememberEdit } from '../../editing-preferences.js';
 import { EditingPreviewQueue } from '../../editing-preview-queue.js';
+import { EditingSaveQueue } from '../../editing-save-queue.js';
 import { PreviewFrames } from '../../preview-frames.js';
+import { observationDocument, type ObservationMode } from '../../editing-observation.js';
 import {
   EditingDrafts,
   sameDocument,
@@ -25,6 +27,15 @@ import {
 } from '../../editing-client.js';
 
 const opening = new WeakMap<IrisClient, Map<number, Promise<EditRecord>>>();
+type PreviewInput = {
+  record: EditRecord;
+  document: EditDocument;
+  sequence: number;
+  edge: number;
+  crop: boolean;
+  proof: string | null;
+  observation: ObservationMode;
+};
 function openEdit(client: EditingClient, photo: number): Promise<EditRecord> {
   let map = opening.get(client.client);
   if (!map) {
@@ -48,12 +59,32 @@ function isFinalRejection(error: unknown): boolean {
   return error instanceof ApiError && error.status >= 400 && error.status < 500;
 }
 
+function usePointerInteraction() {
+  const [interacting, setInteracting] = useState(false);
+  useEffect(() => {
+    const start = () => setInteracting(true);
+    const finish = () => setInteracting(false);
+    window.addEventListener('pointerdown', start, true);
+    window.addEventListener('pointerup', finish, true);
+    window.addEventListener('pointercancel', finish, true);
+    window.addEventListener('blur', finish);
+    return () => {
+      window.removeEventListener('pointerdown', start, true);
+      window.removeEventListener('pointerup', finish, true);
+      window.removeEventListener('pointercancel', finish, true);
+      window.removeEventListener('blur', finish);
+    };
+  }, []);
+  return interacting;
+}
+
 export function useColorEditor(
   client: IrisClient,
   photoId: number | undefined,
   showBefore = false,
   cropMode = false,
-  proofResource: string | null = null
+  proofResource: string | null = null,
+  observation: ObservationMode = 'full'
 ) {
   const api = useMemo(() => new EditingClient(client), [client]);
   const [record, setRecord] = useState<EditRecord | null>(null);
@@ -64,6 +95,9 @@ export function useColorEditor(
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const interacting = usePointerInteraction();
+  const saveQueue = useMemo(() => new EditingSaveQueue(), []);
   const [recovery, setRecovery] = useState<DraftRecovery | null>(null);
   const recoveryRef = useRef(recovery);
   recoveryRef.current = recovery;
@@ -95,7 +129,7 @@ export function useColorEditor(
   const [rendering, setRendering] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [previewDocument, setPreviewDocument] = useState<EditDocument | null>(null);
-  const mode = JSON.stringify([cropMode, proofResource]);
+  const mode = JSON.stringify([cropMode, proofResource, observation]);
   const [previewMode, setPreviewMode] = useState('');
   const requestedMode = useRef(mode);
   requestedMode.current = mode;
@@ -115,14 +149,6 @@ export function useColorEditor(
   const mutation = useRef(false);
   const pendingSave = useRef<PendingEditSave | null>(null);
   const recoveryRequest = useRef<AbortController | null>(null);
-  type PreviewInput = {
-    record: EditRecord;
-    document: EditDocument;
-    sequence: number;
-    edge: number;
-    crop: boolean;
-    proof: string | null;
-  };
   const previewQueue = useRef<EditingPreviewQueue<PreviewInput, Blob> | null>(null);
   const activePreviewEdge = useRef(0);
   const previewKey = useRef('');
@@ -203,7 +229,7 @@ export function useColorEditor(
         activeProof.current = input.proof;
         return api.preview(
           input.record,
-          input.document,
+          observationDocument(input.document, input.observation),
           session,
           input.sequence,
           signal,
@@ -220,11 +246,11 @@ export function useColorEditor(
               current?.id !== input.record.id ||
               current.revision !== input.record.revision ||
               current.photo_id !== requestedPhoto.current ||
-              requestedMode.current !== JSON.stringify([input.crop, input.proof])
+              requestedMode.current !== JSON.stringify([input.crop, input.proof, input.observation])
             )
               return false;
             setPreviewError(null);
-            setPreviewMode(JSON.stringify([input.crop, input.proof]));
+            setPreviewMode(JSON.stringify([input.crop, input.proof, input.observation]));
             setPreviewDocument(input.document);
             setPreview(url);
             return true;
@@ -256,6 +282,7 @@ export function useColorEditor(
       previewAttempt,
       cropMode,
       proofResource,
+      observation,
     });
     if (previewKey.current === key) return;
     previewKey.current = key;
@@ -268,6 +295,7 @@ export function useColorEditor(
         edge: 384,
         crop: cropMode,
         proof: proofResource,
+        observation,
       },
       activePreviewEdge.current > 384 || activeProof.current !== proofResource
     );
@@ -279,11 +307,12 @@ export function useColorEditor(
         edge: 1600,
         crop: cropMode,
         proof: proofResource,
+        observation,
       });
     }, 300);
     return () => clearTimeout(timer);
-  }, [api, record, draft, session, photoId, previewAttempt, cropMode, proofResource]);
-  const beforeKey = JSON.stringify({ source: draft?.source, output: draft?.output });
+  }, [api, record, draft, session, photoId, previewAttempt, cropMode, proofResource, observation]);
+  const beforeKey = JSON.stringify({ source: draft?.source, output: draft?.output, observation });
   useEffect(() => {
     if (!showBefore || !record || !draft || beforeImage?.key === beforeKey) {
       setBeforeLoading(false);
@@ -295,7 +324,13 @@ export function useColorEditor(
     setBeforeLoading(true);
     setBeforeError(null);
     void api
-      .preview(record, sourceDocument(draft), `${session}-before`, number, controller.signal)
+      .preview(
+        record,
+        observationDocument(sourceDocument(draft), observation),
+        `${session}-before`,
+        number,
+        controller.signal
+      )
       .then((blob) => {
         if (active) setBeforeImage({ key: beforeKey, url: URL.createObjectURL(blob) });
       })
@@ -349,40 +384,53 @@ export function useColorEditor(
     },
     [drafts]
   );
-  const save = useCallback(async () => {
-    if (mutation.current || recoveryRef.current) return false;
-    const state = latest.current;
-    if (!state.record || !state.draft || state.record.photo_id !== requestedPhoto.current)
-      return false;
-    if (!pendingSave.current && sameDocument(state.record.document, state.draft)) return true;
-    mutation.current = true;
-    setBusy(true);
-    setError(null);
-    const current = epoch.current;
-    const pending = pendingSave.current ?? {
-      record: state.record,
-      document: state.draft,
-      requestId: crypto.randomUUID(),
-    };
-    pendingSave.current = pending;
-    drafts.write(state.record, state.draft, pending);
-    drafts.flush();
-    try {
-      const saved = await api.save(pending.record, pending.document, pending.requestId);
-      if (current !== epoch.current) return false;
-      return acceptSave(saved, pending.document);
-    } catch (reason) {
-      rejectSave(reason, current, state.record);
-      return false;
-    } finally {
-      mutation.current = false;
-      if (current === epoch.current) setBusy(false);
-    }
-  }, [api, drafts, acceptSave, rejectSave]);
+  const save = useCallback(
+    () =>
+      saveQueue.flush(async () => {
+        if (mutation.current || recoveryRef.current) return 'failed';
+        const state = latest.current;
+        if (!state.record || !state.draft || state.record.photo_id !== requestedPhoto.current)
+          return 'failed';
+        if (!pendingSave.current && sameDocument(state.record.document, state.draft))
+          return 'clean';
+        mutation.current = true;
+        setSaving(true);
+        setError(null);
+        const current = epoch.current;
+        const pending = pendingSave.current ?? {
+          record: state.record,
+          document: state.draft,
+          requestId: crypto.randomUUID(),
+        };
+        pendingSave.current = pending;
+        drafts.write(state.record, state.draft, pending);
+        drafts.flush();
+        try {
+          const saved = await api.save(pending.record, pending.document, pending.requestId);
+          if (current !== epoch.current) return 'failed';
+          return acceptSave(saved, pending.document) ? 'clean' : 'pending';
+        } catch (reason) {
+          rejectSave(reason, current, state.record);
+          return 'failed';
+        } finally {
+          mutation.current = false;
+          setSaving(false);
+        }
+      }),
+    [api, drafts, acceptSave, rejectSave, saveQueue]
+  );
+
+  useEffect(() => {
+    if (!dirty || loading || busy || saving || interacting || recovery || error) return;
+    const timer = setTimeout(() => {
+      void save();
+    }, 650);
+    return () => clearTimeout(timer);
+  }, [draft, record, dirty, loading, busy, saving, interacting, recovery, error, save]);
 
   const command = async (operation: 'undo' | 'redo' | 'duplicate') => {
-    if (mutation.current || recoveryRef.current || !latest.current.record) return;
-    if (dirty && !(await save())) return;
+    if (recoveryRef.current || !latest.current.record || !(await save()) || mutation.current)
+      return;
     const value = latest.current.record;
     if (!value) return;
     mutation.current = true;
@@ -407,7 +455,7 @@ export function useColorEditor(
     }
   };
   const selectVersion = async (id: string) => {
-    if (mutation.current || recoveryRef.current || (dirty && !(await save()))) return;
+    if (recoveryRef.current || !(await save()) || mutation.current) return;
     mutation.current = true;
     setBusy(true);
     setError(null);
@@ -439,6 +487,7 @@ export function useColorEditor(
           JSON.stringify(latest.current.record?.document) !== JSON.stringify(document)
       );
     setDraft(document);
+    setError(null);
   };
   const recoverCopy = async () => {
     const savedRecovery = recoveryRef.current;
@@ -490,7 +539,8 @@ export function useColorEditor(
     save,
     command,
     selectVersion,
-    beforePreview: belongs && beforeImage?.key === beforeKey ? beforeImage.url : null,
+    // Keep the decoded comparison frame while a new observation view is rendering.
+    beforePreview: belongs ? (beforeImage?.url ?? null) : null,
     beforeLoading,
     beforeError,
     retry: () => {

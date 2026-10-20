@@ -19,6 +19,8 @@ import { AdjustmentSlider, type SliderSpec } from './AdjustmentSlider.js';
 import { CurveEditor } from './CurveEditor.js';
 import { ColorWheels } from './ColorWheels.js';
 import { blackWhiteMix } from '../../editing-document.js';
+import type { ObservationMode } from '../../editing-observation.js';
+import { SeparatedPanel } from './SeparatedPanel.js';
 
 const tone: SliderSpec[] = [
   { key: 'exposure', label: '曝光', min: -5, max: 5, step: 0.01, unit: 'EV' },
@@ -66,6 +68,7 @@ export function AdjustmentPanels({
   target,
   optics,
   onCrop,
+  observation = 'full',
 }: {
   document: EditDocument | null;
   disabled: boolean;
@@ -73,6 +76,7 @@ export function AdjustmentPanels({
   target?: { adjustmentId: string; detailId: string } | undefined;
   optics?: import('react').ReactNode;
   onCrop?: (() => void) | undefined;
+  observation?: ObservationMode;
 }) {
   const localA =
     target && document?.nodes.find((node) => node.id === target.adjustmentId)?.operation;
@@ -123,6 +127,7 @@ export function AdjustmentPanels({
   return (
     <fieldset className="grade-adjustments" disabled={disabled}>
       <legend className="visually-hidden">传统调色工具</legend>
+      <SeparatedPanel mode={observation} adjustments={a} onChange={changeA} />
       <Panel
         id="grade-light"
         title="影调"
@@ -153,8 +158,8 @@ export function AdjustmentPanels({
         }
       >
         <div className="grade-color-mode">
-          <span>模式</span>
-          <div className="segmented" role="group" aria-label="颜色模式">
+          <span>成片</span>
+          <div className="segmented" role="group" aria-label="成片颜色">
             <Button
               aria-pressed={!a.black_and_white.enabled}
               onClick={() =>

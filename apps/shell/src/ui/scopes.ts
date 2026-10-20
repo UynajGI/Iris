@@ -9,6 +9,7 @@ export type ScopeData = {
   width: number;
   clipLow: number;
   clipHigh: number;
+  channelClipping: Record<'r' | 'g' | 'b', { low: number; high: number }>;
 };
 const allocate = (size: number): ChannelBins => ({
   l: new Uint32Array(size),
@@ -25,7 +26,15 @@ export function sampleScopes(pixels: Uint8ClampedArray, width: number, height: n
     waveform = allocate(width * 256);
   let clipLow = 0,
     clipHigh = 0;
+  let visible = 0;
+  const channelClipping = {
+    r: { low: 0, high: 0 },
+    g: { low: 0, high: 0 },
+    b: { low: 0, high: 0 },
+  };
   for (let p = 0; p < width * height; p++) {
+    if (!pixels[p * 4 + 3]) continue;
+    visible++;
     const red = pixels[p * 4]!,
       green = pixels[p * 4 + 1]!,
       blue = pixels[p * 4 + 2]!;
@@ -41,13 +50,22 @@ export function sampleScopes(pixels: Uint8ClampedArray, width: number, height: n
     }
     if (isShadowClipped(red, green, blue)) clipLow++;
     if (isHighlightClipped(red, green, blue)) clipHigh++;
+    for (const channel of ['r', 'g', 'b'] as const) {
+      if (values[channel] <= 2) channelClipping[channel].low++;
+      if (values[channel] >= 253) channelClipping[channel].high++;
+    }
+  }
+  for (const channel of ['r', 'g', 'b'] as const) {
+    channelClipping[channel].low /= Math.max(1, visible);
+    channelClipping[channel].high /= Math.max(1, visible);
   }
   return {
     histogram,
     waveform,
     width,
-    clipLow: clipLow / (width * height),
-    clipHigh: clipHigh / (width * height),
+    clipLow: clipLow / Math.max(1, visible),
+    clipHigh: clipHigh / Math.max(1, visible),
+    channelClipping,
   };
 }
 

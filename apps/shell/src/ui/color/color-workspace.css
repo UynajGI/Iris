@@ -67,6 +67,34 @@
   padding: 0 18px;
   gap: 28px;
 }
+.grade-observation {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 2px;
+  margin: 0 18px 8px;
+  padding: 3px;
+  background: var(--sunken);
+  border-radius: var(--radius);
+}
+.grade-observation button {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 12px;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--muted);
+  transition:
+    background 140ms ease-out,
+    color 140ms ease-out;
+}
+.grade-observation button[aria-pressed='true'] {
+  background: var(--raised);
+  color: var(--text);
+}
+.grade-observation button:hover {
+  color: var(--text);
+}
 .grade-tool-tabs button {
   flex: 0 0 auto;
   border: 0;
@@ -215,6 +243,40 @@
 .grade-photo .zoom-stage {
   height: 100%;
 }
+.grade-comparison-layout {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+.grade-comparison-layout.comparing {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.grade-comparison-pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.grade-comparison-pane[hidden] {
+  display: none;
+}
+.comparing > .grade-comparison-pane + .grade-comparison-pane {
+  border-left: 1px solid var(--divider);
+}
+.grade-comparison-label {
+  flex: 0 0 auto;
+  padding: 8px 14px;
+  color: var(--muted);
+  font-size: var(--small);
+  text-align: center;
+}
+.grade-comparison-image {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
 .grade-rendered {
   display: flex;
   align-items: center;
@@ -335,11 +397,6 @@
   display: flex;
   align-items: center;
 }
-.grade-save-state {
-  color: var(--muted);
-  min-width: 4em;
-  text-align: right;
-}
 .grade-filmstrip {
   display: flex;
   gap: 6px;
@@ -383,12 +440,14 @@
 .grade-inspector {
   display: flex;
   flex-direction: column;
+  overflow: hidden;
   border-left: 1px solid var(--line-subtle);
 }
 .grade-inspector-scroll {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  overscroll-behavior-y: contain;
 }
 .grade-inspector-heading {
   padding: 0 14px 0 18px;
@@ -402,8 +461,10 @@
   transform: scaleX(-1);
 }
 .grade-inspector .histogram {
+  flex: 0 0 auto;
   padding: 14px 20px 12px;
   background: transparent;
+  border-bottom: 1px solid var(--line-subtle);
 }
 .grade-inspector .panel {
   border-radius: 0;
@@ -525,24 +586,7 @@
   opacity: 0.45;
 }
 
-.grade-inspector .scope-channel {
-  flex: 0 0 28px;
-  min-height: 24px;
-  border: 0;
-  background: transparent;
-  border-radius: 2px;
-  color: var(--muted);
-}
-.grade-inspector .scope-channel[aria-pressed='true'] {
-  opacity: 1;
-  color: var(--channel-color);
-  background: transparent;
-  box-shadow: inset 0 -1px var(--channel-color);
-}
-.grade-inspector .scope-channels {
-  justify-content: flex-end;
-  gap: 6px;
-}
+/* Scope channels share the selection workspace's sizing and active states. */
 .grade-inspector .histogram .iris-select {
   background-color: transparent;
   border-color: transparent;
@@ -662,6 +706,8 @@
   fill: none;
   stroke: var(--text);
   stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 .grade-curve-plot circle {
   fill: var(--tool);
@@ -690,18 +736,6 @@
 .grade-error > span {
   flex: 1;
   overflow-wrap: anywhere;
-}
-.grade-inspector-footer {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 10px 18px;
-  border-top: 1px solid var(--line-subtle);
-  background: var(--tool);
-}
-.grade-inspector-footer .button {
-  font-size: var(--small);
-  padding-inline: 8px;
 }
 .grade-sync {
   display: grid;
@@ -802,10 +836,6 @@
 .grade-sync-error {
   color: var(--flag-text);
   overflow-wrap: anywhere;
-}
-.grade-inspector-footer .button.ghost {
-  border-color: transparent;
-  color: var(--muted);
 }
 .color-workspace .button.primary {
   background: var(--accent);
@@ -1576,15 +1606,6 @@
   align-items: center;
   gap: 12px;
   margin-bottom: 18px;
-}
-.grade-clipboard {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  padding: 8px 12px;
-}
-.grade-clipboard > button {
-  min-width: 0;
 }
 .grade-white-balance-actions .iris-select {
   flex: 1;

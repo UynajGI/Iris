@@ -1,7 +1,8 @@
 export type Clipping = { shadows: boolean; highlights: boolean };
 export const noClipping: Clipping = { shadows: false, highlights: false };
 export const isShadowClipped = (r: number, g: number, b: number) => Math.max(r, g, b) <= 2;
-export const isHighlightClipped = (r: number, g: number, b: number) => Math.max(r, g, b) >= 253;
+// White/black warnings describe tonal endpoints, not saturation of an individual channel.
+export const isHighlightClipped = (r: number, g: number, b: number) => Math.min(r, g, b) >= 253;
 
 /** The readout and warning overlay share exactly the same bounded preview samples. */
 const samples = new Map<string, Promise<ImageData>>();

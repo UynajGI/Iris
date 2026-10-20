@@ -107,7 +107,7 @@ test('paste uses preset merge and keeps target source, local nodes, geometry, re
 });
 
 function key(patch: Partial<KeyboardEvent> = {}) {
-  return { key: 'C', ctrlKey: true, shiftKey: true, ...patch } as KeyboardEvent;
+  return { key: 'C', ctrlKey: true, shiftKey: false, ...patch } as KeyboardEvent;
 }
 test('grading clipboard shortcuts accept platform modifiers without stealing text or dialog input', () => {
   assert.equal(adjustmentClipboardShortcut(key()), 'copy');
@@ -116,7 +116,7 @@ test('grading clipboard shortcuts accept platform modifiers without stealing tex
     'paste'
   );
   for (const patch of [
-    { shiftKey: false },
+    { shiftKey: true },
     { ctrlKey: false },
     { altKey: true },
     { repeat: true },
@@ -125,6 +125,7 @@ test('grading clipboard shortcuts accept platform modifiers without stealing tex
     { key: 'a' },
     { target: { tagName: 'INPUT' } },
     { target: { tagName: 'TEXTAREA' } },
+    { target: { tagName: 'SELECT' } },
     { target: { isContentEditable: true } },
     { target: { closest: () => ({}) } },
   ])
