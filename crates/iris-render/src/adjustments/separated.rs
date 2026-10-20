@@ -108,9 +108,18 @@ fn mul(m: Matrix, p: [f64; 3]) -> [f64; 3] {
     m.map(|row| row[0] * p[0] + row[1] * p[1] + row[2] * p[2])
 }
 pub(super) fn to_lab(p: [f64; 3]) -> [f64; 3] {
-    mul(LMS_LAB, mul(XYZ_LMS, mul(RGB_XYZ, p)).map(f64::cbrt))
+    let lab = mul(LMS_LAB, mul(XYZ_LMS, mul(RGB_XYZ, p)).map(f64::cbrt));
+    let white = neutral_axis();
+    let l = lab[0] / white[0];
+    [l, lab[1] - white[1] * l, lab[2] - white[2] * l]
 }
 pub(super) fn from_lab(p: [f64; 3]) -> [f64; 3] {
+    let white = neutral_axis();
+    let p = [
+        p[0] * white[0],
+        p[1] + white[1] * p[0],
+        p[2] + white[2] * p[0],
+    ];
     mul(
         inverse(RGB_XYZ),
         mul(
@@ -118,6 +127,14 @@ pub(super) fn from_lab(p: [f64; 3]) -> [f64; 3] {
             mul(inverse(LMS_LAB), p).map(|v| v * v * v),
         ),
     )
+}
+
+// The published XYZ/Oklab matrix and the precise Rec.2020 D65 matrix have a
+// small white-point rounding mismatch. Remove that neutral-axis bias reversibly:
+// RGB [v,v,v] must be [cbrt(v),0,0], including signed and HDR values.
+fn neutral_axis() -> [f64; 3] {
+    static WHITE: std::sync::OnceLock<[f64; 3]> = std::sync::OnceLock::new();
+    *WHITE.get_or_init(|| mul(LMS_LAB, mul(XYZ_LMS, mul(RGB_XYZ, [1.0; 3])).map(f64::cbrt)))
 }
 
 pub(super) struct PreparedSeparated {

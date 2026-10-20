@@ -42,6 +42,10 @@ impl ToneMap {
             let b = right + 2.0 * left;
             slopes[i] = (a + b) / (a / d[i - 1] + b / d[i]);
         }
+        // The middle join is identity-tangent. A shadow-only change must not
+        // darken the highlight side merely by changing its shared derivative.
+        // 1 is within [0,3*d] on both middle intervals for every allowed setting.
+        slopes[2] = 1.0;
         Self {
             y,
             slopes,
@@ -126,6 +130,20 @@ mod tests {
         let map = ToneMap::new(0.0, 0.0, -2.0, 0.0);
         for x in [1.0, 1.5, 4.0] {
             assert!((map.map(x) - x).abs() < 1e-12);
+        }
+    }
+
+    #[test]
+    fn broad_ranges_do_not_leak_across_the_middle_anchor() {
+        for amount in [-2.0, 2.0] {
+            let shadows = ToneMap::new(0.0, amount, 0.0, 0.0);
+            let highlights = ToneMap::new(0.0, 0.0, amount, 0.0);
+            for x in [0.56, 0.7, 0.9, 1.2] {
+                assert!((shadows.map(x) - x).abs() < 1e-12);
+            }
+            for x in [-0.2, 0.0, 0.2, 0.4, 0.56] {
+                assert!((highlights.map(x) - x).abs() < 1e-12);
+            }
         }
     }
 }

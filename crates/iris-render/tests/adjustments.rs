@@ -226,8 +226,10 @@ fn creative_balance_bw_and_parametric_curve_are_real_operators() {
     assert!(out.pixels[0][0] > out.pixels[0][1]);
     let mut p = Adjustments::default();
     p.tone_curve.darks = 1.0;
-    let out = run(source, p);
-    assert!(out.pixels[0][0] > 0.2);
+    // Darks now select perceptual lightness, not linear Y. 0.02 linear is in
+    // the dark region; 0.2 is already above the fixed L=0.56 middle anchor.
+    let out = run(vec![[0.02, 0.02, 0.02, 1.0]], p);
+    assert!(out.pixels[0][0] > 0.02);
     let mut p = Adjustments::default();
     p.black_and_white.enabled = true;
     p.black_and_white.mix = [1.0, 0.0, 0.0];
