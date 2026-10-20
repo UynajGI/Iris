@@ -149,6 +149,7 @@ pub fn render_with_executor(
     render_internal(document, source, resources, context, Some(executor))
 }
 
+mod compositing;
 mod evaluate;
 
 fn render_internal(

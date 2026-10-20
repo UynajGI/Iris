@@ -1,5 +1,5 @@
 // Generated from iris-daemon OpenAPI. Do not edit.
-// Contract SHA-256: e12df11397f44218d4815b684d5f7133a2606df0d3f532a2a97eec7f56dd19af
+// Contract SHA-256: f482abdd219811d9d87481ef46b86202c42364562e0433dfa7be4aac467cc409
 export interface paths {
     "/api/v1/bootstrap": {
         parameters: {
@@ -2686,6 +2686,27 @@ export interface components {
             /** @enum {string} */
             type: "blend";
         } | {
+            /** @enum {string} */
+            type: "alpha_mask";
+        } | {
+            /** @description Inputs: coordinate image, local Key, external Key. Image alpha is not changed. */
+            parameters: {
+                /** Format: float */
+                gain: number;
+                invert: boolean;
+            };
+            /** @enum {string} */
+            type: "key_mix";
+        } | {
+            /** @enum {string} */
+            type: "set_alpha";
+        } | {
+            /** @enum {string} */
+            type: "parallel_mix";
+        } | {
+            /** @enum {string} */
+            type: "layer_mix";
+        } | {
             parameters: {
                 domain: components["schemas"]["LutDomain"];
                 resource: string;
@@ -3579,7 +3600,7 @@ export interface operations {
     editing_get_edit: {
         parameters: {
             query?: {
-                revision?: number | null;
+                revision?: number;
             };
             header?: never;
             path: {

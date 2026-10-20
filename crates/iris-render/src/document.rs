@@ -44,6 +44,19 @@ pub enum Operation {
     Blend {
         opacity: f32,
     },
+    /// Extract the image's straight alpha as a Key signal.
+    AlphaMask,
+    /// Inputs: coordinate image, local Key, external Key. Image alpha is not changed.
+    KeyMix {
+        gain: f32,
+        invert: bool,
+    },
+    /// Inputs: image, Key. Apply a separate final alpha output.
+    SetAlpha,
+    /// Inputs: base, left grade, right grade, left Key, right Key.
+    ParallelMix,
+    /// Inputs: background, foreground, foreground Key. Straight-alpha source-over.
+    LayerMix,
     Lut {
         resource: String,
         strength: f32,

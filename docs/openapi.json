@@ -394,7 +394,7 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": ["integer", "null"],
+              "type": "integer",
               "format": "int64",
               "minimum": 0
             }
@@ -5108,7 +5108,12 @@
           },
           "changes": {
             "type": "object",
-            "additionalProperties": { "type": "string" }
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
           },
           "created_at": {
             "type": "string"
@@ -7475,6 +7480,99 @@
                 "type": "string",
                 "enum": [
                   "blend"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Extract the image's straight alpha as a Key signal.",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "alpha_mask"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Inputs: coordinate image, local Key, external Key. Image alpha is not changed.",
+            "required": [
+              "parameters",
+              "type"
+            ],
+            "properties": {
+              "parameters": {
+                "type": "object",
+                "description": "Inputs: coordinate image, local Key, external Key. Image alpha is not changed.",
+                "required": [
+                  "gain",
+                  "invert"
+                ],
+                "properties": {
+                  "gain": {
+                    "type": "number",
+                    "format": "float"
+                  },
+                  "invert": {
+                    "type": "boolean"
+                  }
+                }
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "key_mix"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Inputs: image, Key. Apply a separate final alpha output.",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "set_alpha"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Inputs: base, left grade, right grade, left Key, right Key.",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "parallel_mix"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Inputs: background, foreground, foreground Key. Straight-alpha source-over.",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "layer_mix"
                 ]
               }
             }

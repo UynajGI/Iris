@@ -90,6 +90,13 @@ impl<R: Resources> Evaluation<'_, R> {
             return Ok(Value::Image(input));
         }
         match &node.operation {
+            Operation::AlphaMask
+            | Operation::KeyMix { .. }
+            | Operation::SetAlpha
+            | Operation::ParallelMix
+            | Operation::LayerMix => {
+                super::compositing::evaluate(node, values, &input, self.context)
+            }
             Operation::Mask(params) => Ok(Value::Mask(Arc::new(crate::mask::render(
                 &input,
                 params,

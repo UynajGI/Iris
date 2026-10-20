@@ -26,6 +26,12 @@ fn ports(node: &Node) -> Result<(usize, PortType)> {
             ensure!(node.enabled, "disable the blend to bypass a mask");
             Ok((1, PortType::Mask))
         }
+        _ => composition_ports(node),
+    }
+}
+
+fn composition_ports(node: &Node) -> Result<(usize, PortType)> {
+    match &node.operation {
         Operation::Blend { opacity } => {
             ensure!(
                 opacity.is_finite() && (0.0..=1.0).contains(opacity),
@@ -33,6 +39,20 @@ fn ports(node: &Node) -> Result<(usize, PortType)> {
             );
             Ok((3, PortType::Image))
         }
+        Operation::AlphaMask => {
+            ensure!(node.enabled, "alpha extraction cannot be bypassed");
+            Ok((1, PortType::Mask))
+        }
+        Operation::KeyMix { gain, .. } => {
+            ensure!(
+                node.enabled && gain.is_finite() && (0.0..=1.0).contains(gain),
+                "invalid Key mix"
+            );
+            Ok((3, PortType::Mask))
+        }
+        Operation::SetAlpha => Ok((2, PortType::Image)),
+        Operation::ParallelMix => Ok((5, PortType::Image)),
+        Operation::LayerMix => Ok((3, PortType::Image)),
         Operation::Lut {
             resource, strength, ..
         } => {
@@ -41,8 +61,9 @@ fn ports(node: &Node) -> Result<(usize, PortType)> {
                 strength.is_finite() && (0.0..=1.0).contains(strength),
                 "invalid LUT strength"
             );
-            Ok(image)
+            Ok((1, PortType::Image))
         }
+        _ => bail!("unexpected composition operation"),
     }
 }
 
@@ -66,7 +87,13 @@ fn validate_node(node: &Node) -> Result<()> {
 fn typed_inputs(document: &EditDocument, outputs: &BTreeMap<String, PortType>) -> Result<()> {
     for node in &document.nodes {
         for (index, input) in node.inputs.iter().enumerate() {
-            let expected = if matches!(node.operation, Operation::Blend { .. }) && index == 2 {
+            let mask = match node.operation {
+                Operation::Blend { .. } | Operation::LayerMix => index == 2,
+                Operation::SetAlpha | Operation::KeyMix { .. } => index > 0,
+                Operation::ParallelMix => index >= 3,
+                _ => false,
+            };
+            let expected = if mask {
                 PortType::Mask
             } else {
                 PortType::Image
@@ -111,7 +138,13 @@ fn coordinate_grids(document: &EditDocument, order: &[usize]) -> Result<()> {
             .unwrap_or_default();
         let grid = match &node.operation {
             Operation::Geometry(params) if node.enabled => geometry_grid(parent, params)?,
-            Operation::Blend { .. } if node.enabled => {
+            Operation::Blend { .. }
+            | Operation::LayerMix
+            | Operation::ParallelMix
+            | Operation::SetAlpha
+            | Operation::KeyMix { .. }
+                if node.enabled =>
+            {
                 ensure!(
                     node.inputs.iter().all(|id| grids.get(id) == Some(&parent)),
                     "blend branches and mask require the same geometry lineage"
