@@ -4,6 +4,17 @@
 
 默认工作流不下载用户照片或可选研究权重。手动 DINO/DirectML 项须按模型许可明确选择；托管 runner 的 CPU 回退不代表真实 GPU 执行。
 
+## 通用节点与 DAG 工作台（2026-10-20）
+
+最终代码提交 `86659ea`，仅推送独立开发分支，未创建 PR、合并、打 Tag 或发布。
+
+- [Verify 39415308009](https://github.com/UynajGI/Iris/actions/runs/39415308009)：7 个作业全部成功，含前端、三平台开发工具、依赖/秘密审计、Rust 工作区/ONNX/原生更新器/真实 daemon/API 契约，以及 RAW/HEIC 媒体回归。可选 DINO/DirectML 步骤未显式开启，不算已运行。
+- [Traditional render engine 39415308011](https://github.com/UynajGI/Iris/actions/runs/39415308011)：Windows、Linux、macOS 与 backend-smoke 全部成功；push 事件的优化 daemon 作业按配置跳过。
+- [优化产物 39413901886](https://github.com/UynajGI/Iris/actions/runs/39413901886)：`dcd8d0b` 的渲染、smoke 和 Windows 优化 daemon 均成功。最终补丁只改前端与文档，后端源码相同；该优化产物已用于本地预览，不在本地编译 Rust。
+- 本机前端 280 通过、1 项原有跳过，类型、构建、复杂度、暂存安全和公共源码检查通过。公开 JPEG 临时编辑副本验证旧组升级画面一致、分支增删、Key/Alpha、并行旁路与强度、自动保存及原记录不变。实际 16-bit RGBA PNG 导出和当前界面证据见[节点说明](node-workspace.md)。测试副本已清理。
+
+这些结果覆盖核心节点工作流；不代表 Resolve 全部高级节点、原生各平台交互或整个传统调色阶段已经完成。
+
 ## 调色前端全局分级与契约同步（2026-10-18）
 
 提交 `cd587bb` 推送后：
